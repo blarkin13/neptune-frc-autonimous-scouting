@@ -73,16 +73,19 @@ class Learning(unittest.TestCase):
             r=t.train([r for r in self.rows() if r['y']],self.game(),Path(tmp)/'run',{})
             self.assertEqual(r['tags']['scoring']['status'],'needs_positive_and_negative_training_examples')
     def pu_rows(self,sources=4,signal=True):
-        """Several matches from one event; each has tagged positives and mostly-ordinary unlabelled footage."""
+        """Several matches from one event; each has tagged positives and mostly-ordinary unlabelled footage.
+
+        Positive and unlabelled times interleave, so only clip content (not time) separates them.
+        """
         rows=[];base=self.rows()[0]
         for s in range(sources):
             sha='training-%d'%s;match='2026training_qm%d'%(s+1)
             for i in range(3):
                 x=[1.0]*1296 if signal else [float((s+i)%2)]*1296
-                rows.append(dict(base,x=x,y=1,label_ids=['p%d%d'%(s,i)],source_sha256=sha,match_key=match,t_ms=i*1000))
+                rows.append(dict(base,x=x,y=1,label_ids=['p%d%d'%(s,i)],source_sha256=sha,match_key=match,t_ms=1500+i*3000))
             for i in range(10):
                 x=[float(i%10==0)]*1296 if signal else [float(i%2)]*1296
-                rows.append(dict(base,x=x,y=None,label_ids=[],source_sha256=sha,match_key=match,t_ms=10000+i*1000,evidence_type='unlabeled_reference'))
+                rows.append(dict(base,x=x,y=None,label_ids=[],source_sha256=sha,match_key=match,t_ms=i*1000,evidence_type='unlabeled_reference'))
         return rows
     def test_pu_fits_without_human_negatives_and_never_reports_unknown_as_accuracy(self):
         rows=self.pu_rows()

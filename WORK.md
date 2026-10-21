@@ -1,5 +1,19 @@
 # Work log (newest first)
 
+## 2026-10-21 — Claude: honest held-out checks (engine 2.4.0-review-learning-preview3)
+- Cross-fit folds are keyed by match, not video file, so two uploads of one match can't straddle a fold
+  (`fold_key`, method `grouped-cross-fit-by-match-v2`).
+- No-video stand-in gate: a stand-in sees only clip time, box position/size, camera and team. A head is
+  withheld (`no_signal_beyond_shot_time_or_robot`) unless its held-out AUC beats the stand-in's by 0.05
+  (`NUISANCE_MIN_MARGIN`). Examples now carry `box`/`camera` as provenance for this.
+- Outside-scouting positives train at weight 0.5 (`EXTERNAL_WEIGHT`, weighted LDA). Held-out AUC is
+  reported per source (`auc_by_source.human` / `.outside_scouting`).
+- The PU test fixture was itself confounded (all positives earlier than all references); the new gate
+  caught it. Fixture times now interleave.
+- Tests: `test_training_honesty.py` (6). Engine 351 tests, only the 7 pre-existing environment errors.
+- Helper: the server accepts any engine ≥ 2.2.1, so old helpers keep training without these gates. The Mac
+  helper needs a rebuild (`trainer-app/scripts`) and the server worker a redeploy after syncing.
+
 ## 2026-10-21 — Claude: clock gate in training; team history removed
 - `labeled_examples` now rejects outside-scouting rows from a match whose clock check verdict is
   `exclude` (reason `external_clock_match_excluded`). The check runs after each row's own join, so rows

@@ -367,6 +367,7 @@ def labeled_examples(rows, fact_map, sources, videos, progress=lambda s:None, ex
                 key=ck+(target,);item=examples.setdefault(key,{'tag':target,'x':cache[ck],'answers':set(),'label_ids':set(),
                     'match_key':row['match_key'],'team':sight['team'],'t_ms':round(sight['t']*1000),'source_sha256':src['sha256'],'group':group,'external_sources':[],'label_metadata':[]})
                 if sight.get('temporal_clip'):item['temporal_clip']=sight['temporal_clip']
+                item.setdefault('box',list(sight['box']));item.setdefault('camera',sight.get('camera'))
                 if sight.get('identity_method')=='human_reviewed_track':item['identity_supervision']=sight['identity_evidence']
                 item['answers'].add(ys);item['label_ids'].add(row['id'])
                 metadata={k:row.get(k) for k in ('id','schema_version','season','game_key','tag_key','tag_label','tag_category','definition_version','label_scope','time_basis','start_ms','end_ms')}
@@ -475,7 +476,8 @@ def unlabeled_examples(rows, fact_map, sources, videos, progress=lambda s:None, 
                 out.append({'tag':tag,'x':x,'y':None,'label_ids':[],
                             'evidence_type':'unlabeled_reference','match_key':original[0]['match_key'],
                             'team':sight['team'],'t_ms':round(sight['t']*1000),'source_sha256':src['sha256'],
-                            'group':group,'split':split_group(group),**({'temporal_clip':sight['temporal_clip']} if sight.get('temporal_clip') else {})})
+                            'group':group,'split':split_group(group),'box':list(sight['box']),'camera':sight.get('camera'),
+                            **({'temporal_clip':sight['temporal_clip']} if sight.get('temporal_clip') else {})})
     return out
 
 
@@ -491,7 +493,7 @@ def fit_positive_unlabeled(rows, rounds=16):
     rng=random.Random(71409);heads=[]
     for _ in range(rounds):
         sampled=rng.sample(pool,min(len(pool),max(4,len(positives)*2)))
-        contrast=[{'x':r['x'],'y':1} for r in positives]+[{'x':r['x'],'y':0} for r in sampled]
+        contrast=[{'x':r['x'],'y':1,'w':EXTERNAL_WEIGHT if r.get('external_sources') else 1} for r in positives]+[{'x':r['x'],'y':0} for r in sampled]
         heads.append(fit_binary(contrast))
     dimension=heads[0]['feature_dimension']
     return {'weights':[sum(h['weights'][i] for h in heads)/rounds for i in range(dimension)],
@@ -507,6 +509,23 @@ PU_MIN_POSITIVES=8
 PU_MIN_SOURCES=3
 PU_MIN_HELD_OUT_AUC=.6
 PU_MAX_FLAG_RATE=.35
+# Outside scouting is approximate in time and kind; it trains at reduced weight.
+EXTERNAL_WEIGHT=.5
+# A head must out-rank a stand-in that sees only when, where on screen, which camera and which
+# robot - never the clip. Otherwise its "signal" is shot, phase or robot identity, not the action.
+NUISANCE_MIN_MARGIN=.05
+
+
+def nuisance_features(rows):
+    """Per-row vectors of non-action context: clip time, box position/size, camera, team."""
+    cameras=sorted({str(r.get('camera')) for r in rows});teams=sorted({str(r.get('team')) for r in rows})
+    out=[]
+    for r in rows:
+        box=list(r.get('box') or [0,0,0,0])[:4]
+        v=[(r.get('t_ms') or 0)/180000]+[float(b) for b in box]
+        v+=[1. if str(r.get('camera'))==c else 0. for c in cameras]+[1. if str(r.get('team'))==t else 0. for t in teams]
+        out.append(dict(r,x=v))
+    return out
 
 
 def pu_auc(positive_scores, unlabeled_scores):
@@ -539,31 +558,53 @@ def pu_threshold(positive_scores, unlabeled_scores, max_rate=PU_MAX_FLAG_RATE):
     return (best[1],best[2],best[3]) if best else (None,0.,0.)
 
 
+def fold_key(r):
+    """One match is one fold unit, even when it was uploaded as more than one video."""
+    return r.get('match_key') or r['source_sha256']
+
+
+def cross_fit_scores(rows, count, fold_of):
+    """Held-out scores: (score, row) for positives and unlabeled, each from a head that never saw its match."""
+    scores_p=[];scores_u=[]
+    for fold in range(count):
+        head=fit_positive_unlabeled([r for r in rows if fold_of[fold_key(r)]!=fold])
+        if not head:continue
+        for r in rows:
+            if fold_of[fold_key(r)]!=fold:continue
+            if r['y']==1:scores_p.append((score(head,r['x']),r))
+            elif r['y'] is None:scores_u.append(score(head,r['x']))
+    return scores_p,scores_u
+
+
 def validate_positive_unlabeled(rows, folds=5):
-    """Cross-fit by source video: every score below comes from a head that never saw that match."""
+    """Cross-fit by match: every score below comes from a head that never saw that match."""
     positives=collections.defaultdict(list)
     for r in rows:
-        if r['y']==1:positives[r['source_sha256']].append(r)
+        if r['y']==1:positives[fold_key(r)].append(r)
     sources=sorted(positives)
-    detail={'method':'grouped-cross-fit-by-match','positive_examples':sum(map(len,positives.values())),'positive_sources':len(sources),
+    detail={'method':'grouped-cross-fit-by-match-v2','positive_examples':sum(map(len,positives.values())),'positive_sources':len(sources),
             'auc_vs_unlabeled':None,'folds':0,'note':'Held-out P-vs-U ranking. Unlabelled footage contains unmarked actions, so this understates true AUC. Not a six-robot accuracy result.'}
     if detail['positive_examples']<PU_MIN_POSITIVES or len(sources)<PU_MIN_SOURCES:
         detail['status']='needs_more_positive_examples_across_matches';return detail,None
     # Deterministic fold per source video; unlabeled footage always stays with its own video.
     count=min(folds,len(sources))
     fold_of={s:i%count for i,s in enumerate(sorted(sources,key=digest))}
-    for s in sorted({r['source_sha256'] for r in rows}-set(sources)):fold_of[s]=int(digest(s)[:8],16)%count
-    scores_p=[];scores_u=[]
-    for fold in range(count):
-        head=fit_positive_unlabeled([r for r in rows if fold_of[r['source_sha256']]!=fold])
-        if not head:continue
-        for r in rows:
-            if fold_of[r['source_sha256']]!=fold:continue
-            if r['y']==1:scores_p.append(score(head,r['x']))
-            elif r['y'] is None:scores_u.append(score(head,r['x']))
+    for s in sorted({fold_key(r) for r in rows}-set(sources)):fold_of[s]=int(digest(s)[:8],16)%count
+    pairs,scores_u=cross_fit_scores(rows,count,fold_of);scores_p=[s for s,_ in pairs]
     detail['folds']=count;auc=pu_auc(scores_p,scores_u);detail['auc_vs_unlabeled']=None if auc is None else round(auc,4)
+    # Reported per label source; hand labels are the precise reference.
+    detail['auc_by_source']={}
+    for name,keep in (('human',lambda r:not r.get('external_sources')),('outside_scouting',lambda r:bool(r.get('external_sources')))):
+        part=[s for s,r in pairs if keep(r)]
+        value=pu_auc(part,scores_u) if part else None
+        detail['auc_by_source'][name]={'positives':len(part),'auc_vs_unlabeled':None if value is None else round(value,4)}
     if auc is None or auc<PU_MIN_HELD_OUT_AUC:
         detail['status']='no_held_out_signal';return detail,None
+    stand_in_pairs,stand_in_u=cross_fit_scores(nuisance_features(rows),count,fold_of)
+    stand_in=pu_auc([s for s,_ in stand_in_pairs],stand_in_u)
+    detail['nuisance_auc']=None if stand_in is None else round(stand_in,4)
+    if stand_in is not None and auc<stand_in+NUISANCE_MIN_MARGIN:
+        detail['status']='no_signal_beyond_shot_time_or_robot';return detail,None
     threshold,rate,recall=pu_threshold(scores_p,scores_u)
     if threshold is None:detail['status']='no_held_out_signal';return detail,None
     detail.update(status='held_out_signal',held_out_flag_rate=round(rate,4),held_out_positive_recall=round(recall,4))
@@ -571,12 +612,16 @@ def validate_positive_unlabeled(rows, folds=5):
 
 
 def fit_binary(rows):
-    """Diagonal linear discriminant learned from known positive and negative examples."""
+    """Diagonal linear discriminant learned from known positive and negative examples.
+
+    Rows may carry a weight 'w' (default 1); outside-scouting positives use EXTERNAL_WEIGHT.
+    """
     rows=[r for r in rows if r['y'] is not None]
     pos=[r['x'] for r in rows if r['y']==1];neg=[r['x'] for r in rows if r['y']==0]
     if min(len(pos),len(neg))<2:return None
     import os
     device=os.environ.get('NEPTUNE_TRAIN_DEVICE','cpu')
+    if any(r.get('w',1)!=1 for r in rows):device='cpu'
     if device in ('cuda','mps'):
         import torch
         with torch.no_grad():
@@ -589,8 +634,10 @@ def fit_binary(rows):
             bias=-.5*((positive**2-negative**2)/variance).sum()
             return {'weights':weights.cpu().tolist(),'bias':float(bias.cpu()),'feature_dimension':x.shape[1]}
     # Plain float sums: statistics.mean's exact arithmetic is too slow for cross-fitting.
-    d=len(pos[0]);means=[[sum(v[i] for v in cls)/len(cls) for i in range(d)] for cls in (neg,pos)]
-    variance=[max(.01,sum((r['x'][i]-means[r['y']][i])**2 for r in rows)/len(rows)) for i in range(d)]
+    d=len(pos[0]);weight=[[r.get('w',1) for r in rows if r['y']==y] for y in (0,1)]
+    means=[[sum(w*v[i] for w,v in zip(weight[y],cls))/sum(weight[y]) for i in range(d)] for y,cls in ((0,neg),(1,pos))]
+    total=sum(r.get('w',1) for r in rows)
+    variance=[max(.01,sum(r.get('w',1)*(r['x'][i]-means[r['y']][i])**2 for r in rows)/total) for i in range(d)]
     weights=[(means[1][i]-means[0][i])/variance[i] for i in range(d)]
     bias=-.5*sum((means[1][i]**2-means[0][i]**2)/variance[i] for i in range(d))
     return {'weights':weights,'bias':bias,'feature_dimension':d}
