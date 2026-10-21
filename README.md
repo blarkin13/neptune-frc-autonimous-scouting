@@ -11,7 +11,7 @@ timestamps in the scouting data.
 
 | Folder | What it is | Installed to (main repo `neptune-frc-scouting`) |
 |---|---|---|
-| `engine/` | The one Python engine (2.2.8): OCR facts, tracking, clips, models, scoring, trainer | `helper/` (Mac trainer) **and** `neptune_secure/community-learning/` (server worker, files in `engine/SERVER_FILES.txt`) |
+| `engine/` | The one Python engine (`2.4.0-review-learning-preview2`): OCR facts, tracking, clips, models, scoring, trainer | `helper/` (Mac trainer) **and** `neptune_secure/community-learning/` (server worker, files in `engine/SERVER_FILES.txt`) |
 | `server/` | PHP endpoints, community and admin pages, training-control JS | `neptune_secure/`, `public_html/Neptune/` |
 | `server/sql/` | Migrations for the `community_*` tables | `sql/` |
 | `tests/server/` | PHP/JS tests for the server side | `tests/community-analysis/` |
