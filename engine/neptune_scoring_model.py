@@ -345,6 +345,7 @@ def run_trial(config,season,match_id,progress,job=None,transport=None):
         tags=training.predict(video,facts,model,game)
         status('Predicting robot score contributions')
         scores=predict(video,facts,model['scoring_head'],request['roster'],request.get('alliance_scores',{})) if model.get('scoring_head') else [dict(team=t,alliance=a,status='unknown',robot_points=None,share_percent=None,reason='scoring_model_unavailable',certainty='uncertain') for a,teams in request['roster'].items() for t in teams]
+        scores=apply_recorded_contributions(scores,tags)
         from neptune_engine import identity
         output={'model_id':model['model_id'],'source_sha256':sha,'duration_s':duration/1000,'scores':scores,'tags':tags,
                 'diagnostics':{'engine':identity()['version'],'action_heads_available':len(training.usable_heads(model)),'scoring_video_validated':video_ready(model.get('scoring_head')),'blocked_action_heads':sorted(set(model['heads'])-set(training.usable_heads(model))),
@@ -362,3 +363,43 @@ def run_trial(config,season,match_id,progress,job=None,transport=None):
             from neptune_cache import cleanup
             cleanup(cache,video.stem,sha,work,progress)
 
+
+
+def is_scoring_action(key):
+    """Count scoring observations, never feeding/defense/movement as scoring.
+
+    Game Builder codes stay distinct. Attempts and failures are not successes.
+    Generic legacy scoring remains a sequence observation, not a fuel count.
+    """
+    import re
+    return (key in ('scoring','end_completed') or isinstance(key,str) and
+            bool(re.fullmatch(r'gb:(?:score_[A-Za-z0-9_.:-]+|climb_lv_[1-3])',key)) and
+            not any(word in key.lower() for word in ('attempt','miss','fail')))
+
+
+def apply_recorded_contributions(scores,tags):
+    """Owner-requested allocation, distinct from share of the final scoreboard.
+
+    No recorded scoring => zero contribution by policy, even if coverage is poor.
+    That policy is not independent evidence that a robot actually scored zero.
+    """
+    import copy
+    result=copy.deepcopy(scores)
+    counts={r['team']:0 for r in result}
+    for event in tags:
+        if is_scoring_action(event.get('tag_key')) and event.get('team') in counts:counts[event['team']]+=1
+    for row in result:
+        row['recorded_scoring_events']=counts[row['team']]
+        if not counts[row['team']]:
+            row.update(status='predicted',robot_points=0,share_percent=0 if row.get('alliance_score',0) else None,
+                       reason='no_recorded_scoring',observed_points=None,zero_by_policy=True)
+    for alliance in ('red','blue'):
+        group=[r for r in result if r['alliance']==alliance]
+        active=[r for r in group if r['recorded_scoring_events']]
+        point_weights=bool(active) and all(type(r.get('robot_points')) is int and r['robot_points']>0 for r in active)
+        weights=[(r['robot_points'] if point_weights else r['recorded_scoring_events']) if r['recorded_scoring_events'] else 0 for r in group]
+        total=sum(weights);units=apportion(weights,100000) if total else [0]*len(group)
+        for row,value in zip(group,units):
+            row.update(contribution_percent=value/1000,contribution_basis='recorded_scoring_point_estimates' if point_weights else 'recorded_scoring_event_count',
+                       contribution_status='normalized' if total else 'no_scoring_recorded')
+    return result

@@ -6,10 +6,15 @@
 3. **Preserve labels and imports.** Never rewrite Game Builder codes (`gb:<code>`, `definition_version`) or
    ViperScout imports (`viper-2026-activity-v1`).
 4. **Don't weaken gates.** Release/benchmark gates and PU-head gates stay as strict or stricter. Don't force
-   alliance sums to match, and don't invent reference scores.
-5. **Edit `engine/` only once.** It is installed to two places; `scripts/sync-to-neptune.sh` handles both.
+   predicted points to match the official score, and don't invent reference scores.
+5. **Owner-defined rules (applied at prediction, not learned):**
+   - A robot visible and stationary for more than 5 s during teleop is `disabled`.
+   - A robot with no recorded scoring has a scoring contribution of 0 (marked `zero_by_policy`).
+   - Each alliance's contribution percentages total 100% (`contribution_percent`); if no robot on the
+     alliance has recorded scoring, all stay 0. This is a separate field from predicted points.
+6. **Edit `engine/` only once.** It is installed to two places; `scripts/sync-to-neptune.sh` handles both.
    If you add a file the server needs, add it to `engine/SERVER_FILES.txt`.
-6. **No data or secrets in git.** No videos, model weights (`*.pt`), DB dumps, `.cnf` files or tokens. Put
+7. **No data or secrets in git.** No videos, model weights (`*.pt`), DB dumps, `.cnf` files or tokens. Put
    pointers in `data-pointers/`.
-7. **Log your work in `WORK.md`.** Who, what, why, and how it was checked, newest first.
-8. Stop when the repo owner says stop.
+8. **Log your work in `WORK.md`.** Who, what, why, and how it was checked, newest first.
+9. Stop when the repo owner says stop.

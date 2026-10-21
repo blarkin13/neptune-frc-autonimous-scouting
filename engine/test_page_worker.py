@@ -44,7 +44,7 @@ class PageWorker(unittest.TestCase):
             def download(match,path,stage):path.write_bytes(b'fixture')
             with patch('neptune_helper.download_video',side_effect=download),patch('neptune_video_labels.sha256_file',return_value='a'*64),patch('neptune_video_labels.probe_duration_ms',return_value=200000),patch('neptune_facts.analyze_video',return_value=facts()),patch('neptune_training.features',side_effect=feature):
                 worker.execute({'site':'https://example.org'},job,{'device':'cpu'},lambda s:None,transport=call)
-            self.assertNotIn('trial_start',[a for a,_ in sent]);self.assertEqual(sent[-1][0],'trial_finish');result=sent[-1][1]['result'];self.assertEqual(len(result['scores']),6);self.assertTrue(all(s['robot_points'] is None and s['reason']=='scoring_model_unavailable' for s in result['scores']));self.assertNotIn('summary',result)
+            self.assertNotIn('trial_start',[a for a,_ in sent]);self.assertEqual(sent[-1][0],'trial_finish');result=sent[-1][1]['result'];self.assertEqual(len(result['scores']),6);self.assertTrue(all(s['robot_points']==0 and s['reason']=='no_recorded_scoring' and s['zero_by_policy'] for s in result['scores']));self.assertNotIn('summary',result)
     def reference_job(self,root):
         job=make_job(root,'evaluation');job['model']=action_model(root);job['request']={'season':2026,'game_key':'2026-rebuilt','tags':['scoring'],'matches':[{'match_key':'2026heldout_qm1','roster':{'red':[1,2,3],'blue':[4,5,6]},'complete_robot_labels':{str(t):True for t in range(1,7)},'source_url':'https://www.youtube.com/watch?v=AAAAAAAAAAA','source_sha256':'a'*64,'duration_ms':200000,'events':[]}]};return job
     def test_evaluation_rejects_changed_video_before_any_accuracy_upload(self):

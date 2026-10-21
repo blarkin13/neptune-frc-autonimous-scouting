@@ -1,5 +1,18 @@
 # Work log (newest first)
 
+## 2026-10-21 — Claude: merged Codex's helper 3.2.2 engine changes (engine 2.4.3-review-learning-preview1)
+- Codex's edits were lost from neptune-frc-scouting by an earlier sync, but helper build 30203 (3.2.2,
+  engine 2.4.2-presented-video-preview1) still had them. Three-way merged against the import commit; no
+  overlap with Claude's changes:
+  - `neptune_events.stationary_disabled` + `neptune_training.predict`: owner rule, stationary >5 s in teleop = disabled.
+  - `neptune_scoring_model.apply_recorded_contributions`: no recorded scoring = 0; per-alliance contribution to 100%.
+  - `neptune_identity_review.py`: viewer draws frame and boxes from the displayed frame's timestamp.
+- Added Codex's `test_tracking_rules_update.py` (13 tests pass). Updated one `test_page_worker` assertion to
+  the new zero-by-policy rule. Codex's own test edits were not shipped in the build, so they are not recovered.
+- Not recovered: Codex's server-side edits (`community-scouting-trials.php`, `admin/community-learning.php`,
+  `training-control.js`). Its published copies are on AWS only; pull them from the host to merge.
+- Shipped helper 3.2.2 has Codex's rules but NOT the honest held-out checks; it needs a rebuild from here.
+
 ## 2026-10-21 — Claude: honest held-out checks (engine 2.4.0-review-learning-preview3)
 - Cross-fit folds are keyed by match, not video file, so two uploads of one match can't straddle a fold
   (`fold_key`, method `grouped-cross-fit-by-match-v2`).

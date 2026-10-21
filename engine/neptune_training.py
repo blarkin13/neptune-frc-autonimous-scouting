@@ -824,7 +824,10 @@ def predict(video,facts,model,game):
         except ClipUnavailable:continue
         for tag,head in applicable.items():
             samples.append(dict(sight,tag_key=tag,score=score(head,x),threshold=head['threshold']))
-    return decode(samples,facts,model['model_id'],model.get('action_definitions',{}))
+    decoded=decode(samples,facts,model['model_id'],model.get('action_definitions',{}))
+    from neptune_events import stationary_disabled
+    rules=stationary_disabled(facts,model['model_id'])
+    return sorted([r for r in decoded if r['tag_key']!='disabled']+rules,key=lambda r:(r['start_ms'],r['team']))
 
 
 def event_metrics(predictions,reference,tolerance_ms=2000):
