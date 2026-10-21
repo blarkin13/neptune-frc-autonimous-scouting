@@ -1,0 +1,20 @@
+{
+  "2026txcmp1_qm29": {
+    "video_id": "x0zEgJYH6EI",
+    "roster": {
+      "red": [
+        7503,
+        2468,
+        11277
+      ],
+      "blue": [
+        324,
+        6672,
+        2587
+      ]
+    },
+    "reason": "Catalog alternative verified against Qualification 29 broadcast overlay and six-robot roster; first video FsOmBnfY334 is field-side footage without a readable overlay.",
+    "verified_on": "2026-10-19",
+    "coverage_note": "This broadcast starts five seconds into autonomous. It can be tested for visible action tags, but whole-match score estimates remain unknown because the opening footage is missing."
+  }
+}

@@ -1,0 +1,14 @@
+{
+ "frozen_at": "2026-10-18T08:28:04+00:00",
+ "pipeline": "facts-3.2",
+ "changes_from_facts_3_1": [
+  "A robot is confirmed only with at least one confirming read in a close-up camera view; wide-shot-only reads stay candidates (RapidOCR read red and blue driver-station number displays that the brightness/saturation rule missed, e.g. qm79 4206). Representative evidence prefers close-up reads."
+ ],
+ "note": "heldout3 (qm9, qm37, qm56, qm88) was not run or inspected before this freeze. Identity decisions for the first sixteen matches are recomputed from their saved raw reads (the change is post-processing only).",
+ "sha256": {
+  "neptune_facts.py": "aef54db7a5b4451bf3d8e15b817ef4f7a515635972885b5a700d2b9f7c14ae7c",
+  "neptune_ocr.py": "8458f272cdb60c81092018f9cb77119bf333980cbee1567de4cea45233dc7dd1",
+  "season_rules.json": "a58683559f94dea7b095e8f5248c5274e27b06c32630f23c6b0531e0aaf16a3d",
+  "bin/neptune-ocr": "30872fb79e08d90c6886ff1dd59cb6bad82755379961fa55a0441f846bf18202"
+ }
+}

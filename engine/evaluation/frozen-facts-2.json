@@ -1,0 +1,11 @@
+{
+ "frozen_at": "2026-10-18T05:28:04+00:00",
+ "pipeline": "facts-2",
+ "note": "Parser frozen after tuning on qm7, qm18, qm22 (Apple Vision). Held-out matches qm31, qm32, qm39, qm60, qm62, qm73, qm79 were not run or inspected before this point. RapidOCR settings were timed on qm7 tuning frames only.",
+ "sha256": {
+  "neptune_facts.py": "341b22353a82f137a751cd775d62bbb88266f6da3600ad1526f0e9f7e80e3ba6",
+  "neptune_ocr.py": "0d6bfd975e8415a71afefdd875f345012170a3312eba017dd2db707ac47c29d5",
+  "season_rules.json": "a58683559f94dea7b095e8f5248c5274e27b06c32630f23c6b0531e0aaf16a3d",
+  "bin/neptune-ocr": "30872fb79e08d90c6886ff1dd59cb6bad82755379961fa55a0441f846bf18202"
+ }
+}

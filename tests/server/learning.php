@@ -1,0 +1,21 @@
+<?php
+declare(strict_types=1);
+require __DIR__.'/video-tags.php';
+require dirname(__DIR__,2).'/neptune_secure/community-learning.php';
+$db->exec('CREATE TABLE community_learning_jobs(id TEXT PRIMARY KEY,season INTEGER,model_json TEXT,benchmark_json TEXT)');
+$db->exec('CREATE TABLE community_learning_releases(season INTEGER PRIMARY KEY,job_id TEXT)');
+$export=community_learning_export($db);$entries=array_map(fn($s)=>json_decode($s,true),array_filter(explode("\n",$export)));
+ok(count($entries)>0,'server snapshot reads live public labels from the DB');
+foreach($entries as $entry)ok(!array_intersect(['user_id','contributor_key','ip_key'],array_keys($entry)),'server snapshot excludes contributor identifiers');
+$usable=array_values(array_filter($entries,fn($e)=>$e['certainty']==='observed'))[0];
+$model=['model_id'=>'abc','heads'=>['scoring'=>[]],'release_ready'=>true,'used_label_ids'=>[$usable['id']]];
+$benchmark=['model_id'=>'abc','release_ready'=>true,'overall'=>['precision'=>.95,'recall'=>.9]];
+ok(community_learning_release_valid($db,$model,$benchmark),'evaluated release uses still available labels');
+$q=$db->prepare('INSERT INTO community_learning_jobs VALUES(?,?,?,?)');$q->execute(['test',2026,json_encode($model),json_encode($benchmark)]);$db->exec("INSERT INTO community_learning_releases VALUES(2026,'test')");
+ok(community_learning_public($db,2026)['model']['model_id']==='abc','helper receives the central release');
+$q=$db->prepare("UPDATE community_video_labels SET review_state='withdrawn' WHERE id=?");$q->execute([$usable['id']]);
+ok(community_learning_public($db,2026)['model']===null,'withdrawn training data invalidates the distributed release');
+$model['release_ready']=false;
+ok(!community_learning_release_valid($db,$model,$benchmark),'unreleased candidate cannot be distributed');
+$model['release_ready']=true;$benchmark['model_id']='other';
+ok(!community_learning_release_valid($db,$model,$benchmark),'benchmark must belong to the model');

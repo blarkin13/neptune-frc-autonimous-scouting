@@ -1,0 +1,308 @@
+{
+  "schema_version": 2,
+  "seasons": {
+    "2026": {
+      "game": "REBUILT",
+      "auto_seconds": 20,
+      "teleop_seconds": 140,
+      "teleop_shifts_seconds": [
+        10,
+        25,
+        25,
+        25,
+        25,
+        30
+      ],
+      "endgame": {
+        "seconds": 30,
+        "definition": "Last 30 seconds of teleop (shift 6 of 6 on the broadcast shift indicator)."
+      },
+      "max_auto_to_teleop_gap_seconds": 15,
+      "results_screen_components": {
+        "auto": [
+          "FUEL",
+          "TOWER"
+        ],
+        "teleop": [
+          "FUEL",
+          "TOWER"
+        ],
+        "penalty": [
+          "PENALTY"
+        ]
+      },
+      "source": "2026 REBUILT Game Manual match periods; the 0:20 autonomous and 2:20 teleop clocks and the six-shift indicator are corroborated by the broadcast overlay.",
+      "game_key": "2026-rebuilt",
+      "configured": true,
+      "revision": 3,
+      "layout_profiles": {
+        "frc-2026-age-blue-left-v1": {
+          "season": 2026,
+          "band": 0.3,
+          "camera_top": 0.12,
+          "closeup_top": 0.625,
+          "marker": "AGE",
+          "label_mode": "roster-and-title",
+          "regions": {
+            "clock": [
+              0.47,
+              0.53,
+              0.2,
+              0.4
+            ],
+            "red_score": [
+              0.535,
+              0.595,
+              0.2,
+              0.4
+            ],
+            "blue_score": [
+              0.405,
+              0.465,
+              0.2,
+              0.4
+            ],
+            "title": [
+              0.4,
+              0.65,
+              0.03,
+              0.18
+            ],
+            "red_roster": [
+              0.61,
+              0.76,
+              0.2,
+              0.4
+            ],
+            "blue_roster": [
+              0.25,
+              0.4,
+              0.2,
+              0.4
+            ],
+            "red_label": [
+              0.535,
+              0.595,
+              0.2,
+              0.4
+            ],
+            "blue_label": [
+              0.405,
+              0.465,
+              0.2,
+              0.4
+            ],
+            "shift": [
+              0.47,
+              0.53,
+              0.41,
+              0.42
+            ],
+            "marker": [
+              0.23,
+              0.33,
+              0.03,
+              0.19
+            ]
+          },
+          "marker_regex": "\\bAGE\\b"
+        },
+        "frc-2026-field-overlay-v1": {
+          "season": 2026,
+          "band": 0.3,
+          "camera_top": 0.24,
+          "closeup_top": 0.56,
+          "marker": "REBUILT",
+          "regions": {
+            "clock": [
+              0.42,
+              0.58,
+              0.45,
+              0.9
+            ],
+            "red_score": [
+              0.28,
+              0.46,
+              0.45,
+              0.9
+            ],
+            "blue_score": [
+              0.54,
+              0.72,
+              0.45,
+              0.9
+            ],
+            "title": [
+              0.25,
+              0.75,
+              0.0,
+              0.3
+            ],
+            "red_roster": [
+              0.0,
+              0.33,
+              0.24,
+              0.52
+            ],
+            "blue_roster": [
+              0.67,
+              1.0,
+              0.24,
+              0.52
+            ],
+            "red_label": [
+              0.33,
+              0.46,
+              0.24,
+              0.52
+            ],
+            "blue_label": [
+              0.54,
+              0.67,
+              0.24,
+              0.52
+            ],
+            "shift": [
+              0.42,
+              0.58,
+              0.2,
+              0.52
+            ],
+            "marker": [
+              0.7,
+              1.0,
+              0.0,
+              0.32
+            ]
+          }
+        },
+        "frc-2026-week0-overlay-v1": {
+          "season": 2026,
+          "band": 0.3,
+          "camera_top": 0.12,
+          "closeup_top": 0.625,
+          "marker": "REBUILT",
+          "label_mode": "roster-and-title",
+          "regions": {
+            "clock": [
+              0.47,
+              0.53,
+              0.2,
+              0.4
+            ],
+            "red_score": [
+              0.405,
+              0.465,
+              0.2,
+              0.4
+            ],
+            "blue_score": [
+              0.535,
+              0.595,
+              0.2,
+              0.4
+            ],
+            "title": [
+              0.4,
+              0.65,
+              0.03,
+              0.18
+            ],
+            "red_roster": [
+              0.25,
+              0.4,
+              0.2,
+              0.4
+            ],
+            "blue_roster": [
+              0.61,
+              0.76,
+              0.2,
+              0.4
+            ],
+            "red_label": [
+              0.405,
+              0.465,
+              0.2,
+              0.4
+            ],
+            "blue_label": [
+              0.535,
+              0.595,
+              0.2,
+              0.4
+            ],
+            "shift": [
+              0.47,
+              0.53,
+              0.41,
+              0.42
+            ],
+            "marker": [
+              0.67,
+              0.78,
+              0.03,
+              0.18
+            ]
+          }
+        }
+      },
+      "tags": {
+        "scoring": "Visible start of a scoring sequence in REBUILT; not a game-piece count or points.",
+        "attempted_defense": "Visible attempt to restrict an opponent; proximity alone is insufficient.",
+        "disabled": "Robot visibly stopped responding; a stationary robot is not automatically disabled.",
+        "end_completed": "Visible completed endgame action under REBUILT rules; approaching the structure is insufficient."
+      },
+      "scoring_import": {
+        "version": "viper-2026-points-v1",
+        "fuel": 1,
+        "auto_tower": {
+          "0": 0,
+          "1": 15
+        },
+        "teleop_tower": {
+          "0": 0,
+          "1": 10,
+          "2": 20,
+          "3": 30
+        },
+        "source": "https://firstfrc.blob.core.windows.net/frc2026/Manual/HTML/2026GameManual.htm",
+        "meaning": "Observer-reported scored fuel and completed climb levels; estimated robot task points, no penalty attribution."
+      }
+    },
+    "2025": {
+      "game": "REEFSCAPE",
+      "game_key": "2025-reefscape",
+      "configured": true,
+      "revision": 1,
+      "auto_seconds": 15,
+      "teleop_seconds": 135,
+      "teleop_shifts_seconds": [],
+      "endgame": null,
+      "max_auto_to_teleop_gap_seconds": 15,
+      "results_screen_components": {},
+      "layout_profiles": {},
+      "tags": {
+        "scoring": "Visible start of a scoring sequence in REEFSCAPE; not a game-piece count or points.",
+        "attempted_defense": "Visible attempt to restrict an opponent; proximity alone is insufficient.",
+        "disabled": "Robot visibly stopped responding; a stationary robot is not automatically disabled.",
+        "end_completed": "Visible completed endgame action under REEFSCAPE rules; approaching the structure is insufficient."
+      },
+      "source": "FIRST 2025 REEFSCAPE game manual, section 6.1: https://firstfrc.blob.core.windows.net/frc2025/Manual/2025GameManual.pdf",
+      "status_note": "Timing verified from the manual. A broadcast layout must be calibrated on representative video before scoreboard OCR is enabled. No artificial endgame phase is imposed."
+    },
+    "2027": {
+      "game": "2027 game \u2014 configure after release",
+      "game_key": "2027-unconfigured",
+      "configured": false,
+      "revision": 1,
+      "auto_seconds": null,
+      "teleop_seconds": null,
+      "endgame": null,
+      "layout_profiles": {},
+      "results_screen_components": {},
+      "tags": {},
+      "source": null
+    }
+  }
+}

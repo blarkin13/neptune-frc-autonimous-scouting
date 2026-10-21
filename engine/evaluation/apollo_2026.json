@@ -1,0 +1,1364 @@
+{
+ "description": "Facts pipeline evaluation set: sixteen 2026 FIRST In Texas District Championship Apollo Division qualification matches (texasRobots YouTube uploads). Official results from The Blue Alliance score breakdowns (alliance level; no per-robot scoring). Splits: \"tuning\" (qm7, qm18, qm22) was used to develop facts-2; \"heldout\" (qm31, qm32, qm39, qm60, qm62, qm73, qm79) was held out for facts-2, and its evaluation revealed the lit-display and roster-logo problems fixed in facts-3, so it is no longer held out for facts-3; \"heldout2\" (qm12, qm27, qm45, qm51, qm68, qm84) was not run or inspected before facts-3 was frozen. \"heldout3\" (qm9, qm37, qm56, qm88) was not run or inspected before facts-3.2 (close-up read required to confirm a robot) was frozen; facts-3.1 runs on the first sixteen matches informed facts-3.2, so they are development matches for it.",
+ "source": "Neptune production database snapshot 2026-10-18, augur_epa_alliance_samples (TBA score_breakdown_json)",
+ "matches": [
+  {
+   "key": "2026txcmp2_qm7",
+   "split": "tuning",
+   "event": "FIRST In Texas District Championship - Apollo Division",
+   "video": "qm7.mp4",
+   "youtube_id": "_2hGzZRvw0A",
+   "video_title": "Qualification 7 - FIRST In Texas District Championship - Apollo Division - qm7",
+   "channel": "texasRobots",
+   "roster": {
+    "red": [
+     6369,
+     2689,
+     127
+    ],
+    "blue": [
+     9128,
+     11178,
+     5414
+    ]
+   },
+   "official": {
+    "red": {
+     "teams": [
+      6369,
+      2689,
+      127
+     ],
+     "total": 542,
+     "auto": 119,
+     "teleop": 418,
+     "foul_points_awarded": 5,
+     "hub_endgame": 164,
+     "endgame_tower": 0,
+     "hub_auto": 104,
+     "auto_tower": 15,
+     "hub_transition": 9,
+     "hub_shifts": [
+      80,
+      0,
+      165,
+      0
+     ]
+    },
+    "blue": {
+     "teams": [
+      9128,
+      11178,
+      5414
+     ],
+     "total": 414,
+     "auto": 105,
+     "teleop": 294,
+     "foul_points_awarded": 15,
+     "hub_endgame": 85,
+     "endgame_tower": 0,
+     "hub_auto": 105,
+     "auto_tower": 0,
+     "hub_transition": 44,
+     "hub_shifts": [
+      0,
+      109,
+      0,
+      56
+     ]
+    }
+   }
+  },
+  {
+   "key": "2026txcmp2_qm18",
+   "split": "tuning",
+   "event": "FIRST In Texas District Championship - Apollo Division",
+   "video": "qm18.mp4",
+   "youtube_id": "PbANMFwP4IA",
+   "video_title": "Qualification 18 - FIRST In Texas District Championship - Apollo Division - qm18",
+   "channel": "texasRobots",
+   "roster": {
+    "red": [
+     11178,
+     4206,
+     2583
+    ],
+    "blue": [
+     5411,
+     7616,
+     10385
+    ]
+   },
+   "official": {
+    "red": {
+     "teams": [
+      11178,
+      4206,
+      2583
+     ],
+     "total": 416,
+     "auto": 103,
+     "teleop": 308,
+     "foul_points_awarded": 5,
+     "hub_endgame": 93,
+     "endgame_tower": 0,
+     "hub_auto": 103,
+     "auto_tower": 0,
+     "hub_transition": 34,
+     "hub_shifts": [
+      0,
+      80,
+      0,
+      101
+     ]
+    },
+    "blue": {
+     "teams": [
+      5411,
+      7616,
+      10385
+     ],
+     "total": 142,
+     "auto": 31,
+     "teleop": 111,
+     "foul_points_awarded": 0,
+     "hub_endgame": 51,
+     "endgame_tower": 10,
+     "hub_auto": 31,
+     "auto_tower": 0,
+     "hub_transition": 4,
+     "hub_shifts": [
+      21,
+      0,
+      25,
+      0
+     ]
+    }
+   }
+  },
+  {
+   "key": "2026txcmp2_qm22",
+   "split": "tuning",
+   "event": "FIRST In Texas District Championship - Apollo Division",
+   "video": "qm22.mp4",
+   "youtube_id": "p55ffIf-nKo",
+   "video_title": "Qualification 22 - FIRST In Texas District Championship - Apollo Division - qm22",
+   "channel": "texasRobots",
+   "roster": {
+    "red": [
+     2714,
+     8114,
+     127
+    ],
+    "blue": [
+     457,
+     2158,
+     6773
+    ]
+   },
+   "official": {
+    "red": {
+     "teams": [
+      2714,
+      8114,
+      127
+     ],
+     "total": 367,
+     "auto": 67,
+     "teleop": 300,
+     "foul_points_awarded": 0,
+     "hub_endgame": 129,
+     "endgame_tower": 0,
+     "hub_auto": 67,
+     "auto_tower": 0,
+     "hub_transition": 10,
+     "hub_shifts": [
+      51,
+      0,
+      110,
+      0
+     ]
+    },
+    "blue": {
+     "teams": [
+      457,
+      2158,
+      6773
+     ],
+     "total": 450,
+     "auto": 74,
+     "teleop": 376,
+     "foul_points_awarded": 0,
+     "hub_endgame": 111,
+     "endgame_tower": 0,
+     "hub_auto": 74,
+     "auto_tower": 0,
+     "hub_transition": 23,
+     "hub_shifts": [
+      0,
+      109,
+      0,
+      133
+     ]
+    }
+   }
+  },
+  {
+   "key": "2026txcmp2_qm31",
+   "split": "heldout",
+   "event": "FIRST In Texas District Championship - Apollo Division",
+   "video": "qm31.mp4",
+   "youtube_id": "clHcSXtpjCI",
+   "video_title": "Qualification 31 - FIRST In Texas District Championship - Apollo Division - qm31",
+   "channel": "texasRobots",
+   "roster": {
+    "red": [
+     4063,
+     10385,
+     6357
+    ],
+    "blue": [
+     418,
+     9140,
+     9506
+    ]
+   },
+   "official": {
+    "red": {
+     "teams": [
+      4063,
+      10385,
+      6357
+     ],
+     "total": 283,
+     "auto": 57,
+     "teleop": 226,
+     "foul_points_awarded": 0,
+     "hub_endgame": 72,
+     "endgame_tower": 10,
+     "hub_auto": 42,
+     "auto_tower": 15,
+     "hub_transition": 15,
+     "hub_shifts": [
+      79,
+      0,
+      50,
+      0
+     ]
+    },
+    "blue": {
+     "teams": [
+      418,
+      9140,
+      9506
+     ],
+     "total": 315,
+     "auto": 72,
+     "teleop": 228,
+     "foul_points_awarded": 15,
+     "hub_endgame": 59,
+     "endgame_tower": 0,
+     "hub_auto": 72,
+     "auto_tower": 0,
+     "hub_transition": 24,
+     "hub_shifts": [
+      0,
+      91,
+      0,
+      54
+     ]
+    }
+   }
+  },
+  {
+   "key": "2026txcmp2_qm32",
+   "split": "heldout",
+   "event": "FIRST In Texas District Championship - Apollo Division",
+   "video": "qm32.mp4",
+   "youtube_id": "KUEJ08dsQUk",
+   "video_title": "Qualification 32 - FIRST In Texas District Championship - Apollo Division - qm32",
+   "channel": "texasRobots",
+   "roster": {
+    "red": [
+     8177,
+     7312,
+     8114
+    ],
+    "blue": [
+     4192,
+     2583,
+     6369
+    ]
+   },
+   "official": {
+    "red": {
+     "teams": [
+      8177,
+      7312,
+      8114
+     ],
+     "total": 254,
+     "auto": 60,
+     "teleop": 174,
+     "foul_points_awarded": 20,
+     "hub_endgame": 42,
+     "endgame_tower": 0,
+     "hub_auto": 45,
+     "auto_tower": 15,
+     "hub_transition": 0,
+     "hub_shifts": [
+      49,
+      0,
+      83,
+      0
+     ]
+    },
+    "blue": {
+     "teams": [
+      4192,
+      2583,
+      6369
+     ],
+     "total": 471,
+     "auto": 102,
+     "teleop": 369,
+     "foul_points_awarded": 0,
+     "hub_endgame": 95,
+     "endgame_tower": 0,
+     "hub_auto": 102,
+     "auto_tower": 0,
+     "hub_transition": 54,
+     "hub_shifts": [
+      0,
+      137,
+      0,
+      83
+     ]
+    }
+   }
+  },
+  {
+   "key": "2026txcmp2_qm39",
+   "split": "heldout",
+   "event": "FIRST In Texas District Championship - Apollo Division",
+   "video": "qm39.mp4",
+   "youtube_id": "N8pgWpYpscM",
+   "video_title": "Qualification 39 - FIRST In Texas District Championship - Apollo Division - qm39",
+   "channel": "texasRobots",
+   "roster": {
+    "red": [
+     8114,
+     3035,
+     9140
+    ],
+    "blue": [
+     8818,
+     10385,
+     5414
+    ]
+   },
+   "official": {
+    "red": {
+     "teams": [
+      8114,
+      3035,
+      9140
+     ],
+     "total": 190,
+     "auto": 35,
+     "teleop": 150,
+     "foul_points_awarded": 5,
+     "hub_endgame": 86,
+     "endgame_tower": 0,
+     "hub_auto": 20,
+     "auto_tower": 15,
+     "hub_transition": 1,
+     "hub_shifts": [
+      28,
+      0,
+      35,
+      0
+     ]
+    },
+    "blue": {
+     "teams": [
+      8818,
+      10385,
+      5414
+     ],
+     "total": 167,
+     "auto": 33,
+     "teleop": 129,
+     "foul_points_awarded": 5,
+     "hub_endgame": 31,
+     "endgame_tower": 10,
+     "hub_auto": 33,
+     "auto_tower": 0,
+     "hub_transition": 7,
+     "hub_shifts": [
+      0,
+      37,
+      0,
+      44
+     ]
+    }
+   }
+  },
+  {
+   "key": "2026txcmp2_qm60",
+   "split": "heldout",
+   "event": "FIRST In Texas District Championship - Apollo Division",
+   "video": "qm60.mp4",
+   "youtube_id": "f_VHeq_Ml10",
+   "video_title": "Qualification 60 - FIRST In Texas District Championship - Apollo Division - qm60",
+   "channel": "texasRobots",
+   "roster": {
+    "red": [
+     8749,
+     5414,
+     7616
+    ],
+    "blue": [
+     3561,
+     5503,
+     10518
+    ]
+   },
+   "official": {
+    "red": {
+     "teams": [
+      8749,
+      5414,
+      7616
+     ],
+     "total": 488,
+     "auto": 105,
+     "teleop": 383,
+     "foul_points_awarded": 0,
+     "hub_endgame": 101,
+     "endgame_tower": 30,
+     "hub_auto": 105,
+     "auto_tower": 0,
+     "hub_transition": 27,
+     "hub_shifts": [
+      0,
+      130,
+      0,
+      95
+     ]
+    },
+    "blue": {
+     "teams": [
+      3561,
+      5503,
+      10518
+     ],
+     "total": 149,
+     "auto": 8,
+     "teleop": 141,
+     "foul_points_awarded": 0,
+     "hub_endgame": 55,
+     "endgame_tower": 0,
+     "hub_auto": 8,
+     "auto_tower": 0,
+     "hub_transition": 0,
+     "hub_shifts": [
+      28,
+      0,
+      58,
+      0
+     ]
+    }
+   }
+  },
+  {
+   "key": "2026txcmp2_qm62",
+   "split": "heldout",
+   "event": "FIRST In Texas District Championship - Apollo Division",
+   "video": "qm62.mp4",
+   "youtube_id": "8cMa4V9OVBo",
+   "video_title": "Qualification 62 - FIRST In Texas District Championship - Apollo Division - qm62",
+   "channel": "texasRobots",
+   "roster": {
+    "red": [
+     8576,
+     6357,
+     8818
+    ],
+    "blue": [
+     6369,
+     4206,
+     5427
+    ]
+   },
+   "official": {
+    "red": {
+     "teams": [
+      8576,
+      6357,
+      8818
+     ],
+     "total": 199,
+     "auto": 43,
+     "teleop": 156,
+     "foul_points_awarded": 0,
+     "hub_endgame": 27,
+     "endgame_tower": 0,
+     "hub_auto": 43,
+     "auto_tower": 0,
+     "hub_transition": 1,
+     "hub_shifts": [
+      57,
+      0,
+      71,
+      0
+     ]
+    },
+    "blue": {
+     "teams": [
+      6369,
+      4206,
+      5427
+     ],
+     "total": 628,
+     "auto": 79,
+     "teleop": 534,
+     "foul_points_awarded": 15,
+     "hub_endgame": 158,
+     "endgame_tower": 0,
+     "hub_auto": 79,
+     "auto_tower": 0,
+     "hub_transition": 40,
+     "hub_shifts": [
+      0,
+      166,
+      0,
+      170
+     ]
+    }
+   }
+  },
+  {
+   "key": "2026txcmp2_qm73",
+   "split": "heldout",
+   "event": "FIRST In Texas District Championship - Apollo Division",
+   "video": "qm73.mp4",
+   "youtube_id": "QdBTRHB0RLo",
+   "video_title": "Qualification 73 - FIRST In Texas District Championship - Apollo Division - qm73",
+   "channel": "texasRobots",
+   "roster": {
+    "red": [
+     231,
+     8177,
+     6773
+    ],
+    "blue": [
+     11178,
+     2689,
+     9506
+    ]
+   },
+   "official": {
+    "red": {
+     "teams": [
+      231,
+      8177,
+      6773
+     ],
+     "total": 311,
+     "auto": 69,
+     "teleop": 242,
+     "foul_points_awarded": 0,
+     "hub_endgame": 47,
+     "endgame_tower": 0,
+     "hub_auto": 69,
+     "auto_tower": 0,
+     "hub_transition": 0,
+     "hub_shifts": [
+      0,
+      118,
+      0,
+      77
+     ]
+    },
+    "blue": {
+     "teams": [
+      11178,
+      2689,
+      9506
+     ],
+     "total": 264,
+     "auto": 72,
+     "teleop": 187,
+     "foul_points_awarded": 5,
+     "hub_endgame": 88,
+     "endgame_tower": 0,
+     "hub_auto": 57,
+     "auto_tower": 15,
+     "hub_transition": 2,
+     "hub_shifts": [
+      43,
+      0,
+      54,
+      0
+     ]
+    }
+   }
+  },
+  {
+   "key": "2026txcmp2_qm79",
+   "split": "heldout",
+   "event": "FIRST In Texas District Championship - Apollo Division",
+   "video": "qm79.mp4",
+   "youtube_id": "0O7_FUi7juE",
+   "video_title": "Qualification 79 - FIRST In Texas District Championship - Apollo Division - qm79",
+   "channel": "texasRobots",
+   "roster": {
+    "red": [
+     7616,
+     8114,
+     4206
+    ],
+    "blue": [
+     231,
+     8858,
+     9506
+    ]
+   },
+   "official": {
+    "red": {
+     "teams": [
+      7616,
+      8114,
+      4206
+     ],
+     "total": 356,
+     "auto": 35,
+     "teleop": 321,
+     "foul_points_awarded": 0,
+     "hub_endgame": 107,
+     "endgame_tower": 10,
+     "hub_auto": 35,
+     "auto_tower": 0,
+     "hub_transition": 21,
+     "hub_shifts": [
+      78,
+      0,
+      105,
+      0
+     ]
+    },
+    "blue": {
+     "teams": [
+      231,
+      8858,
+      9506
+     ],
+     "total": 286,
+     "auto": 37,
+     "teleop": 244,
+     "foul_points_awarded": 5,
+     "hub_endgame": 69,
+     "endgame_tower": 0,
+     "hub_auto": 37,
+     "auto_tower": 0,
+     "hub_transition": 28,
+     "hub_shifts": [
+      0,
+      97,
+      0,
+      50
+     ]
+    }
+   }
+  },
+  {
+   "key": "2026txcmp2_qm12",
+   "split": "heldout2",
+   "event": "FIRST In Texas District Championship - Apollo Division",
+   "video": "qm12.mp4",
+   "youtube_id": "OZRTzDsJv0U",
+   "video_title": "Qualification 12 - FIRST In Texas District Championship - Apollo Division - qm12",
+   "channel": "texasRobots",
+   "roster": {
+    "red": [
+     8576,
+     418,
+     9128
+    ],
+    "blue": [
+     7616,
+     8769,
+     457
+    ]
+   },
+   "official": {
+    "red": {
+     "teams": [
+      8576,
+      418,
+      9128
+     ],
+     "total": 430,
+     "auto": 114,
+     "teleop": 301,
+     "foul_points_awarded": 15,
+     "hub_endgame": 131,
+     "endgame_tower": 0,
+     "hub_auto": 114,
+     "auto_tower": 0,
+     "hub_transition": 2,
+     "hub_shifts": [
+      0,
+      116,
+      0,
+      52
+     ]
+    },
+    "blue": {
+     "teams": [
+      7616,
+      8769,
+      457
+     ],
+     "total": 187,
+     "auto": 36,
+     "teleop": 151,
+     "foul_points_awarded": 0,
+     "hub_endgame": 39,
+     "endgame_tower": 0,
+     "hub_auto": 36,
+     "auto_tower": 0,
+     "hub_transition": 2,
+     "hub_shifts": [
+      62,
+      0,
+      48,
+      0
+     ]
+    }
+   }
+  },
+  {
+   "key": "2026txcmp2_qm27",
+   "split": "heldout2",
+   "event": "FIRST In Texas District Championship - Apollo Division",
+   "video": "qm27.mp4",
+   "youtube_id": "GlhaD2uparQ",
+   "video_title": "Qualification 27 - FIRST In Texas District Championship - Apollo Division - qm27",
+   "channel": "texasRobots",
+   "roster": {
+    "red": [
+     2714,
+     5427,
+     231
+    ],
+    "blue": [
+     6369,
+     8576,
+     8114
+    ]
+   },
+   "official": {
+    "red": {
+     "teams": [
+      2714,
+      5427,
+      231
+     ],
+     "total": 335,
+     "auto": 67,
+     "teleop": 268,
+     "foul_points_awarded": 0,
+     "hub_endgame": 75,
+     "endgame_tower": 0,
+     "hub_auto": 67,
+     "auto_tower": 0,
+     "hub_transition": 28,
+     "hub_shifts": [
+      0,
+      79,
+      0,
+      86
+     ]
+    },
+    "blue": {
+     "teams": [
+      6369,
+      8576,
+      8114
+     ],
+     "total": 476,
+     "auto": 54,
+     "teleop": 417,
+     "foul_points_awarded": 5,
+     "hub_endgame": 128,
+     "endgame_tower": 0,
+     "hub_auto": 54,
+     "auto_tower": 0,
+     "hub_transition": 20,
+     "hub_shifts": [
+      155,
+      0,
+      114,
+      0
+     ]
+    }
+   }
+  },
+  {
+   "key": "2026txcmp2_qm45",
+   "split": "heldout2",
+   "event": "FIRST In Texas District Championship - Apollo Division",
+   "video": "qm45.mp4",
+   "youtube_id": "EUxrzymUqGc",
+   "video_title": "Qualification 45 - FIRST In Texas District Championship - Apollo Division - qm45",
+   "channel": "texasRobots",
+   "roster": {
+    "red": [
+     6773,
+     7616,
+     5572
+    ],
+    "blue": [
+     8749,
+     2689,
+     8177
+    ]
+   },
+   "official": {
+    "red": {
+     "teams": [
+      6773,
+      7616,
+      5572
+     ],
+     "total": 329,
+     "auto": 33,
+     "teleop": 251,
+     "foul_points_awarded": 45,
+     "hub_endgame": 29,
+     "endgame_tower": 0,
+     "hub_auto": 33,
+     "auto_tower": 0,
+     "hub_transition": 3,
+     "hub_shifts": [
+      96,
+      0,
+      123,
+      0
+     ]
+    },
+    "blue": {
+     "teams": [
+      8749,
+      2689,
+      8177
+     ],
+     "total": 387,
+     "auto": 67,
+     "teleop": 320,
+     "foul_points_awarded": 0,
+     "hub_endgame": 99,
+     "endgame_tower": 0,
+     "hub_auto": 67,
+     "auto_tower": 0,
+     "hub_transition": 22,
+     "hub_shifts": [
+      0,
+      113,
+      0,
+      86
+     ]
+    }
+   }
+  },
+  {
+   "key": "2026txcmp2_qm51",
+   "split": "heldout2",
+   "event": "FIRST In Texas District Championship - Apollo Division",
+   "video": "qm51.mp4",
+   "youtube_id": "Tt_89ShZBsc",
+   "video_title": "Qualification 51 - FIRST In Texas District Championship - Apollo Division - qm51",
+   "channel": "texasRobots",
+   "roster": {
+    "red": [
+     9128,
+     7616,
+     8177
+    ],
+    "blue": [
+     457,
+     6357,
+     4153
+    ]
+   },
+   "official": {
+    "red": {
+     "teams": [
+      9128,
+      7616,
+      8177
+     ],
+     "total": 371,
+     "auto": 120,
+     "teleop": 236,
+     "foul_points_awarded": 15,
+     "hub_endgame": 29,
+     "endgame_tower": 10,
+     "hub_auto": 120,
+     "auto_tower": 0,
+     "hub_transition": 39,
+     "hub_shifts": [
+      0,
+      91,
+      0,
+      67
+     ]
+    },
+    "blue": {
+     "teams": [
+      457,
+      6357,
+      4153
+     ],
+     "total": 278,
+     "auto": 49,
+     "teleop": 229,
+     "foul_points_awarded": 0,
+     "hub_endgame": 106,
+     "endgame_tower": 0,
+     "hub_auto": 49,
+     "auto_tower": 0,
+     "hub_transition": 9,
+     "hub_shifts": [
+      49,
+      0,
+      65,
+      0
+     ]
+    }
+   }
+  },
+  {
+   "key": "2026txcmp2_qm68",
+   "split": "heldout2",
+   "event": "FIRST In Texas District Championship - Apollo Division",
+   "video": "qm68.mp4",
+   "youtube_id": "tJ0SduIG_Pc",
+   "video_title": "Qualification 68 - FIRST In Texas District Championship - Apollo Division - qm68",
+   "channel": "texasRobots",
+   "roster": {
+    "red": [
+     231,
+     4063,
+     418
+    ],
+    "blue": [
+     7616,
+     8818,
+     7492
+    ]
+   },
+   "official": {
+    "red": {
+     "teams": [
+      231,
+      4063,
+      418
+     ],
+     "total": 284,
+     "auto": 67,
+     "teleop": 217,
+     "foul_points_awarded": 0,
+     "hub_endgame": 63,
+     "endgame_tower": 0,
+     "hub_auto": 67,
+     "auto_tower": 0,
+     "hub_transition": 2,
+     "hub_shifts": [
+      0,
+      92,
+      0,
+      60
+     ]
+    },
+    "blue": {
+     "teams": [
+      7616,
+      8818,
+      7492
+     ],
+     "total": 134,
+     "auto": 28,
+     "teleop": 106,
+     "foul_points_awarded": 0,
+     "hub_endgame": 49,
+     "endgame_tower": 0,
+     "hub_auto": 28,
+     "auto_tower": 0,
+     "hub_transition": 0,
+     "hub_shifts": [
+      8,
+      0,
+      49,
+      0
+     ]
+    }
+   }
+  },
+  {
+   "key": "2026txcmp2_qm84",
+   "split": "heldout2",
+   "event": "FIRST In Texas District Championship - Apollo Division",
+   "video": "qm84.mp4",
+   "youtube_id": "YPyO6biK38I",
+   "video_title": "Qualification 84 - FIRST In Texas District Championship - Apollo Division - qm84",
+   "channel": "texasRobots",
+   "roster": {
+    "red": [
+     10385,
+     4639,
+     4192
+    ],
+    "blue": [
+     3561,
+     231,
+     7616
+    ]
+   },
+   "official": {
+    "red": {
+     "teams": [
+      10385,
+      4639,
+      4192
+     ],
+     "total": 298,
+     "auto": 35,
+     "teleop": 263,
+     "foul_points_awarded": 0,
+     "hub_endgame": 69,
+     "endgame_tower": 0,
+     "hub_auto": 35,
+     "auto_tower": 0,
+     "hub_transition": 37,
+     "hub_shifts": [
+      0,
+      87,
+      0,
+      70
+     ]
+    },
+    "blue": {
+     "teams": [
+      3561,
+      231,
+      7616
+     ],
+     "total": 292,
+     "auto": 26,
+     "teleop": 251,
+     "foul_points_awarded": 15,
+     "hub_endgame": 74,
+     "endgame_tower": 30,
+     "hub_auto": 26,
+     "auto_tower": 0,
+     "hub_transition": 31,
+     "hub_shifts": [
+      69,
+      0,
+      47,
+      0
+     ]
+    }
+   }
+  },
+  {
+   "key": "2026txcmp2_qm9",
+   "split": "heldout3",
+   "event": "FIRST In Texas District Championship - Apollo Division",
+   "video": "qm9.mp4",
+   "youtube_id": "qnvMs4tcHZc",
+   "video_title": "Qualification 9 - FIRST In Texas District Championship - Apollo Division - qm9",
+   "channel": "texasRobots",
+   "roster": {
+    "red": [
+     8858,
+     9136,
+     4153
+    ],
+    "blue": [
+     4063,
+     5427,
+     8818
+    ]
+   },
+   "official": {
+    "red": {
+     "teams": [
+      8858,
+      9136,
+      4153
+     ],
+     "total": 222,
+     "auto": 19,
+     "teleop": 188,
+     "foul_points_awarded": 15,
+     "hub_endgame": 66,
+     "endgame_tower": 0,
+     "hub_auto": 19,
+     "auto_tower": 0,
+     "hub_transition": 8,
+     "hub_shifts": [
+      63,
+      0,
+      51,
+      0
+     ]
+    },
+    "blue": {
+     "teams": [
+      4063,
+      5427,
+      8818
+     ],
+     "total": 245,
+     "auto": 43,
+     "teleop": 202,
+     "foul_points_awarded": 0,
+     "hub_endgame": 61,
+     "endgame_tower": 0,
+     "hub_auto": 43,
+     "auto_tower": 0,
+     "hub_transition": 26,
+     "hub_shifts": [
+      0,
+      87,
+      0,
+      28
+     ]
+    }
+   }
+  },
+  {
+   "key": "2026txcmp2_qm37",
+   "split": "heldout3",
+   "event": "FIRST In Texas District Championship - Apollo Division",
+   "video": "qm37.mp4",
+   "youtube_id": "oXcLGMjaDLk",
+   "video_title": "Qualification 37 - FIRST In Texas District Championship - Apollo Division - qm37",
+   "channel": "texasRobots",
+   "roster": {
+    "red": [
+     5503,
+     7616,
+     2689
+    ],
+    "blue": [
+     4639,
+     9136,
+     5427
+    ]
+   },
+   "official": {
+    "red": {
+     "teams": [
+      5503,
+      7616,
+      2689
+     ],
+     "total": 127,
+     "auto": 39,
+     "teleop": 88,
+     "foul_points_awarded": 0,
+     "hub_endgame": 30,
+     "endgame_tower": 20,
+     "hub_auto": 24,
+     "auto_tower": 15,
+     "hub_transition": 3,
+     "hub_shifts": [
+      2,
+      0,
+      33,
+      0
+     ]
+    },
+    "blue": {
+     "teams": [
+      4639,
+      9136,
+      5427
+     ],
+     "total": 286,
+     "auto": 48,
+     "teleop": 213,
+     "foul_points_awarded": 25,
+     "hub_endgame": 45,
+     "endgame_tower": 0,
+     "hub_auto": 48,
+     "auto_tower": 0,
+     "hub_transition": 0,
+     "hub_shifts": [
+      0,
+      66,
+      0,
+      102
+     ]
+    }
+   }
+  },
+  {
+   "key": "2026txcmp2_qm56",
+   "split": "heldout3",
+   "event": "FIRST In Texas District Championship - Apollo Division",
+   "video": "qm56.mp4",
+   "youtube_id": "_rF-Xcw8BQc",
+   "video_title": "Qualification 56 - FIRST In Texas District Championship - Apollo Division - qm56",
+   "channel": "texasRobots",
+   "roster": {
+    "red": [
+     9506,
+     457,
+     5427
+    ],
+    "blue": [
+     9136,
+     3310,
+     10913
+    ]
+   },
+   "official": {
+    "red": {
+     "teams": [
+      9506,
+      457,
+      5427
+     ],
+     "total": 325,
+     "auto": 51,
+     "teleop": 274,
+     "foul_points_awarded": 0,
+     "hub_endgame": 86,
+     "endgame_tower": 0,
+     "hub_auto": 51,
+     "auto_tower": 0,
+     "hub_transition": 5,
+     "hub_shifts": [
+      0,
+      111,
+      0,
+      72
+     ]
+    },
+    "blue": {
+     "teams": [
+      9136,
+      3310,
+      10913
+     ],
+     "total": 146,
+     "auto": 23,
+     "teleop": 123,
+     "foul_points_awarded": 0,
+     "hub_endgame": 45,
+     "endgame_tower": 0,
+     "hub_auto": 23,
+     "auto_tower": 0,
+     "hub_transition": 4,
+     "hub_shifts": [
+      42,
+      0,
+      32,
+      0
+     ]
+    }
+   }
+  },
+  {
+   "key": "2026txcmp2_qm88",
+   "split": "heldout3",
+   "event": "FIRST In Texas District Championship - Apollo Division",
+   "video": "qm88.mp4",
+   "youtube_id": "toAUoJE8G_I",
+   "video_title": "Qualification 88 - FIRST In Texas District Championship - Apollo Division - qm88",
+   "channel": "texasRobots",
+   "roster": {
+    "red": [
+     10913,
+     8114,
+     7492
+    ],
+    "blue": [
+     4153,
+     11169,
+     5503
+    ]
+   },
+   "official": {
+    "red": {
+     "teams": [
+      10913,
+      8114,
+      7492
+     ],
+     "total": 224,
+     "auto": 47,
+     "teleop": 177,
+     "foul_points_awarded": 0,
+     "hub_endgame": 61,
+     "endgame_tower": 0,
+     "hub_auto": 47,
+     "auto_tower": 0,
+     "hub_transition": 11,
+     "hub_shifts": [
+      0,
+      80,
+      0,
+      25
+     ]
+    },
+    "blue": {
+     "teams": [
+      4153,
+      11169,
+      5503
+     ],
+     "total": 50,
+     "auto": 26,
+     "teleop": 24,
+     "foul_points_awarded": 0,
+     "hub_endgame": 10,
+     "endgame_tower": 0,
+     "hub_auto": 26,
+     "auto_tower": 0,
+     "hub_transition": 0,
+     "hub_shifts": [
+      8,
+      0,
+      6,
+      0
+     ]
+    }
+   }
+  }
+ ],
+ "other_event_claims": [
+  {
+   "key": "2026txfar_qm7",
+   "event": "FIT District Farmersville Event",
+   "roster": {
+    "red": [
+     10340,
+     5431,
+     9492
+    ],
+    "blue": [
+     2582,
+     9105,
+     9034
+    ]
+   }
+  }
+ ]
+}

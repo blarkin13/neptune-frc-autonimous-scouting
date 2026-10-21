@@ -1,0 +1,27 @@
+<?php
+require __DIR__.'/import-workspace.php';
+$db->exec('UPDATE community_training_computers SET revoked=0');
+$hardware=['engine_version'=>'2.2.1-clock-camera-preview1','action_features'=>'robot-r3d18-clip-v1','robot_tracking'=>'yolo-botsort-1','device'=>'cpu','name'=>'Updated test helper','training_protocol'=>'page-v2','outside_adapters'=>['viper-2026-activity-v1','mapped-actions-v1','viper-2026-points-v1','unknown-private',[]],'token'=>'never-store'];
+$clean=community_training_hardware($hardware);
+ok($clean['outside_adapters']===['viper-2026-activity-v1','mapped-actions-v1','viper-2026-points-v1']&&!isset($clean['token']),'hardware preserves supported adapters without storing unrelated data');
+$control=new CommunityTrainingControl($db);
+ok($control->claim($computer,$hardware)['job']===null,'updated helper can report capabilities while waiting for work');
+$stored=json_decode($db->query("SELECT hardware_json FROM community_training_computers WHERE id='".$computer['id']."'")->fetchColumn(),true);
+ok($stored['outside_adapters']===$clean['outside_adapters'],'page heartbeat persists the capability list as an array');
+$devices=array_values(array_filter($control->computers(7),fn($r)=>$r['id']===$computer['id']));
+ok($devices[0]['robot_tracking']==='yolo-botsort-1'&&$devices[0]['imported_scores']&&$devices[0]['mapped_imports']&&$devices[0]['ready'],'browser recognizes the updated connected helper');
+$run=$control->queue(2026,7,'helper',$computer['id'],3);
+rejects(fn()=>$control->claim($computer,['training_protocol'=>'page-v2']),'older client cannot claim imported-points work using an updated connection');
+$work=$control->claim($computer,$hardware)['job'];
+ok($work['id']===$run['id']&&str_contains($work['snapshot'],'viper-2026-points-v1'),'updated helper can queue and claim actual imported scoring targets');
+$control->fail($computer,['job_id'=>$work['id'],'lease'=>$work['lease'],'message'=>'Test complete']);
+$control->claim($computer,['training_protocol'=>'page-v2','name'=>'Older helper']);
+rejects(fn()=>$control->queue(2026,7,'helper',$computer['id'],3),'older helper still cannot receive unsupported imported points');
+ok(!$control->computers(7)[0]['ready'],'old helper without YOLO cannot start replacement tracking work');
+$request=['kind'=>'scouting_trial','match_id'=>3,'match_key'=>'2026week0_qm1','title'=>'Week zero Q1','source_url'=>'https://www.youtube.com/watch?v=CCCCCCCCCCC','private_field'=>'must-not-leak'];
+$id=str_repeat('9',32);$db->prepare("INSERT INTO community_learning_jobs(id,season,state,created_by,created_at,message,snapshot_ndjson,control_json) VALUES(?,2026,'test_failed',7,?,'Unsupported broadcast layout: no known overlay profile matched',?,?)")->execute([$id,time(),json_encode($request),json_encode(['kind'=>'trial','executor'=>'helper'])]);
+$panel=$control->panel(2026,7,$id);$video=$panel['selected']['video'];ok($video['source_url']===$request['source_url']&&$video['match_id']===3&&!isset($video['private_field']),'failed test exposes only its video reference for recovery, not its full snapshot');
+$trialScores=[];foreach([[7506,'red',46,272],[7503,'red',18,272],[3005,'red',16,272],[1477,'blue',48,199],[5261,'blue',26,199],[11200,'blue',null,199]] as [$team,$side,$pts,$total])$trialScores[]=['team'=>$team,'alliance'=>$side,'status'=>$pts===null?'unknown':'predicted','robot_points'=>$pts,'share_percent'=>$pts===null?null:100*$pts/$total,'alliance_score'=>$total];
+$rawReport=json_encode(['kind'=>'scouting_trial','scores'=>$trialScores]);$db->prepare('UPDATE community_learning_jobs SET report_json=? WHERE id=?')->execute([$rawReport,$id]);
+$view=$control->panel(2026,7,$id)['selected']['report'];ok(!isset($view['alliance_allocations']),'prediction panel does not normalize points to disguise unassigned contributions');
+ok($view['scores']===$trialScores&&$db->query("SELECT report_json FROM community_learning_jobs WHERE id='".$id."'")->fetchColumn()===$rawReport,'display allocation does not overwrite raw saved predictions or accuracy evidence');

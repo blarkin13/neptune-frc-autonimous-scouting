@@ -1,0 +1,194 @@
+--- a/neptune_training.py	2026-10-20 21:20:24
++++ b/neptune_training.py	2026-10-20 21:20:24
+@@ -181,8 +181,8 @@
+ 
+ def ensure_tracking(video,facts,game,work,progress=lambda s:None):
+     from neptune_tracking import track_match,TRACKING_VERSION,FRAME_DECODER_REVISION
+-    from neptune_yolo import fingerprint
+-    if facts.get('tracking',{}).get('version')==TRACKING_VERSION and facts.get('tracking',{}).get('model_fingerprint')==fingerprint() and facts.get('tracking',{}).get('camera_engine')=='independent-camera-views-v4' and facts.get('tracking',{}).get('decoder_revision')==FRAME_DECODER_REVISION:return facts
++    from neptune_yolo import fingerprint,CONTINUITY_REVISION
++    if facts.get('tracking',{}).get('version')==TRACKING_VERSION and facts.get('tracking',{}).get('model_fingerprint')==fingerprint() and facts.get('tracking',{}).get('camera_engine')=='independent-camera-views-v4' and facts.get('tracking',{}).get('decoder_revision')==FRAME_DECODER_REVISION and facts.get('tracking',{}).get('continuity_revision')==CONTINUITY_REVISION:return facts
+     profile=game.get('layout_profiles',{}).get(facts.get('layout',{}).get('profile'))
+     if not profile or not any(facts.get('periods',{}).values()):return facts
+     progress('Tracking robot identity between bumper readings')
+@@ -279,7 +279,8 @@
+         # Identical video bytes under different match IDs share one partition.
+         group=hash_groups.setdefault(src['sha256'],group)
+         from neptune_clock import eligible
+-        candidates=[s for s in sightings(facts) if s['team']==row['team_number'] and eligible(tag,facts,s['t'])]
++        team_sights=[s for s in sightings(facts) if s['team']==row['team_number']]
++        candidates=[s for s in team_sights if eligible(tag,facts,s['t'])]
+         if tag in ABSENCE:
+             if row['polarity']!='present':continue
+             targets=ABSENCE_NEGATIVES[tag];ys=0
+@@ -296,19 +297,28 @@
+                 window=row.get('action_time_window')
+                 low,high=(window['start_ms']/1000,window['end_ms']/1000) if window else (row['start_ms']/1000-1.1,row['start_ms']/1000+1.1)
+                 center=(low+high)/2
++                # A sighting outside every match phase is a phase-gate rejection, not a
++                # localization failure (e.g. a climb confirmed just after the buzzer).
++                # Tracking and bumper OCR stop at the phase boundary, so test the label window itself.
++                if not any(eligible(tag,facts,t) for t in (low,center,high)):
++                    reject(original_row,'label_outside_eligible_phase');continue
+                 candidates=[s for s in candidates if low<=s['t']<=high]
+                 candidates=sorted(candidates,key=lambda s:(abs(s['t']-center),not bool(s.get('camera'))))
+                 if temporal_required:
+                     from neptune_temporal import plan,ClipUnavailable
+-                    valid=[];clip_reason=None
++                    valid=[];reasons=[]
+                     for candidate in candidates:
+                         try:
+                             clip=plan(facts,candidate)
+                             if window and (clip['start']>low+.001 or clip['end']<high-.001):
+-                                clip_reason='external_reaction_window_not_covered';continue
++                                reasons.append('external_reaction_window_not_covered');continue
+                             valid.append(candidate);break
+-                        except ClipUnavailable as error:clip_reason=error.reason
+-                    if candidates and not valid:reject(original_row,clip_reason);continue
++                        except ClipUnavailable as error:reasons.append(error.reason)
++                    if candidates and not valid:
++                        # Report the candidate nearest the label, not whichever was tried last.
++                        reject(original_row,reasons[0])
++                        if audit is not None:audit[-1]['candidate_reasons']=dict(collections.Counter(reasons))
++                        continue
+                     candidates=valid
+                 candidates=candidates[:1]
+             else:candidates=[s for s in candidates if row['start_ms']/1000<=s['t']<=row['end_ms']/1000]
+@@ -368,6 +378,11 @@
+         # Unalignable positives cannot safely supply references for that robot/tag.
+         blocked={(r['team_number'],r['tag_key']) for r,(joined,reason) in zip(original,aligned) if joined is None}
+         group=groups.setdefault(src['sha256'],labels.event_key(original[0]['match_key']))
++        # Labels stay distinct, but a known moment of a same-category action (Score 1 fuel,
++        # Score 2 fuel, legacy Scoring) is not "unknown" footage for its siblings.
++        category={}
++        for r in rows:category.setdefault(r['tag_key'],set()).add(r.get('tag_category') or r['tag_key'])
++        def same_family(a,b):return a==b or bool(category.get(a,{a})&category.get(b,{b}))
+         candidates=sorted(sightings(facts),key=lambda q:(q['t'],q['team']))
+         if temporal_required:
+             from neptune_temporal import plan,ClipUnavailable
+@@ -388,7 +403,7 @@
+                 from neptune_clock import eligible
+                 if (sight['team'],tag) in blocked or not eligible(tag,facts,sight['t']):continue
+                 # Keep known labelled intervals out of this tag's unknown reference pool.
+-                nearby=[r for r in records if r['team_number']==sight['team'] and r['tag_key']==tag
++                nearby=[r for r in records if r['team_number']==sight['team'] and same_family(r['tag_key'],tag)
+                         and reference_overlaps_label(sight,r)]
+                 if nearby:continue
+                 # Phase/track boundaries can yield the identical clip for many
+@@ -856,7 +871,7 @@
+                     observed=sightings(facts)
+                     for team in record['roster']['red']+record['roster']['blue']:
+                         seen=[q for q in observed if q['team']==team]
+-                        diagnostics['robots'].append({'match_key':record['match_key'],'team':team,'localized_samples':len(seen),'tracking_coverage':facts.get('tracking',{}).get('coverage',{}).get(str(team)), 'direct_bumper_reads':sum(q.get('team')==team and q.get('kind')=='exact' for q in facts.get('bumpers',{}).get('reads',[]))})
++                        diagnostics['robots'].append({'match_key':record['match_key'],'team':team,'localized_samples':len(seen),'tracking_coverage':facts.get('tracking',{}).get('coverage',{}).get(str(team)), 'direct_bumper_reads':sum(q.get('team')==team and q.get('kind')=='exact' for q in facts.get('bumpers',{}).get('reads',[])),'direct_read_moments':len({q.get('t') for q in facts.get('bumpers',{}).get('reads',[]) if q.get('team')==team and q.get('kind')=='exact' and q.get('background')==q.get('alliance')}),'verified_track_seconds':len({round(q['t']) for q in facts.get('tracking',{}).get('localizations',[]) if q.get('team')==team})})
+                     diagnostics['clock']={'match_key':record['match_key'],'phases':{name:{'observed_samples':len((phase or {}).get('clock_samples',[])), 'start_observed':(phase or {}).get('start_observed',False),'end_observed':(phase or {}).get('end_observed',False)} for name,phase in facts.get('periods',{}).items()},'join_version':'observed-clock-join-v2'}
+                 except ValueError as error:
+                     localization_error={'match_key':record['match_key'],'reason':str(error)[:600]}
+--- a/neptune_yolo.py	2026-10-20 21:20:24
++++ b/neptune_yolo.py	2026-10-20 21:20:24
+@@ -13,6 +13,8 @@
+ import sys
+ 
+ VERSION = 'yolo-botsort-1'
++# Bump whenever Identities/recover_segments change: cached tracking is reused only on an exact match.
++CONTINUITY_REVISION = 'segment-verified-v3'
+ ULTRALYTICS_VERSION = '8.4.63'
+ 
+ 
+@@ -351,7 +353,7 @@
+     localizations=recover_segments(segment_points,confirmations,resolver.invalid_segments,meta['bumper']['sha256'])
+     points = {team: [(s['t'],) for s in localizations if s['team'] == team] for team in teams}
+     return {'status': 'measured', 'version': VERSION, 'model_fingerprint': fingerprint(), 'model_source': meta['source'],
+-            'decoder_revision':FRAME_DECODER_REVISION,'duplicate_bumper_boxes_removed':duplicate_counts['removed'],'anchors':anchors,'continuity_revision':'segment-verified-v3','fps': fps, 'band': list(band), 'start': start, 'end': end, 'scene_cuts': cuts, 'localizations': localizations,
++            'decoder_revision':FRAME_DECODER_REVISION,'duplicate_bumper_boxes_removed':duplicate_counts['removed'],'anchors':anchors,'continuity_revision':CONTINUITY_REVISION,'fps': fps, 'band': list(band), 'start': start, 'end': end, 'scene_cuts': cuts, 'localizations': localizations,
+             'coverage': {str(k): v for k, v in coverage(points, start, end).items()}, 'tracks': len({(s['scene'], s['track_id']) for s in localizations}),
+             'frames_processed': frame_count, 'visual_tracks': len(visual_tracks), 'bumper_anchors': len(anchors), 'device': device,
+             'limitations': ['Bumper detections provide expanded chassis crops, not robot segmentation.', 'Identity is cleared on ambiguous overlap, camera cuts and long detection gaps.',
+--- /dev/null
++++ b/test_review_patches.py	2026-10-20 21:20:24
+@@ -0,0 +1,85 @@
++"""Regression tests for the independent-review patches (synthetic fixtures, not match evidence)."""
++from pathlib import Path
++import unittest
++from unittest.mock import patch
++
++import neptune_temporal as temporal
++import neptune_training as training
++
++VID = 'AAAAAAAAAAA'
++SOURCE = {VID: {'status': 'verified', 'sha256': 'a'*64, 'duration_ms': 180000, 'file': 'video.mp4'}}
++
++
++def facts():
++    return {'source': {'sha256': 'a'*64, 'duration_s': 180},
++            'periods': {'auto': {'start': 0, 'end': 20}, 'teleop': {'start': 25, 'end': 165}},
++            'tracking': {'band': [.24, .65], 'localizations': [], 'scene_cuts': []}}
++
++
++def row(tag, t_ms, team=1, category='Scoring', id='a'):
++    return {'id': id, 'match_key': '2026test_qm1', 'video_id': VID, 'team_number': team, 'tag_key': tag,
++            'tag_category': category, 'polarity': 'present', 'label_scope': 'moment', 'start_ms': t_ms, 'end_ms': t_ms}
++
++
++class Diagnostics(unittest.TestCase):
++    def test_label_after_the_buzzer_is_a_phase_rejection_not_a_localization_failure(self):
++        audit = []
++        # Tracking and OCR stop at teleop end (165 s), so a 170 s climb has no sightings at all.
++        with patch('neptune_training.sightings', return_value=[{'team': 1, 't': 160, 'box': [.2, .4, .1, .1]}]):
++            out, skipped = training.labeled_examples([row('gb:climb_lv_1', 170000, category='Endgame')], {VID: facts()}, SOURCE,
++                                                     Path('/unused'), extractor=lambda *a: [0.]*512, audit=audit, temporal_required=True)
++        self.assertEqual(out, []); self.assertEqual(skipped, {'label_outside_eligible_phase': 1})
++
++    def test_rejection_reports_nearest_candidate_and_keeps_all_reasons(self):
++        audit = []
++        near = {'team': 1, 't': 50.1, 'box': [.2, .4, .1, .1], 'camera': 'wide'}
++        far = {'team': 1, 't': 51.0, 'box': [.2, .4, .1, .1]}
++        def plan(f, sight):
++            raise temporal.ClipUnavailable('temporal_robot_identity_gap' if sight is near else 'temporal_robot_track_unavailable')
++        with patch('neptune_training.sightings', return_value=[far, near]), patch('neptune_temporal.plan', side_effect=plan):
++            _, skipped = training.labeled_examples([row('gb:feed', 50000, category='Alliance')], {VID: facts()}, SOURCE,
++                                                   Path('/unused'), extractor=lambda *a: [0.]*512, audit=audit, temporal_required=True)
++        # The old code reported the last (farther) candidate's reason.
++        self.assertEqual(skipped, {'temporal_robot_identity_gap': 1})
++        self.assertEqual(audit[-1]['candidate_reasons'], {'temporal_robot_identity_gap': 1, 'temporal_robot_track_unavailable': 1})
++
++
++class ReferencePool(unittest.TestCase):
++    def references(self, labelled):
++        sight = {'team': 1, 't': 60, 'box': [.2, .4, .1, .1]}
++        clip = {'start': 58., 'end': 62., 'team': 1, 'track_id': 3, 'scene': 0, 'frames': []}
++        with patch('neptune_training.sightings', return_value=[sight]), patch('neptune_temporal.plan', return_value=clip):
++            return training.unlabeled_examples(labelled, {VID: facts()}, SOURCE, Path('/unused'), extractor=lambda *a: [0.]*512,
++                                               temporal_required=True)
++
++    def test_sibling_scoring_label_is_not_unknown_footage(self):
++        # Score 2 fuel at 60.5 s: that clip must not be an "unknown" reference for Score 1 fuel.
++        refs = self.references([row('gb:score_1_fuel', 20000, id='a'), row('gb:score_2_fuel', 60500, id='b')])
++        self.assertNotIn('gb:score_1_fuel', {r['tag'] for r in refs})
++        self.assertNotIn('gb:score_2_fuel', {r['tag'] for r in refs})
++
++    def test_other_category_and_distinct_codes_are_kept(self):
++        refs = self.references([row('gb:feed', 20000, category='Alliance', id='a'), row('gb:score_2_fuel', 60500, id='b')])
++        # Feeding is a different category, so the scoring moment remains unknown footage for it.
++        self.assertIn('gb:feed', {r['tag'] for r in refs})
++        self.assertEqual({r['tag'] for r in refs if r['tag'] != 'gb:feed'}, set())
++
++
++class TrackingCache(unittest.TestCase):
++    def test_changed_identity_resolver_rebuilds_cached_tracking(self):
++        import neptune_yolo
++        old = {'version': 'yolo-botsort-1', 'model_fingerprint': 'f', 'camera_engine': 'independent-camera-views-v4',
++               'decoder_revision': 'explicit-rawvideo-geometry-v2', 'continuity_revision': 'segment-verified-v2'}
++        cached = dict(facts(), tracking=old, layout={'profile': 'p'})
++        game = {'layout_profiles': {'p': {'camera_top': .24}}}
++        fresh = dict(old, continuity_revision=neptune_yolo.CONTINUITY_REVISION, localizations=[])
++        with patch('neptune_yolo.fingerprint', return_value='f'), patch('neptune_tracking.track_match', return_value=fresh) as rerun, \
++             patch('neptune_ocr.select_backend', return_value=None):
++            out = training.ensure_tracking('video.mp4', cached, game, Path('/unused'))
++            self.assertEqual(rerun.call_count, 1); self.assertEqual(out['tracking']['continuity_revision'], neptune_yolo.CONTINUITY_REVISION)
++            training.ensure_tracking('video.mp4', out, game, Path('/unused'))
++            self.assertEqual(rerun.call_count, 1)
++
++
++if __name__ == '__main__':
++    unittest.main()

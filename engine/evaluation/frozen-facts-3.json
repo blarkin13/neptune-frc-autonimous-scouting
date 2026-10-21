@@ -1,0 +1,20 @@
+{
+ "frozen_at": "2026-10-18T06:30:09+00:00",
+ "pipeline": "facts-3.1",
+ "changes_from_facts_2": [
+  "lit team-number displays (driver station signs) rejected as bumper evidence (found in facts-2 held-out crops)",
+  "roster verification counts presence of each claimed number on its side instead of position (RapidOCR read logo text on qm7)",
+  "full-resolution colour sample for bumper checks; score decrease penalty 1.5 (unit-test driven); negative auto start no longer shifts bumper timestamps"
+ ],
+ "note": "heldout2 aggregate metrics for facts-3 were computed before this fix (recall dropped); no heldout2 crops or per-read outputs were inspected. heldout2 remains the held-out set for facts-3.1.",
+ "sha256": {
+  "neptune_facts.py": "4611ad0e08d80c72cda78f9573b753c50aac432c15aa7ea7e2ae6b5022623256",
+  "neptune_ocr.py": "8458f272cdb60c81092018f9cb77119bf333980cbee1567de4cea45233dc7dd1",
+  "season_rules.json": "a58683559f94dea7b095e8f5248c5274e27b06c32630f23c6b0531e0aaf16a3d",
+  "bin/neptune-ocr": "30872fb79e08d90c6886ff1dd59cb6bad82755379961fa55a0441f846bf18202"
+ },
+ "changes_from_facts_3": [
+  "colour-sample branch converts to RGB inside its own branch; facts-3 let format=rgb24 propagate through split, which changed the OCR tiles and lowered bumper recall. Found by comparing tuning-match reads between facts-2 and facts-3, not by inspecting heldout2 outputs. Tiles are now bit-identical to facts-2 (regression test added).",
+  "Apple Vision results are matched to images by order, not file name (latent collision bug; no effect on these runs)."
+ ]
+}

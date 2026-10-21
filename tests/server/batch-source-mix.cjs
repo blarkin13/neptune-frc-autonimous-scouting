@@ -1,0 +1,12 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const source=fs.readFileSync('public_html/Neptune/community/assets/training-control.js','utf8');
+const human=source.slice(source.indexOf(' function isHumanMatch('),source.indexOf(' function batchPins('));
+const select=source.slice(source.indexOf(' function selectBatch('),source.indexOf(' async function renderBatch('));
+const ctx={};vm.createContext(ctx);vm.runInContext(human+select,ctx);
+const rows=[{id:1,key:'a',tags:2},{id:2,key:'b',human_scores:1,external:4},{id:3,key:'c',external:3},{id:4,key:'d',imported_scores:6}];
+const keys=(total,h,i,pins=[])=>Array.from(ctx.selectBatch(rows,total,h,i,pins),m=>m.key);
+assert.deepEqual(keys(3,2,1,['b']),['a','b','c']);
+assert.deepEqual(keys(2,1,1,['b']),['b','c']);
+assert.deepEqual(keys(2,0,2),['c','d']);
+assert.throws(()=>keys(3,1,1));assert.throws(()=>keys(3,3,0));assert.throws(()=>keys(2,1,1,['c']));assert.throws(()=>keys(2,1,1,['a','b']));assert.throws(()=>keys(1.5,1,.5));
+console.log('PASS browser source quotas, score-only source separation, mixed matches, pinned choices and invalid combinations');

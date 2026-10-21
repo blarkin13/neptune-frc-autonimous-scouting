@@ -1,0 +1,3 @@
+a4ad955035e28b24a111cb0156e8febddc50d39f86662fd70a4c9df26bb717d7  Neptune-Helper-Pilot.zip
+00ae870f7cc7f9ace337004f26d3eecbde891627612bdb518143dff290397153  Neptune-Helper-Windows.zip
+737c7dd2bab4a512f1b267ae9c2f83dcb46618e113b9d60576ff56e4ee989bd0  Neptune-Helper-Linux.zip

@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+.DS_Store
+*.pt
+*.onnx
+*.mp4
+*.mov
+*.sql.gz
+*.tar*
+*.cnf
+*token*
+.env
+/local/

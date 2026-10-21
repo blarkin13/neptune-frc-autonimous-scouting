@@ -1,0 +1,196 @@
+{
+  "schema_version": 1,
+  "product": "Neptune Helper",
+  "platforms": {
+    "macos-arm64": {
+      "minimum_os": "14.0",
+      "minimum_python": "3.10",
+      "ocr_backend": "apple-vision",
+      "installer": "Start Neptune Helper.command",
+      "first_model_download_bytes": 3200000000,
+      "minimum_free_disk_before_download_bytes": 5368709120,
+      "note": "The local AI engine and vision model are optional (NEPTUNE_HELPER_PIPELINE=ai); the facts pipeline needs neither."
+    },
+    "windows-x86_64": {
+      "minimum_os": "Windows 10 64-bit (1809) or Windows 11",
+      "minimum_python": "3.11",
+      "ocr_backend": "rapidocr",
+      "installer": "windows/Install Neptune Helper.cmd"
+    },
+    "linux-x86_64": {
+      "distributions": [
+        "Ubuntu 24.04 LTS",
+        "Debian 12"
+      ],
+      "minimum_python": "3.11",
+      "ocr_backend": "rapidocr",
+      "installer": "linux/install-neptune-helper.sh"
+    },
+    "linux-aarch64": {
+      "distributions": [
+        "Ubuntu 24.04 LTS",
+        "Debian 12"
+      ],
+      "minimum_python": "3.11",
+      "ocr_backend": "rapidocr",
+      "installer": "linux/install-neptune-helper.sh"
+    }
+  },
+  "requirements": [
+    {
+      "id": "python",
+      "purpose": "Run the helper",
+      "minimum_version": "3.10",
+      "check": "embedded_python_version",
+      "installation": "download_verified_python_org_installer_if_missing",
+      "version": "3.13.16",
+      "source": "https://www.python.org/ftp/python/3.13.16/python-3.13.16-macos11.pkg",
+      "sha256": "30666509020b4da0dd8bc2e773255f34d76b7bb80b66960a928d5f6daa0192d7"
+    },
+    {
+      "id": "tk",
+      "purpose": "Display the helper window",
+      "check": "create_tk_window",
+      "installation": "included_with_python_org_installer"
+    },
+    {
+      "id": "video_tools",
+      "purpose": "Read match videos and extract images",
+      "check": "ffmpeg_and_ffprobe_version",
+      "installation": "verify_and_use_private_included_tools",
+      "version": "9.0.2"
+    },
+    {
+      "id": "local_ai_runtime",
+      "purpose": "Run AI on this computer",
+      "check": "start_private_loopback_engine_and_check_version",
+      "installation": "verify_and_use_private_included_tools",
+      "version": "0.40.6",
+      "source": "https://github.com/ollama/ollama/releases/download/v0.40.6/ollama-darwin.tgz",
+      "sha256": "b2b55434865a668decb494110d7fd970eed3ecc8837be2872f672ccbb95df974",
+      "cloud_enabled": false,
+      "optional": true
+    },
+    {
+      "id": "vision_model",
+      "purpose": "Draft observations from match images",
+      "check": "local_model_name_and_digest",
+      "installation": "download_missing_model_using_local_engine",
+      "model": "qwen2.5vl:3b",
+      "quality_status": "pilot_requires_human_review",
+      "accepted_digests": [
+        "fb90415cde1ef08aa669ae74b082d49b158729b6db1ab183c941417d507e71a1",
+        "85ba0d3634ea7ffa04c0d5d39d7830c94a69c5c63fdb5e4bf1af6251440aae96"
+      ],
+      "optional": true
+    },
+    {
+      "id": "match_video_download",
+      "purpose": "Retrieve publicly linked individual YouTube match videos locally",
+      "installation": "included_hash_pinned_python_wheels_and_private_quickjs",
+      "yt_dlp_version": "2026.8.19",
+      "yt_dlp_ejs_version": "0.8.0",
+      "quickjs_version": "2026-06-04",
+      "quickjs_source": "https://bellard.org/quickjs/quickjs-2026-06-04.tar.xz",
+      "quickjs_source_sha256": "b376e839b322978313d929fd20663b11ba58b75df5a46c126dd19ea2fa70ad2a"
+    },
+    {
+      "id": "ocr_apple_vision",
+      "purpose": "Read the scoreboard and bumper numbers (facts pipeline)",
+      "platforms": [
+        "macos-arm64"
+      ],
+      "check": "neptune-ocr --version",
+      "installation": "included signed binary built from vision/ocr.swift"
+    },
+    {
+      "id": "ocr_rapidocr",
+      "purpose": "Read the scoreboard and bumper numbers (facts pipeline)",
+      "platforms": [
+        "windows-x86_64",
+        "linux-x86_64",
+        "linux-aarch64"
+      ],
+      "check": "import rapidocr, onnxruntime",
+      "installation": "hash-locked wheels from requirements-ocr.txt",
+      "rapidocr_version": "3.10.0",
+      "onnxruntime_version": "1.31.0",
+      "models": "bundled PP-OCRv6 small detector and recogniser"
+    },
+    {
+      "id": "windows_python",
+      "platforms": [
+        "windows-x86_64"
+      ],
+      "version": "3.13.16",
+      "source": "https://www.python.org/ftp/python/3.13.16/python-3.13.16-amd64.exe",
+      "sha256": "fb4f9f5d438b2396da0086dc70b935c530cb578e37adc6d354f7ad2037fee83b",
+      "installation": "per-user silent install if no Python 3.11+ with Tk is found"
+    },
+    {
+      "id": "windows_ffmpeg",
+      "platforms": [
+        "windows-x86_64"
+      ],
+      "version": "9.0.2",
+      "source": "https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-9.0.2-essentials_build.zip",
+      "sha256": "60f467265b1e312373dbcd92200c2618a74850f98d3d078e94296bb3fa2047ba"
+    },
+    {
+      "id": "deno",
+      "purpose": "JavaScript runtime used by yt-dlp for YouTube",
+      "platforms": [
+        "windows-x86_64",
+        "linux-x86_64",
+        "linux-aarch64"
+      ],
+      "version": "2.9.7",
+      "sources": {
+        "windows-x86_64": [
+          "https://github.com/denoland/deno/releases/download/v2.9.7/deno-x86_64-pc-windows-msvc.zip",
+          "a0c3101b4158d1dfb7d6a78a7bf0f3de80c96bb423c152beec8beb22786f2238"
+        ],
+        "linux-x86_64": [
+          "https://github.com/denoland/deno/releases/download/v2.9.7/deno-x86_64-unknown-linux-gnu.zip",
+          "c6527f24f4b16031d3ae4fa9f658d5f11534c8d84ce7dc8502420280919c3490"
+        ],
+        "linux-aarch64": [
+          "https://github.com/denoland/deno/releases/download/v2.9.7/deno-aarch64-unknown-linux-gnu.zip",
+          "c832298b1ad4422481334855f6003e0f54145762c5a134f20a489511d2f65bbf"
+        ]
+      }
+    },
+    {
+      "id": "linux_system_packages",
+      "platforms": [
+        "linux-x86_64",
+        "linux-aarch64"
+      ],
+      "apt": [
+        "python3",
+        "python3-venv",
+        "python3-tk",
+        "ffmpeg",
+        "libgl1",
+        "libglib2.0-0",
+        "ca-certificates",
+        "curl"
+      ]
+    }
+  ],
+  "behavior": {
+    "check_before_install": true,
+    "skip_healthy_requirements": true,
+    "show_progress": true,
+    "allow_retry": true,
+    "paid_api_fallback": false,
+    "automatically_submit_results": false
+  },
+  "distribution": "double_click_launcher",
+  "unsupported_platforms": {
+    "macos-x86_64": "Intel Macs are not supported: Apple Vision text reading is built for Apple Silicon and the RapidOCR path has not been tested on Intel macOS.",
+    "windows-arm64": "Windows on ARM is not supported: no tested OpenCV/ONNX Runtime wheels.",
+    "linux-fedora": "Fedora/RHEL are not supported: ffmpeg-free decodes H.264 through Cisco OpenH264, which this installer has not been tested with.",
+    "linux-ubuntu-22.04": "Ubuntu 22.04 ships Python 3.10; the hash-locked OCR packages need Python 3.11+."
+  }
+}

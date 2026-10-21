@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "seasons": [
+    2026
+  ],
+  "source": {
+    "repository": "Prosper-FRC/2026-Scouting-Robot-Tracking",
+    "commit": "dfb1751cdeef43f2a2816668813fb9a2ff5a5181",
+    "visibility": "private",
+    "purpose": "FRC bumper detection; COCO person occlusion context"
+  },
+  "bumper": {
+    "file": "best_bumper_model.pt",
+    "sha256": "48195a88722649418f4533b1199ee434e46328ddb1196fdc9e1cb4cc6293018f"
+  },
+  "context": {
+    "file": "coco_model.pt",
+    "sha256": "0ebbc80d4a7680d14987a577cd21342b65ecfd94632bd9a8da63ae6417644ee1"
+  }
+}

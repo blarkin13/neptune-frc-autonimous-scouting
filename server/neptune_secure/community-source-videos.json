@@ -1,0 +1,434 @@
+{
+  "2026kett": {
+    "key": "2026kett",
+    "name": "Kettering Mid-Build Competition",
+    "start_date": "2026-02-07",
+    "end_date": "2026-02-07",
+    "city": "Flint",
+    "state_prov": "Michigan",
+    "country": "USA",
+    "provenance": "Individual FUN Robotics Network uploader match titles; schedule from Viper event export. Clock and robot identities still require footage verification.",
+    "matches": [
+      {
+        "key": "2026kett_qm1",
+        "comp_level": "qm",
+        "match_number": 1,
+        "set_number": 1,
+        "alliances": {
+          "red": {
+            "team_keys": [
+              "frc9554",
+              "frc7197",
+              "frc9999"
+            ]
+          },
+          "blue": {
+            "team_keys": [
+              "frc10606",
+              "frc9455",
+              "frc9998"
+            ]
+          }
+        },
+        "videos": [
+          {
+            "type": "youtube",
+            "key": "iAFGc4ukqMU"
+          }
+        ]
+      },
+      {
+        "key": "2026kett_qm2",
+        "comp_level": "qm",
+        "match_number": 2,
+        "set_number": 1,
+        "alliances": {
+          "red": {
+            "team_keys": [
+              "frc7211",
+              "frc10606",
+              "frc9999"
+            ]
+          },
+          "blue": {
+            "team_keys": [
+              "frc7197",
+              "frc9554",
+              "frc9998"
+            ]
+          }
+        },
+        "videos": [
+          {
+            "type": "youtube",
+            "key": "LhKC7gWFwqs"
+          }
+        ]
+      },
+      {
+        "key": "2026kett_qm3",
+        "comp_level": "qm",
+        "match_number": 3,
+        "set_number": 1,
+        "alliances": {
+          "red": {
+            "team_keys": [
+              "frc9455",
+              "frc7211",
+              "frc9999"
+            ]
+          },
+          "blue": {
+            "team_keys": [
+              "frc9554",
+              "frc7197",
+              "frc9998"
+            ]
+          }
+        },
+        "videos": [
+          {
+            "type": "youtube",
+            "key": "tr0gbYmRG7c"
+          }
+        ]
+      },
+      {
+        "key": "2026kett_qm4",
+        "comp_level": "qm",
+        "match_number": 4,
+        "set_number": 1,
+        "alliances": {
+          "red": {
+            "team_keys": [
+              "frc10606",
+              "frc9455",
+              "frc9999"
+            ]
+          },
+          "blue": {
+            "team_keys": [
+              "frc7211",
+              "frc9554",
+              "frc9998"
+            ]
+          }
+        },
+        "videos": [
+          {
+            "type": "youtube",
+            "key": "U6mHn214tuQ"
+          }
+        ]
+      },
+      {
+        "key": "2026kett_qm5",
+        "comp_level": "qm",
+        "match_number": 5,
+        "set_number": 1,
+        "alliances": {
+          "red": {
+            "team_keys": [
+              "frc7197",
+              "frc10606",
+              "frc9999"
+            ]
+          },
+          "blue": {
+            "team_keys": [
+              "frc9455",
+              "frc7211",
+              "frc9998"
+            ]
+          }
+        },
+        "videos": [
+          {
+            "type": "youtube",
+            "key": "EzjssGIjiT8"
+          }
+        ]
+      },
+      {
+        "key": "2026kett_qm6",
+        "comp_level": "qm",
+        "match_number": 6,
+        "set_number": 1,
+        "alliances": {
+          "red": {
+            "team_keys": [
+              "frc9554",
+              "frc7197",
+              "frc9999"
+            ]
+          },
+          "blue": {
+            "team_keys": [
+              "frc10606",
+              "frc9455",
+              "frc9998"
+            ]
+          }
+        },
+        "videos": [
+          {
+            "type": "youtube",
+            "key": "ZLhHczeWQ0M"
+          }
+        ]
+      },
+      {
+        "key": "2026kett_qm7",
+        "comp_level": "qm",
+        "match_number": 7,
+        "set_number": 1,
+        "alliances": {
+          "red": {
+            "team_keys": [
+              "frc7211",
+              "frc9554",
+              "frc9999"
+            ]
+          },
+          "blue": {
+            "team_keys": [
+              "frc7197",
+              "frc10606",
+              "frc9998"
+            ]
+          }
+        },
+        "videos": [
+          {
+            "type": "youtube",
+            "key": "T9fT3LocvbE"
+          }
+        ]
+      },
+      {
+        "key": "2026kett_qm8",
+        "comp_level": "qm",
+        "match_number": 8,
+        "set_number": 1,
+        "alliances": {
+          "red": {
+            "team_keys": [
+              "frc9455",
+              "frc7211",
+              "frc9999"
+            ]
+          },
+          "blue": {
+            "team_keys": [
+              "frc9554",
+              "frc7197",
+              "frc9998"
+            ]
+          }
+        },
+        "videos": [
+          {
+            "type": "youtube",
+            "key": "mDOWeK7tYho"
+          }
+        ]
+      },
+      {
+        "key": "2026kett_qm9",
+        "comp_level": "qm",
+        "match_number": 9,
+        "set_number": 1,
+        "alliances": {
+          "red": {
+            "team_keys": [
+              "frc10606",
+              "frc9455",
+              "frc9999"
+            ]
+          },
+          "blue": {
+            "team_keys": [
+              "frc7211",
+              "frc9554",
+              "frc9998"
+            ]
+          }
+        },
+        "videos": [
+          {
+            "type": "youtube",
+            "key": "w3_ISYZa1Ps"
+          }
+        ]
+      },
+      {
+        "key": "2026kett_qm10",
+        "comp_level": "qm",
+        "match_number": 10,
+        "set_number": 1,
+        "alliances": {
+          "red": {
+            "team_keys": [
+              "frc7197",
+              "frc10606",
+              "frc9999"
+            ]
+          },
+          "blue": {
+            "team_keys": [
+              "frc9455",
+              "frc7211",
+              "frc9998"
+            ]
+          }
+        },
+        "videos": [
+          {
+            "type": "youtube",
+            "key": "oBfGn8JaVLg"
+          }
+        ]
+      },
+      {
+        "key": "2026kett_qm11",
+        "comp_level": "qm",
+        "match_number": 11,
+        "set_number": 1,
+        "alliances": {
+          "red": {
+            "team_keys": [
+              "frc9554",
+              "frc7197",
+              "frc9999"
+            ]
+          },
+          "blue": {
+            "team_keys": [
+              "frc10606",
+              "frc9455",
+              "frc9998"
+            ]
+          }
+        },
+        "videos": [
+          {
+            "type": "youtube",
+            "key": "ZKj7l9VsOek"
+          }
+        ]
+      },
+      {
+        "key": "2026kett_qm12",
+        "comp_level": "qm",
+        "match_number": 12,
+        "set_number": 1,
+        "alliances": {
+          "red": {
+            "team_keys": [
+              "frc7211",
+              "frc9554",
+              "frc9999"
+            ]
+          },
+          "blue": {
+            "team_keys": [
+              "frc7197",
+              "frc10606",
+              "frc9998"
+            ]
+          }
+        },
+        "videos": [
+          {
+            "type": "youtube",
+            "key": "cvv01l2URCo"
+          }
+        ]
+      },
+      {
+        "key": "2026kett_qm13",
+        "comp_level": "qm",
+        "match_number": 13,
+        "set_number": 1,
+        "alliances": {
+          "red": {
+            "team_keys": [
+              "frc9455",
+              "frc7211",
+              "frc9999"
+            ]
+          },
+          "blue": {
+            "team_keys": [
+              "frc9554",
+              "frc7197",
+              "frc9998"
+            ]
+          }
+        },
+        "videos": [
+          {
+            "type": "youtube",
+            "key": "qIOq7GUX0LI"
+          }
+        ]
+      },
+      {
+        "key": "2026kett_qm14",
+        "comp_level": "qm",
+        "match_number": 14,
+        "set_number": 1,
+        "alliances": {
+          "red": {
+            "team_keys": [
+              "frc10606",
+              "frc9455",
+              "frc9999"
+            ]
+          },
+          "blue": {
+            "team_keys": [
+              "frc7211",
+              "frc9554",
+              "frc9998"
+            ]
+          }
+        },
+        "videos": [
+          {
+            "type": "youtube",
+            "key": "D-EfRwCJa6I"
+          }
+        ]
+      },
+      {
+        "key": "2026kett_qm15",
+        "comp_level": "qm",
+        "match_number": 15,
+        "set_number": 1,
+        "alliances": {
+          "red": {
+            "team_keys": [
+              "frc7197",
+              "frc10606",
+              "frc9999"
+            ]
+          },
+          "blue": {
+            "team_keys": [
+              "frc9455",
+              "frc7211",
+              "frc9998"
+            ]
+          }
+        },
+        "videos": [
+          {
+            "type": "youtube",
+            "key": "Fe0WmwA1lds"
+          }
+        ]
+      }
+    ]
+  }
+}
