@@ -14,6 +14,7 @@ neptune_identity_review.py
 neptune_learning.py
 neptune_ocr.py
 neptune_page_worker.py
+neptune_quality.py
 neptune_review_learning.py
 neptune_scoring_model.py
 neptune_setup.py

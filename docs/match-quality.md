@@ -1,7 +1,7 @@
 # Match quality reports (`engine/neptune_quality.py`)
 
-Read-only checks. They never change labels, imports or models, and the file is deliberately not in
-`neptune_engine.FILES`, so adding it invalidates no cached preparation.
+Read-only checks: they never change labels, imports or models. Training uses the clock verdict. Outside
+rows from an `exclude` match are skipped with reason `external_clock_match_excluded`.
 
 ## 1. Clock-join check: can this match's outside scouting be trusted?
 

@@ -54,6 +54,18 @@ class Clock(unittest.TestCase):
         self.assertEqual(r['join_outcomes'].get('unavailable:phase_not_in_video'), 1)
         self.assertEqual(r['aligned_rate'], .5)
 
+    def test_few_readings_that_still_join_are_marginal_not_excluded(self):
+        short = {'start': 8, 'end': 28, 'length_rule': 20, 'clock_samples': [{'t': 10, 'remaining': 18}, {'t': 11, 'remaining': 17}]}
+        r = q.clock_report(facts(auto=short), [outside(1, 2000, ph='auto')])
+        self.assertEqual((r['aligned'], r['verdict']), (1, 'marginal'))
+
+    def test_unsteady_clock_is_excluded(self):
+        p = phase()
+        for s in p['clock_samples'][40:70]:
+            s['remaining'] = max(1, s['remaining'] - 5)
+        r = q.clock_report(facts(teleop=p), [outside(1, 5000)])
+        self.assertEqual(r['verdict'], 'exclude')
+
     def test_no_clock_is_excluded(self):
         r = q.clock_report(facts(teleop={'length_rule': 140, 'clock_samples': []}), [outside(1, 3000)])
         self.assertEqual(r['verdict'], 'exclude')

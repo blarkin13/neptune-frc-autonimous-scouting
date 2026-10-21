@@ -19,6 +19,11 @@ class OutsideScouting(unittest.TestCase):
    self.assertEqual(sources['AAAAAAAAAAA']['label_checks'][r['id']],'ok');self.assertEqual(store.load('ledger.json',{})[r['id']]['original']['video_duration_ms'],0)
  def facts(self):
   return {'source':{'sha256':'b'*64,'duration_s':180},'identity':{'checks':{'match_number':{'status':'match'},'roster':{'status':'match'}}},'periods':{'auto':{'start':8,'end':28,'clock_samples':[{'t':10,'remaining':18},{'t':11,'remaining':17}],'length_rule':20,'start_observed':True,'end_observed':True}},'bumpers':{'identities':{'1':{'status':'confirmed','alliance':'red'}},'reads':[{'team':1,'t':10,'kind':'exact','background':'red','frame_box':[.2,.2,.05,.02],'frame':'frame'}]}}
+ def test_match_whose_clock_join_is_excluded_contributes_no_outside_rows(self):
+  facts=self.facts();src={'AAAAAAAAAAA':{'status':'verified','sha256':'b'*64,'duration_ms':180000}}
+  good=self.row();bad=[dict(self.row(),id=c*32,start_ms=15000,end_ms=15000) for c in 'cd']
+  examples,skips=training.labeled_examples([good]+bad,{'AAAAAAAAAAA':facts},src,Path('/unused'),extractor=lambda *a:[1.0]*1296)
+  self.assertFalse(examples);self.assertEqual(skips['external_clock_match_excluded'],1);self.assertEqual(skips['external_clock_no_local_clock_bracket'],2)
  def test_source_time_joins_verified_phase_and_keeps_weak_provenance(self):
   row=self.row();facts=self.facts();src={'AAAAAAAAAAA':{'status':'verified','sha256':'b'*64,'duration_ms':180000,'file':'AAAAAAAAAAA.mp4'}}
   examples,skipped=training.labeled_examples([row],{'AAAAAAAAAAA':facts},src,Path('/unused'),extractor=lambda *a:[1.0]*1296)

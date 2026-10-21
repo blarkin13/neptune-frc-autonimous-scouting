@@ -160,72 +160,12 @@ def score_alliance(row):
     return next((a for a in ('red','blue') if row.get('team_number') in (roster.get(a) or [])),None)
 
 
-def observed_shares(rows):
-    """Robot share of its alliance per (match, alliance), from attributed score targets only.
-
-    With all three robots reported, shares are relative to their reported sum, which keeps a
-    low-scoring Week 0 and a high-scoring championship on the same scale. Otherwise a human
-    target with its official alliance total is used. Imports never override a human target.
-    """
-    from neptune_video_labels import external_score_label
-    alliances=collections.defaultdict(dict)
-    for r in rows:
-        alliance=score_alliance(r);s=r.get('scoring') or {}
-        if alliance is None or type(s.get('robot_points')) is not int:continue
-        human=not external_score_label(r);team=r['team_number']
-        previous=alliances[(r['match_key'],alliance)].get(team)
-        if previous and previous['human'] and not human:continue
-        alliances[(r['match_key'],alliance)][team]={'points':s['robot_points'],'total':s.get('alliance_score'),'human':human,'size':len(r['roster'][alliance])}
-    out={}
-    for key,teams in alliances.items():
-        reported=sum(t['points'] for t in teams.values())
-        if len(teams)==3 and reported>0:out[key]={team:t['points']/reported for team,t in teams.items()}
-        elif all(type(t['total']) is int and t['total']>0 for t in teams.values()):out[key]={team:min(1.,t['points']/t['total']) for team,t in teams.items()}
-    return out
-
-
-def team_priors(rows, exclude_match=None):
-    shares=collections.defaultdict(list)
-    for (match_key,_),teams in observed_shares(rows).items():
-        if match_key==exclude_match:continue
-        for team,share in teams.items():shares[team].append(share)
-    return {str(team):{'share':round(sum(v)/len(v),5),'matches':len(v)} for team,v in sorted(shares.items())}
-
-
-def prior_shares(priors, teams):
-    """Alliance shares from team history, shrunk toward an equal split."""
-    base=[1/len(teams)]*len(teams) if teams else [];basis='equal_split'
-    out=[];used_history=False
-    for team,b in zip(teams,base):
-        p=(priors or {}).get(str(team))
-        if p and p.get('matches'):
-            w=p['matches']/(p['matches']+1);out.append(w*p['share']+(1-w)*b);used_history=True
-        else:out.append(b)
-    total=sum(out)
-    return [v/total for v in out] if total>0 else base,('team_history+'+basis if used_history else basis)
-
-
 def apportion(weights, total):
     """Largest-remainder whole points that sum exactly to the alliance total."""
     if sum(weights)<=0:weights=[1.]*len(weights)
     raw=[total*w/sum(weights) for w in weights];parts=[int(math.floor(v)) for v in raw]
     for i in sorted(range(len(raw)),key=lambda i:(parts[i]-raw[i],i))[:total-sum(parts)]:parts[i]+=1
     return parts
-
-
-def validate_priors(rows):
-    """Leave-one-match-out share error of team history versus an equal split."""
-    observed=observed_shares(rows);errors={'team_history':[],'equal_split':[]}
-    for (match_key,alliance),teams in observed.items():
-        if len(teams)!=3:continue
-        priors=team_priors(rows,exclude_match=match_key);order=sorted(teams)
-        predicted,_=prior_shares(priors,order)
-        for team,share in zip(order,predicted):
-            errors['team_history'].append(abs(share-teams[team]));errors['equal_split'].append(abs(1/3-teams[team]))
-    if not errors['equal_split']:return {'status':'needs_complete_alliance_targets','alliances':0}
-    return {'status':'evaluated','method':'leave-one-match-out','alliances':len(errors['equal_split'])//3,
-            'share_mae_team_history':round(statistics.mean(errors['team_history']),4),'share_mae_equal_split':round(statistics.mean(errors['equal_split']),4),
-            'note':'Shares of reported alliance sums from attributed estimates; teams without history fall back to an equal split. Not an official accuracy result.'}
 
 
 def validate_video(rows):

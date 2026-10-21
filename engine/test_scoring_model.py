@@ -70,13 +70,7 @@ class Scoring(unittest.TestCase):
         model['validation']={'video':{'status':'evaluated','robots':6,'point_mae_video':10,'point_mae_training_mean':20}}
         output=scoring.predict('none',facts(),model,{'red':[1,2,3],'blue':[4,5,6]},{'red':300,'blue':300},feature)
         self.assertTrue(all(r['robot_points'] is None and r['reason']=='inconsistent_alliance_predictions' for r in output))
-    def test_team_history_shares_and_leave_one_match_out_check(self):
-        def target(match,team,points,alliance='red'):
-            r=row(team,points);r.update(match_key=match,id=match+str(team));return r
-        rows=[]
-        for m in range(3):rows+=[target('2026same_qm%d'%m,1,60),target('2026same_qm%d'%m,2,30),target('2026same_qm%d'%m,3,10)]
-        priors=scoring.team_priors(rows);self.assertAlmostEqual(priors['1']['share'],.6);self.assertEqual(priors['1']['matches'],3)
-        check=scoring.validate_priors(rows);self.assertEqual(check['alliances'],3);self.assertLess(check['share_mae_team_history'],check['share_mae_equal_split'])
+    def test_apportion_whole_points(self):
         self.assertEqual(scoring.apportion([1,1,1],100),[34,33,33]);self.assertEqual(sum(scoring.apportion([.2,.5,.3],7)),7)
     def test_scoring_only_training_checkpoint_and_model_integrity(self):
         with tempfile.TemporaryDirectory() as tmp:

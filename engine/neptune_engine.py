@@ -6,7 +6,7 @@ VERSION = '2.4.0-review-learning-preview2'
 FILES = ('neptune_trainer.py', 'neptune_cache.py', 'neptune_page_worker.py', 'neptune_action_labels.py', 'neptune_training.py', 'neptune_scoring_model.py', 'neptune_clock.py',
          'neptune_events.py', 'neptune_tracking.py', 'neptune_yolo.py', 'neptune_identity.py', 'neptune_identity_review.py', 'neptune_review_learning.py', 'neptune_box_follow.py', 'neptune_temporal.py', 'neptune_detector_training.py', 'requirements-yolo.txt', 'neptune_facts.py',
          'neptune_ocr.py', 'neptune_video_labels.py', 'neptune_games.py', 'season_rules.json',
-         'neptune_engine.py','neptune_videomae.py','requirements-videomae.txt')
+         'neptune_engine.py','neptune_videomae.py','requirements-videomae.txt','neptune_quality.py')
 
 
 def identity():

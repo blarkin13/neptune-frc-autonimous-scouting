@@ -277,8 +277,16 @@ def aligned_record(row, facts):
                     'assumed_not_measured':True,'clock_uncertainty_ms':max(start['uncertainty_ms'],end['uncertainty_ms'])}),None
 
 
+def clock_excluded(rows, facts):
+    """True when the match's clock join is too poor to place any outside-scouting row (neptune_quality)."""
+    external=[r for r in rows if labels.external_label(r)]
+    if not external:return False
+    from neptune_quality import clock_report
+    return clock_report(facts,external)['verdict']=='exclude'
+
+
 def labeled_examples(rows, fact_map, sources, videos, progress=lambda s:None, extractor=None,audit=None,temporal_required=False):
-    examples={};excluded=collections.Counter();cache={};hash_groups={}
+    examples={};excluded=collections.Counter();cache={};hash_groups={};clock_gate={}
     def reject(row,reason):
         excluded[reason]+=1
         if audit is not None:audit.append({'label_id':row['id'],'match_key':row['match_key'],'team':row['team_number'],'category':row['tag_key'],'status':'rejected','reason':reason})
@@ -294,6 +302,9 @@ def labeled_examples(rows, fact_map, sources, videos, progress=lambda s:None, ex
                 reject(original_row,'external_match_identity_unverified');continue
             row,reason=aligned_record(row,facts)
             if row is None:reject(original_row,reason);continue
+            if original_row['video_id'] not in clock_gate:
+                clock_gate[original_row['video_id']]=clock_excluded([r for r in rows if r['video_id']==original_row['video_id']],facts)
+            if clock_gate[original_row['video_id']]:reject(original_row,'external_clock_match_excluded');continue
             if row['start_ms']<0 or row['end_ms']>src['duration_ms']:
                 reject(original_row,'external_activity_outside_video');continue
         group=labels.event_key(row['match_key'])
@@ -423,6 +434,9 @@ def unlabeled_examples(rows, fact_map, sources, videos, progress=lambda s:None, 
         records=[r for r,reason in aligned if r is not None]
         # Unalignable positives cannot safely supply references for that robot/tag.
         blocked={(r['team_number'],r['tag_key']) for r,(joined,reason) in zip(original,aligned) if joined is None}
+        if clock_excluded(original,facts):
+            blocked|={(r['team_number'],r['tag_key']) for r in original if labels.external_label(r)}
+            records=[r for r in records if not labels.external_label(r)]
         group=groups.setdefault(src['sha256'],labels.event_key(original[0]['match_key']))
         # Labels stay distinct, but a known moment of a same-category action (Score 1 fuel,
         # Score 2 fuel, legacy Scoring) is not "unknown" footage for its siblings.
@@ -697,11 +711,10 @@ def train(examples,game,run_folder,label_inventory,scoring_examples=None,scoring
     score_rows=scoring_examples or [];head,detail=scoring.fit(score_rows,point_mode=True)
     detail['excluded']=scoring_skipped or {};detail['saved_score_labels']=label_inventory.get('human_score_labels',label_inventory.get('score_labels',0));detail['imported_score_labels']=label_inventory.get('imported_score_labels',0)
     if head:
-        # Team history needs no footage, so it uses every attributed target in the snapshot.
-        head['team_priors']=scoring.team_priors(score_labels or []);head['prior_version']='team-share-prior-v1'
+        # Points come from this match's video only; no team history is stored or validated.
         video_check,head['vision_weight']=scoring.validate_video(score_rows)
-        head['validation']={'team_history':scoring.validate_priors(score_labels or []),'video':video_check}
-        detail['validation']=head['validation'];detail['vision_weight']=head['vision_weight'];detail['teams_with_history']=len(head['team_priors'])
+        head['validation']={'video':video_check}
+        detail['validation']=head['validation'];detail['vision_weight']=head['vision_weight']
         model['scoring_head']=head
         model['used_label_ids']=sorted(set(model['used_label_ids'])|set(head['used_label_ids']))
         model['scoring_examples_digest']=digest(score_rows)

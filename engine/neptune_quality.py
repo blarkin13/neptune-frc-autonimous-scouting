@@ -7,7 +7,7 @@ Two checks:
                 tolerance, and the points those counts add up to per alliance, compared with the
                 score bug the video itself shows. Official totals may be passed for checking only.
 
-Not in neptune_engine.FILES on purpose: adding it changes no preparation or model fingerprint.
+neptune_training uses clock_report's verdict to skip outside rows from `exclude` matches.
 """
 import argparse
 import collections
@@ -144,7 +144,11 @@ def verdict(report):
         problems.append(f'only {rate:.0%} of outside rows joined to a unique video time')
     if report['order_inversions']:
         problems.append(f'{report["order_inversions"]} joined rows are out of scouting time order')
-    if not measured or (rate is not None and rate < MARGINAL_ALIGNED_RATE) or report['order_inversions']:
+    # Exclude only on evidence of a wrong join: a measured clock that does not run steadily, rows that
+    # lose their time order, or most rows failing to join. Too few readings to measure is "marginal".
+    bad_fit = any(p['residual_p90_s'] > MAX_FIT_P90_S for p in measured)
+    if bad_fit or report['order_inversions'] or (rate is not None and rate < MARGINAL_ALIGNED_RATE) \
+            or (not measured and not report['aligned']):
         return 'exclude', problems
     return ('usable' if not problems else 'marginal'), problems
 
