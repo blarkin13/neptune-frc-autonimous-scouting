@@ -14,6 +14,7 @@ try {
  $name=(string)($p['video_name']??'');$sha=(string)($p['source_sha256']??'');$size=$p['video_size']??0;
  if(!preg_match('/^[A-Za-z0-9_-]{11}\.mp4$/D',$name)||!preg_match('/^[a-f0-9]{64}$/D',$sha)||!is_int($size)||$size<=0)throw new CommunityAnalysisError(422,'Verified video details required.');
  $base=dirname(__DIR__,3).'/neptune_secure/field-regions';$files=array_merge(glob($base.'/seed-documents/*.json')?:[],glob($base.'/'.(int)$computer['user_id'].'/*.json')?:[]);$match=null;
- foreach($files as $file){if(filesize($file)>2097152)continue;$d=json_decode((string)file_get_contents($file),true,64,JSON_THROW_ON_ERROR);if(($d['source']['name']??'')!==$name||(int)($d['source']['size']??0)!==$size)continue;if(isset($d['source_sha256'])&&$d['source_sha256']!==$sha)continue;$match=$d;}
+ foreach($files as $file){if(filesize($file)>2097152)continue;$d=json_decode((string)file_get_contents($file),true,64,JSON_THROW_ON_ERROR);// Regions marked on the YouTube stream carry no file size; the 11-character video ID in the name binds them.
+ if(($d['source']['name']??'')!==$name||(isset($d['source']['size'])&&(int)$d['source']['size']!==$size))continue;if(isset($d['source_sha256'])&&$d['source_sha256']!==$sha)continue;$match=$d;}
  community_training_json_response(['document'=>$match,'binding'=> $match?'verify_source_locally':'no_matching_annotations']);
 }catch(CommunityAnalysisError $e){community_training_json_response(['error'=>$e->getMessage()],$e->httpStatus);}catch(Throwable $e){error_log('Field regions API: '.$e->getMessage());community_training_json_response(['error'=>'Field regions unavailable.'],503);}

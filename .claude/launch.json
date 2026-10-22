@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "scoring-areas-harness",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["/private/tmp/claude-501/-Users-brianlarkin-Desktop-autonomous-scouting/f6b46eb3-53be-4d1e-a10e-2aeda54d24c7/scratchpad/sa/serve.py", "/private/tmp/claude-501/-Users-brianlarkin-Desktop-autonomous-scouting/f6b46eb3-53be-4d1e-a10e-2aeda54d24c7/scratchpad/sa", "48731"],
+      "port": 48731
+    }
+  ]
+}

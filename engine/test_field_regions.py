@@ -28,4 +28,24 @@ class Regions(unittest.TestCase):
   t={'team':1,'start_ms':20000,'score':.8,'tag_key':'scoring'}
   out,a=enrich([t],f,'2026-rebuilt',ROOT)
   self.assertEqual(out[0]['score'],.8);self.assertFalse(out[0]['field_context']['scoring_proven']);self.assertNotIn('field_context',t)
+
+ def test_youtube_marked_regions_sync_without_file_size(self):
+  import tempfile,json as j
+  from unittest.mock import patch
+  import neptune_field_regions as fr
+  with tempfile.TemporaryDirectory() as t:
+   video=Path(t)/'jrpeWpe_iqU.mp4';video.write_bytes(b'x'*10)
+   doc=copy.deepcopy(d);doc['source']={'id':'youtube:jrpeWpe_iqU','name':'jrpeWpe_iqU.mp4','video_id':'jrpeWpe_iqU','identity_basis':'youtube_video_id'};doc.pop('source_sha256',None)
+   class R:
+    def __init__(s,b):s.b=b
+    def read(s,n):return s.b
+    def __enter__(s):return s
+    def __exit__(s,*a):return False
+   class O:
+    def open(s,req,timeout):return R(j.dumps({'document':doc}).encode())
+   with patch('urllib.request.build_opener',return_value=O()),patch('neptune_helper.public_https',side_effect=lambda u:u),patch.object(Path,'home',return_value=Path(t)):
+    out=fr.sync({'site':'https://example.org','token':'a'*64},video,{'source':{'sha256':d['source_sha256']}})
+   self.assertEqual(out['status'],'synced')
+   saved=j.loads((Path(t)/'.neptune-trainer/field-regions'/(d['source_sha256']+'.json')).read_text())
+   self.assertEqual(saved['source_sha256'],d['source_sha256'])
 if __name__=='__main__':unittest.main()

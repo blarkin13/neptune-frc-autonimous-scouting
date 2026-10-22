@@ -109,7 +109,9 @@ def sync(config,video,facts):
         document=json.loads(raw).get('document')
         if document is None:return {'status':'no_cloud_annotations'}
         d=validate(document)
-        if d['source']['name']!=video.name or d['source']['size']!=video.stat().st_size or d.get('source_sha256',sha)!=sha:raise ValueError('Region source mismatch')
+        # Regions marked on the YouTube stream have no file size; the video ID (file name) binds them.
+        size=d['source'].get('size')
+        if d['source']['name']!=video.name or (size is not None and size!=video.stat().st_size) or d.get('source_sha256',sha)!=sha:raise ValueError('Region source mismatch')
         d=dict(d,source_sha256=sha,binding_method='verified_local_video_and_authenticated_owner_export')
         # User-owned data goes outside the signed app bundle.
         folder=Path.home()/'.neptune-trainer/field-regions';folder.mkdir(parents=True,exist_ok=True)

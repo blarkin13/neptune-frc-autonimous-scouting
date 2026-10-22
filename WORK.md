@@ -1,5 +1,21 @@
 # Work log (newest first)
 
+## 2026-10-22 — Claude: scoring areas play from YouTube; Scouting card; helper 3.2.9 (engine 2.4.8-field-map-recovery-preview3)
+- `scouting.php` (from the live site, downloaded 2026-10-22) is now tracked; it has a "Scoring areas" card after
+  "Watch & tag" in the Auto Scout section.
+- `admin/scoring-areas.php`: a match picker over `community_matches`, the same catalog Tag Scouting uses. The
+  chosen match plays from YouTube (`community/assets/field-regions/youtube-source.js` adapts the YouTube
+  player to the `<video>` interface `app.js` uses), and its saved regions load automatically. "Open video
+  file" stays as a fallback; the cached-video list is gone.
+- YouTube-marked documents have no file size: `api/field-regions.php` and `neptune_field_regions.sync` bind
+  them by video name (YouTube ID) when size is absent, plus a new test.
+- `app.js` was refreshed from live first (it was newer than the repo).
+- Checked in a local browser harness: QM4 loads from YouTube with 11 regions; View, seek, play and pause work.
+  YouTube's pause bar ("More videos") covers a strip at the bottom when paused, as in Tag Scouting.
+- Helper 3.2.9 (build 30210) built the same way as 3.2.8. 415 tests pass on the bundled Python; the appcast
+  signature was verified. GitHub release `helper-3.2.9` has the helper, server engine and site tarball;
+  `PUBLISH.md` there refuses to install the site files if live hashes differ from the 2026-10-22 copy.
+
 ## 2026-10-22 — Claude: finished Codex's next version; helper 3.2.8 (engine 2.4.8-field-map-recovery-preview2)
 - Committed Codex's pending 2.4.7 work as found (e18e8cf).
 - Brought work that lived outside the repo into it:
