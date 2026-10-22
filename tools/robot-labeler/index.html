@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Neptune · Robot labeler</title>
+<style>
+:root{color-scheme:dark;--bg:#0b1219;--panel:#121d27;--line:#26384a;--text:#e9f3fb;--muted:#93a7b8;--accent:#47c6e5;--red:#ff4d5e;--blue:#3d8bff}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;height:100vh;display:grid;grid-template-columns:260px 1fr;grid-template-rows:auto 1fr}
+header{grid-column:1/3;display:flex;align-items:center;gap:14px;padding:10px 16px;border-bottom:1px solid var(--line)}
+header h1{font-size:16px;margin:0}header .grow{flex:1}#progress{color:var(--muted)}
+button{font:inherit;color:var(--text);background:#1a2a38;border:1px solid var(--line);border-radius:8px;padding:7px 11px;cursor:pointer}button:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);color:#06202a;font-weight:700;border-color:transparent}button.red{border-color:var(--red)}button.blue{border-color:var(--blue)}button.on{outline:2px solid var(--text)}
+aside{border-right:1px solid var(--line);overflow:auto}aside .f{display:flex;justify-content:space-between;padding:7px 12px;border-bottom:1px solid #1a2836;cursor:pointer;font-size:13px}
+aside .f:hover{background:#16232f}aside .f.cur{background:#1d3142}aside .done{color:#6fdc9b}aside .todo{color:var(--muted)}
+main{position:relative;overflow:hidden;background:#05090d}#view{position:absolute;left:0;top:0;transform-origin:0 0}#img{display:block;user-select:none;-webkit-user-drag:none}
+#cv{position:absolute;left:0;top:0;cursor:crosshair}
+#help{position:absolute;right:12px;bottom:12px;background:#0b1219e6;border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:12px;color:var(--muted);line-height:1.6;max-width:330px}
+#help b{color:var(--text)}#status{position:absolute;left:12px;top:12px;background:#0b1219e6;border-radius:8px;padding:6px 10px;font-size:12px}
+</style></head><body>
+<header><h1>Robot labeler</h1><span id="progress"></span><span class="grow"></span>
+<button id="red" class="red on">Red (1)</button><button id="blue" class="blue">Blue (2)</button>
+<button id="prev">◀ Prev</button><button id="next">Next ▶</button><button id="complete" class="primary">All bumpers marked ↵</button><button id="export">Export for training</button></header>
+<aside id="list"></aside>
+<main id="main"><div id="view"><img id="img" alt=""><canvas id="cv"></canvas></div><div id="status"></div>
+<div id="help"><b>Box every visible bumper</b>, including ones the detector missed.<br>Drag on empty space: new box · Click: select · Drag selected: move · Drag a corner: resize<br>
+<b>1/2</b> color for new box · <b>X</b> flip selected color · <b>Delete</b> remove · <b>Scroll</b> zoom · <b>Space+drag</b> pan · <b>0</b> fit<br>
+<b>Enter</b> mark complete and go to next · dashed = detector's guess, solid = checked by you</div></main>
+<script>
+'use strict';
+const base=location.pathname.replace(/\/$/,'')+'/',$=id=>document.getElementById(id);
+const img=$('img'),cv=$('cv'),ctx=cv.getContext('2d'),view=$('view'),main=$('main');
+let frames=[],cur=-1,boxes=[],sel=-1,color='red',zoom=1,pan=[0,0],drag=null,space=false,dirty=false;
+const api=(p,o)=>fetch(base+p,o).then(r=>r.json());
+function say(t){$('status').textContent=t}
+function setColor(c){color=c;$('red').classList.toggle('on',c==='red');$('blue').classList.toggle('on',c==='blue')}
+function renderList(){const done=frames.filter(f=>f.complete).length;$('progress').textContent=done+' of '+frames.length+' frames complete';
+ $('list').innerHTML='';frames.forEach((f,i)=>{const d=document.createElement('div');d.className='f'+(i===cur?' cur':'');
+ d.innerHTML='<span>'+f.match_key.replace(/^\d{4}[a-z0-9]+_/,'')+' · '+f.t.toFixed(1)+'s</span><span class="'+(f.complete?'done':'todo')+'">'+(f.complete?'✓ ':'')+f.boxes+'</span>';d.onclick=()=>open(i);$('list').append(d)});
+ const c=$('list').children[cur];if(c)c.scrollIntoView({block:'nearest'})}
+function fit(){const W=main.clientWidth,H=main.clientHeight;zoom=Math.min(W/img.naturalWidth,H/img.naturalHeight);pan=[(W-img.naturalWidth*zoom)/2,(H-img.naturalHeight*zoom)/2];place()}
+function place(){view.style.transform=`translate(${pan[0]}px,${pan[1]}px) scale(${zoom})`;draw()}
+function draw(){cv.width=img.naturalWidth;cv.height=img.naturalHeight;const W=cv.width,H=cv.height,lw=Math.max(1.5,2/zoom);
+ boxes.forEach((b,i)=>{ctx.setLineDash(b.source==='detector'?[8/zoom,5/zoom]:[]);ctx.lineWidth=i===sel?lw*2:lw;ctx.strokeStyle=b.alliance==='red'?'#ff4d5e':'#3d8bff';
+ ctx.strokeRect(b.x*W,b.y*H,b.w*W,b.h*H);if(i===sel){ctx.setLineDash([]);ctx.fillStyle='#fff';const s=7/zoom;
+ for(const[cx,cy]of corners(b))ctx.fillRect(cx*W-s/2,cy*H-s/2,s,s)}});ctx.setLineDash([])}
+function corners(b){return[[b.x,b.y],[b.x+b.w,b.y],[b.x+b.w,b.y+b.h],[b.x,b.y+b.h]]}
+function point(e){const r=cv.getBoundingClientRect();return[(e.clientX-r.left)/r.width,(e.clientY-r.top)/r.height]}
+function hit(p){const tol=8/zoom/img.naturalWidth;if(sel>=0){const k=corners(boxes[sel]).findIndex(c=>Math.abs(c[0]-p[0])<tol*2&&Math.abs(c[1]-p[1])<tol*2*16/9);if(k>=0)return{i:sel,corner:k}}
+ for(let i=boxes.length-1;i>=0;i--){const b=boxes[i];if(p[0]>=b.x-tol&&p[0]<=b.x+b.w+tol&&p[1]>=b.y-tol&&p[1]<=b.y+b.h+tol)return{i}}return null}
+cv.onmousedown=e=>{if(space||e.button===1){drag={pan:[e.clientX,e.clientY,...pan]};return}const p=point(e),h=hit(p);
+ if(h&&h.corner!==undefined){drag={resize:h.i,corner:h.corner}}else if(h){sel=h.i;drag={move:h.i,from:p,orig:{...boxes[h.i]}}}
+ else{sel=-1;drag={make:p}}draw()};
+window.onmousemove=e=>{if(!drag)return;if(drag.pan){pan=[drag.pan[2]+e.clientX-drag.pan[0],drag.pan[3]+e.clientY-drag.pan[1]];return place()}
+ const p=point(e);if(drag.make){drag.now=p;draw();const[a,b]=[drag.make,p];ctx.strokeStyle=color==='red'?'#ff4d5e':'#3d8bff';ctx.lineWidth=2/zoom;
+ ctx.strokeRect(Math.min(a[0],b[0])*cv.width,Math.min(a[1],b[1])*cv.height,Math.abs(b[0]-a[0])*cv.width,Math.abs(b[1]-a[1])*cv.height)}
+ else if(drag.move!==undefined){const o=drag.orig;Object.assign(boxes[drag.move],{x:o.x+p[0]-drag.from[0],y:o.y+p[1]-drag.from[1],source:'person'});dirty=true;draw()}
+ else if(drag.resize!==undefined){const b=boxes[drag.resize],c=corners(b),opp=c[(drag.corner+2)%4];
+ Object.assign(b,{x:Math.min(p[0],opp[0]),y:Math.min(p[1],opp[1]),w:Math.abs(p[0]-opp[0]),h:Math.abs(p[1]-opp[1]),source:'person'});
+ drag.corner=[[p[0]<opp[0],p[1]<opp[1]]].map(([l,t])=>l&&t?0:!l&&t?1:!l&&!t?2:3)[0];dirty=true;draw()}};
+window.onmouseup=()=>{if(drag&&drag.make&&drag.now){const[a,b]=[drag.make,drag.now];const w=Math.abs(b[0]-a[0]),h=Math.abs(b[1]-a[1]);
+ if(w*img.naturalWidth>3&&h*img.naturalHeight>3){boxes.push({alliance:color,x:Math.min(a[0],b[0]),y:Math.min(a[1],b[1]),w,h,source:'person'});sel=boxes.length-1;dirty=true}}drag=null;draw()};
+main.onwheel=e=>{e.preventDefault();const r=main.getBoundingClientRect(),mx=e.clientX-r.left,my=e.clientY-r.top,k=Math.exp(-e.deltaY*.0015),z=Math.min(12,Math.max(.2,zoom*k));
+ pan=[mx-(mx-pan[0])*z/zoom,my-(my-pan[1])*z/zoom];zoom=z;place()};
+window.onkeydown=e=>{if(e.code==='Space'){space=true;e.preventDefault()}if(e.key==='1')setColor('red');if(e.key==='2')setColor('blue');if(e.key==='0')fit();
+ if((e.key==='Delete'||e.key==='Backspace')&&sel>=0){boxes.splice(sel,1);sel=-1;dirty=true;draw();e.preventDefault()}
+ if((e.key==='x'||e.key==='X')&&sel>=0){boxes[sel].alliance=boxes[sel].alliance==='red'?'blue':'red';boxes[sel].source='person';dirty=true;draw()}
+ if(e.key==='Enter'){e.preventDefault();complete()}if(e.key==='ArrowRight')go(1);if(e.key==='ArrowLeft')go(-1)};
+window.onkeyup=e=>{if(e.code==='Space')space=false};
+async function save(done){const f=frames[cur];await api('api/frame/'+f.id,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({boxes,complete:done})});
+ f.complete=done;f.boxes=boxes.length;dirty=false}
+async function open(i){if(cur>=0&&dirty)await save(frames[cur].complete);cur=i;const f=frames[i],d=await api('api/frame/'+f.id);boxes=d.boxes;sel=-1;dirty=false;
+ say(f.match_key+' · '+f.t.toFixed(1)+'s · '+(d.prefilled?'detector guesses — check every bumper':d.complete?'complete':'draft'));
+ img.onload=()=>{if(!zoom||zoom===1)fit();else place()};img.src=base+'api/image/'+f.id;renderList()}
+async function complete(){boxes.forEach(b=>b.source='person');await save(true);const next=frames.findIndex((f,i)=>i>cur&&!f.complete);renderList();open(next>=0?next:cur)}
+function go(k){const i=cur+k;if(i>=0&&i<frames.length)open(i)}
+$('red').onclick=()=>setColor('red');$('blue').onclick=()=>setColor('blue');$('prev').onclick=()=>go(-1);$('next').onclick=()=>go(1);$('complete').onclick=complete;
+$('export').onclick=async()=>{if(dirty)await save(frames[cur].complete);const r=await api('api/export',{method:'POST'});say('Exported '+r.frames+' complete frames ('+r.train+' train, '+r.val+' check) · '+r.boxes+' bumpers')};
+window.onresize=fit;
+api('api/frames').then(d=>{frames=d.frames;renderList();const first=frames.findIndex(f=>!f.complete);if(frames.length)open(first>=0?first:0);else say('No saved tracking reviews with video found on this Mac.')});
+</script></body></html>

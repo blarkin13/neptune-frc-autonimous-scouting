@@ -21,6 +21,16 @@
         "/private/tmp/claude-501/-Users-brianlarkin-Desktop-autonomous-scouting/f6b46eb3-53be-4d1e-a10e-2aeda54d24c7/scratchpad/site/public_html/Neptune"
       ],
       "port": 48732
+    },
+    {
+      "name": "robot-labeler",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "/Users/brianlarkin/Desktop/autonomous_scouting/tools/robot-labeler/server.py",
+        "--port",
+        "49530"
+      ],
+      "port": 49530
     }
   ]
 }

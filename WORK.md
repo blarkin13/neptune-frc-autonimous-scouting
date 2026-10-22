@@ -1,5 +1,19 @@
 # Work log (newest first)
 
+## 2026-10-22 — Claude: perception/game split; robot labeler
+- `engine/neptune_perception.py`: the reusable perception layer (robot detector, tracking, identity solver,
+  field-layout detector) vs the season game layer. Trained models record both (`perception`, `game_layer`).
+  `neptune_yolo.bundle` accepts a `game_independent` detector manifest for any season.
+- Finding: tracking reviews hold identity fixes plus boxes that all came from the current detector; none are
+  missed robots, so they cannot teach a better detector.
+- `tools/robot-labeler/`: local page (127.0.0.1, random URL token) to box every visible bumper on frames from
+  the saved tracking reviews, pre-filled with the current detector's boxes (recovered from tracking
+  observations). Export writes `local/robot-labels/manifest.json` in the format
+  `neptune_detector_training.prepare` accepts. QM1 frames are kept for checking. Tested in a browser: draw,
+  delete, complete and export work.
+- Candidate whole-robot detector: ai4funhobby-oss/RobotTracking (`robot26-trial.pt` in Codex's trial folder).
+  Compare it and the current bumper detector against the same labelled frames before choosing.
+
 ## 2026-10-22 — Claude: field detector trained (engine 2.5.0-field-detector-preview1)
 - Trained YOLO11n (from the COCO context weights) on 2026txcmp1: 324 frames from QM3/QM4 for training and
   119 from QM1 held out, labelled from the QM4 marks (hubs + the four field-boundary corners). CPU training:
