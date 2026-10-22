@@ -1,5 +1,19 @@
 # Work log (newest first)
 
+## 2026-10-22 — Claude: field detector trained (engine 2.5.0-field-detector-preview1)
+- Trained YOLO11n (from the COCO context weights) on 2026txcmp1: 324 frames from QM3/QM4 for training and
+  119 from QM1 held out, labelled from the QM4 marks (hubs + the four field-boundary corners). CPU training:
+  the Apple GPU (MPS) hung. Early-stopped at epoch 35; best at epoch 20. Held-out QM1: P 0.96, R 0.97,
+  mAP50 0.99.
+- End to end on QM1 (held out): 4/4 hubs and 4/4 corners found, all 11 regions placed through the field plane,
+  median point error 0.003 of frame width, worst 0.099 (right close-up zone behind a sponsor graphic).
+  QM1 itself gets no regions in Auto Scout because its video starts mid-teleop and sides can't be read.
+- Not yet tested on another event (txcmp2). Same-event results don't show cross-event generalisation.
+- Weights: `engine/field-detector/model.pt` (git-ignored; ship in the helper and server engine archive).
+  Training files are in `local/field-detector/`.
+- Not used in model training yet: training only checks outside scoring rows against marked regions. Location
+  as a model input, and using detected regions in training, are not built.
+
 ## 2026-10-22 — Claude: event-wide scoring regions; training checks scoring labels; helper 3.2.10 (engine 2.4.9-event-regions-preview1)
 - Regions marked on one match now apply to every match at that event (`neptune_field_regions.load` → event
   file). Times come from the reference video, so only the camera view carries over.
