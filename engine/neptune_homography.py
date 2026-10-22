@@ -33,6 +33,13 @@ def trajectories(facts,game_key,root=None):
  d=load(facts,game_key,root)
  if not d:return {'status':'needs_reviewed_field_corners','version':VERSION,'points':[]}
  calibrations=[(r,calibrate(r['points'])) for r in d['regions'] if r['kind']=='field_calibration']
+ if not calibrations:
+  # A four-point field boundary is the same field outline; order its corners from the image.
+  from neptune_field_detector import ordered_quad
+  for r in d['regions']:
+   if r['kind']=='field_boundary' and r['camera_view']=='wide' and len(r['points'])==4:
+    try:calibrations.append((r,calibrate(ordered_quad(r['points']))))
+    except ValueError:pass
  out=[]
  for p in facts.get('tracking',{}).get('localizations',[]):
   if p.get('identity_method') not in {'direct_vote_track','yolo_botsort_ocr','human_reviewed_track'} or p.get('occluded') or p.get('box_source')=='optical_flow':continue

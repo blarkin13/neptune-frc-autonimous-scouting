@@ -341,8 +341,10 @@ def run_trial(config,season,match_id,progress,job=None,transport=None):
         facts=training.refresh_cached_facts(facts_file,facts,match,game,sha)
         facts=training.ensure_tracking(video,facts,game,work,status)
         training.write(facts_file,facts)
-        from neptune_field_regions import sync
+        from neptune_field_regions import sync,sync_events,event_key,match_key_of,detect_if_unmarked
         field_sync=sync(config,video,facts)
+        field_sync['event']=sync_events(config,[event_key(match_key_of(facts))])
+        field_sync['detection']=detect_if_unmarked(video,facts,game['game_key'],status)
         status('Predicting robot action tags')
         tags=training.predict(video,facts,model,game)
         from neptune_scouting_rules import summarize

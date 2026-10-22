@@ -18,3 +18,4 @@ trainer-app/releases/
 *.zip
 *.deb
 *.exe
+engine/vendor

@@ -88,8 +88,9 @@ def event_document(facts,game_key,docs):
     return None
 
 
-def load(facts,game_key,root=None):
-    """Regions marked on this exact video, else the event's regions applied to it, else None."""
+def load(facts,game_key,root=None,allow_detected=True):
+    """Regions marked on this exact video, else the event's marked regions, else (when allowed) regions the
+    field detector found in this video, else None."""
     sha=facts.get('source',{}).get('sha256','')
     if len(sha)!=64 or any(c not in '0123456789abcdef' for c in sha):return None
     folder=Path(root) if root else Path.home()/'.neptune-trainer/field-regions'
@@ -101,9 +102,30 @@ def load(facts,game_key,root=None):
         return dict(d,regions=[r for r in d['regions'] if r['game_key']==game_key])
     event=event_key(match_key_of(facts))
     events=folder/'events'/(event+'.json')
-    if not event or not events.is_file():return None
-    d=event_document(facts,game_key,json.loads(events.read_text()))
-    return d if d and d.get('regions') else None
+    if event and events.is_file():
+        d=event_document(facts,game_key,json.loads(events.read_text()))
+        if d and d.get('regions'):return d
+    detected=folder/'detected'/(sha+'.json')
+    if allow_detected and detected.is_file():
+        d=json.loads(detected.read_text())
+        if d.get('source_sha256')==sha and d.get('regions'):return dict(d,regions=[r for r in d['regions'] if r['game_key']==game_key])
+    return None
+
+
+def detect_if_unmarked(video,facts,game_key,progress=lambda s:None):
+    """Run the learned field detector for a video with no marked regions; cache its result for this video."""
+    if load(facts,game_key,allow_detected=False):return {'status':'marked_regions_available'}
+    from neptune_field_detector import detect,model_dir
+    reference=model_dir()/'reference.json'
+    if not reference.is_file():return {'status':'no_field_detector'}
+    progress('Finding scoring areas and field corners')
+    try:result=detect(video,facts,json.loads(reference.read_text()))
+    except Exception as error:return {'status':'detector_failed','error_type':type(error).__name__}
+    if result.get('document'):
+        folder=Path.home()/'.neptune-trainer/field-regions/detected';folder.mkdir(parents=True,exist_ok=True)
+        target=folder/(facts['source']['sha256']+'.json');temp=target.with_suffix('.pending')
+        temp.write_text(json.dumps(result['document'],allow_nan=False));temp.replace(target)
+    return {k:v for k,v in result.items() if k!='document'}
 
 def active(r,t,camera,facts):
     if r['camera_view']!=camera or not r['start_ms']<=t*1000<=r['end_ms']:return False

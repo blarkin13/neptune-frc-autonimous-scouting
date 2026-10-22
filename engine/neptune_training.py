@@ -984,7 +984,7 @@ def run(root,year,export_url=labels.EXPORT_URL,download=True,progress=print,expo
                     diagnostics['action_encoder']=action_encoder_document(selected_action_version())
                     action_selected=[r for r in selected if r['id'] in action_ids]
                     from neptune_field_regions import load as load_regions
-                    try:regions=load_regions(facts,game['game_key'])
+                    try:regions=load_regions(facts,game['game_key'],allow_detected=False)
                     except ValueError:regions=None
                     diagnostics.setdefault('field_regions',{})[record['match_key']]={'applied':bool(regions),'application':(regions or {}).get('application','exact_video' if regions else None),'sides':(regions or {}).get('sides'),'sides_swapped':(regions or {}).get('sides_swapped')}
                     examples,skipped=labeled_examples(action_selected,{vid:facts},sources,videos,progress,extractor=temporal_extractor,audit=diagnostics['labels'],temporal_required=True,field_regions={vid:regions})
