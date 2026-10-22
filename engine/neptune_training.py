@@ -739,6 +739,8 @@ def train_actions(examples, game, run_folder, label_inventory):
     model={'schema_version':1,'game_key':game['game_key'],'game_fingerprint':game['fingerprint'],'game':game['game'],
            'feature_version':feature_version,'heads':heads,'action_definitions':vocabulary,'used_label_ids':sorted(used),'training_examples_digest':digest(examples),
            'created_at':datetime.datetime.now(datetime.timezone.utc).isoformat(),'release_ready':False,
+           # Which reusable perception this game model was trained on, and its season layer.
+           **(lambda p:{'perception':p.perception_identity(),'game_layer':p.game_identity(game,feature_version)})(__import__('neptune_perception')),
            'limitations':['Experimental appearance/motion baseline. No six-scout accuracy claim.',
                           'Only confirmed robot sightings are analyzed; camera gaps remain unknown.',
                           'Unlabeled crops are mixed reference footage, not verified negatives. Action heads ship only after match-held-out P-vs-U validation; thresholds remain provisional until full-match evaluation.',

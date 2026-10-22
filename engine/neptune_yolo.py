@@ -29,7 +29,8 @@ def bundle(root=None, season=2026):
     if not path.is_file():
         raise ValueError('Robot tracking model is missing. Download the updated personalized helper, or install the private robot-model bundle on Neptune.')
     data = json.loads(path.read_text())
-    if data.get('schema_version') != 1 or season not in data.get('seasons', []):
+    # Robots, bumpers and broadcasts look alike every year: a game-independent detector serves any season.
+    if data.get('schema_version') != 1 or not (data.get('game_independent') is True or season in data.get('seasons', [])):
         raise ValueError('The robot detector has not been configured for this season.')
     for key in ('bumper', 'context'):
         row = data.get(key)
