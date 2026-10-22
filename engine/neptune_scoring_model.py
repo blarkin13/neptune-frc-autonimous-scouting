@@ -341,13 +341,24 @@ def run_trial(config,season,match_id,progress,job=None,transport=None):
         facts=training.refresh_cached_facts(facts_file,facts,match,game,sha)
         facts=training.ensure_tracking(video,facts,game,work,status)
         training.write(facts_file,facts)
+        from neptune_field_regions import sync
+        field_sync=sync(config,video,facts)
         status('Predicting robot action tags')
         tags=training.predict(video,facts,model,game)
+        from neptune_scouting_rules import summarize
+        scouting_rules=summarize(facts,tags,model['model_id'],facts.get('scouting_rule_settings'))
+        from neptune_field_regions import observations
+        field_observations=observations(facts,game['game_key'])
+        from neptune_homography import trajectories
+        field_trajectories=trajectories(facts,game['game_key'])
+        # New observational tags are retained in structured rules output; existing
+        # server tag vocabulary receives only supported inferred tags.
+        tags=sorted(tags+[r for r in scouting_rules['events'] if r['tag_key'] not in ('stationary','disabled')],key=lambda r:(r['start_ms'],r['team']))
         status('Predicting robot score contributions')
         scores=predict(video,facts,model['scoring_head'],request['roster'],request.get('alliance_scores',{})) if model.get('scoring_head') else [dict(team=t,alliance=a,status='unknown',robot_points=None,share_percent=None,reason='scoring_model_unavailable',certainty='uncertain') for a,teams in request['roster'].items() for t in teams]
         scores=apply_recorded_contributions(scores,tags)
         from neptune_engine import identity
-        output={'model_id':model['model_id'],'source_sha256':sha,'duration_s':duration/1000,'scores':scores,'tags':tags,
+        output={'model_id':model['model_id'],'source_sha256':sha,'duration_s':duration/1000,'scores':scores,'tags':tags,'scouting_rules':scouting_rules,'field_observations':field_observations,'field_trajectories':field_trajectories,'field_region_sync':field_sync,
                 'diagnostics':{'engine':identity()['version'],'action_heads_available':len(training.usable_heads(model)),'scoring_video_validated':video_ready(model.get('scoring_head')),'blocked_action_heads':sorted(set(model['heads'])-set(training.usable_heads(model))),
                                'identity_coverage':facts.get('tracking',{}).get('coverage',{}),'tracking_status':facts.get('tracking',{}).get('status','measured')}}
         training.write(folder/'result.json',output)

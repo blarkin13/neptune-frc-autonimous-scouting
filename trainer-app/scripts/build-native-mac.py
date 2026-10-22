@@ -31,6 +31,7 @@ def main():
     for source in (ROOT/'helper').iterdir():
         if source.is_file() and ((source.suffix=='.py' and not source.name.startswith('test_')) or source.name in ('requirements.json','requirements-yolo.txt','requirements-videomae.txt','season_rules.json')):shutil.copy2(source,engine/source.name)
     for name in ('native_worker.py','native_connect.py','native_bootstrap.py'):shutil.copy2(SRC/name,engine/name)
+    if (ROOT/'helper/field-regions').is_dir():shutil.copytree(ROOT/'helper/field-regions',engine/'field-regions')
     if not (ROOT/'helper/bin/neptune-ocr').exists():run('/bin/sh',ROOT/'helper/vision/build.sh')
     clone(ROOT/'helper/bin',engine/'bin')
     vendor=engine/'vendor/bin';vendor.mkdir(parents=True)

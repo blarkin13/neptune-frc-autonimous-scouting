@@ -24,6 +24,11 @@ try {
  $raw=file_get_contents('php://input',false,null,0,4194305);if(strlen($raw)>4194304)throw new CommunityAnalysisError(413,'Training report exceeds 4 MB.');$p=json_decode($raw,true,64,JSON_THROW_ON_ERROR);if(!is_array($p))throw new CommunityAnalysisError(422,'Expected training details.');
  $action=(string)($_GET['action']??'');
  $control=new CommunityTrainingControl($pdo);
+ if(in_array($action,['review_list','review_get','review_put'],true)) {
+  require_once dirname(__DIR__,3).'/neptune_secure/community-review-storage.php';
+  $reviews=new CommunityReviewStorage($pdo);$reviews->schema();
+  community_training_json_response($action==='review_list'?$reviews->listing($computer):($action==='review_get'?$reviews->get($computer,$p):$reviews->put($computer,$p)));
+ }
  if($action==='runtime_bundle') {
   // Existing owner bearer authorization above applies; never expose private weights in public app archives.
   require_once dirname(__DIR__,3).'/neptune_secure/community-robot-models.php';

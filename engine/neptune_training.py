@@ -827,7 +827,10 @@ def predict(video,facts,model,game):
     decoded=decode(samples,facts,model['model_id'],model.get('action_definitions',{}))
     from neptune_events import stationary_disabled
     rules=stationary_disabled(facts,model['model_id'])
-    return sorted([r for r in decoded if r['tag_key']!='disabled']+rules,key=lambda r:(r['start_ms'],r['team']))
+    tags=sorted([r for r in decoded if r['tag_key']!='disabled']+rules,key=lambda r:(r['start_ms'],r['team']))
+    from neptune_field_regions import enrich
+    tags,_=enrich(tags,facts,game['game_key'])
+    return tags
 
 
 def event_metrics(predictions,reference,tolerance_ms=2000):

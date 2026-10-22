@@ -5,11 +5,18 @@ require_once dirname(__DIR__,3).'/neptune_secure/google-auth.php';
 require_once dirname(__DIR__,3).'/neptune_secure/platform-security.php';
 require_once dirname(__DIR__,3).'/neptune_secure/community-trainers.php';
 require_once dirname(__DIR__,3).'/neptune_secure/community-robot-models.php';
-// Native app is a credential-free public download; account approval happens inside the app.
-if($_SERVER['REQUEST_METHOD']==='GET'&&($_GET['native']??'')==='mac') {
- $path=__DIR__.'/downloads/mac/Neptune-Training-Helper.dmg';
- if(!is_readable($path)){http_response_code(503);exit('The native Mac app is not published yet.');}
- header('Content-Type: application/x-apple-diskimage');header('Content-Disposition: attachment; filename="Neptune-Training-Helper.dmg"');header('Content-Length: '.filesize($path));readfile($path);exit;
+// Installable apps contain no credential or private weights; approval happens in the app.
+if($_SERVER['REQUEST_METHOD']==='GET'&&in_array(($_GET['native']??''),['mac','windows','linux'],true)) {
+ $native=(string)$_GET['native'];
+ $packages=['mac'=>['mac/Neptune-Training-Helper.dmg','application/x-apple-diskimage'],
+            'windows'=>['windows/Neptune-Training-Helper-Setup.exe','application/vnd.microsoft.portable-executable'],
+            'linux'=>['linux/Neptune-Training-Helper_6.5_all.deb','application/vnd.debian.binary-package']];
+ [$file,$type]=$packages[$native];
+ $path=__DIR__.'/downloads/'.$file;
+ if(!is_readable($path)){http_response_code(503);exit('This helper installer is not published yet.');}
+ header('Cache-Control: public, max-age=300');header('X-Content-Type-Options: nosniff');
+ header('Content-Type: '.$type);header('Content-Disposition: attachment; filename="'.basename($file).'"');
+ header('Content-Length: '.filesize($path));readfile($path);exit;
 }
 $u=require_role(['owner']);if((int)$u['organization_id']!==(int)($config['app']['platform_organization_id']??1))access_denied('Platform owner required.');neptune_require_platform_owner_google($u);
 function neptune_trainer_site(): string {

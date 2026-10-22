@@ -6,7 +6,7 @@ past ambiguity. Independent camera shots/cuts and long gaps never share state.
 Only existing verified anchors and explicit human corrections are trusted.
 """
 import collections,hashlib,itertools,json,math
-VERSION='bidirectional-roster-review-v4'
+VERSION='bidirectional-roster-review-v5'
 
 def digest(value):return hashlib.sha256(json.dumps(value,sort_keys=True,separators=(',',':')).encode()).hexdigest()
 def roster_check(roster):
@@ -77,6 +77,115 @@ def solve_window(frames,teams,margin,association=None):
                 candidate_teams=plausible,identity_evidence={'solver':VERSION,'uses_future_evidence':True,'training_eligible':trusted is not None}))
     return out
 
+def bridge_short_gap(previous,current,association=None):
+    """Offer uniquely matched visible boxes after a short detection gap for review.
+
+    This never establishes a verified OCR identity or supplies training truth. A
+    new numeric tracker ID needs unusually close appearance evidence, or an
+    independently activated association model, before any suggestion is made.
+    """
+    if not previous or not current:return 0
+    end=max(p['t'] for p in previous);start=min(p['t'] for p in current);gap=start-end
+    if not 1.5<gap<=3.:return 0
+    sources=[p for p in previous if p['t']==end and p['team'] is not None and
+             any(r['team']==p['team'] and r['identity_status']=='verified' for r in previous)]
+    targets=[p for p in current if p['t']==start and p['team'] is None and p.get('reason')=='multiple_roster_assignments']
+    pairs=[]
+    for a in sources:
+        for b in targets:
+            if a['team'] not in b.get('candidate_teams',[]) or b.get('read_teams') and a['team'] not in b['read_teams']:continue
+            va,vb=a.get('appearance'),b.get('appearance')
+            if not isinstance(va,list) or not isinstance(vb,list) or len(va)!=24 or len(vb)!=24:continue
+            appearance=sum(abs(x-y) for x,y in zip(va,vb))/6
+            ax,ay,aw,ah=a['box'];bx,by,bw,bh=b['box']
+            distance=math.hypot(ax+aw/2-bx-bw/2,ay+ah/2-by-bh/2)
+            size=abs(math.log(max(1e-6,aw*ah)/max(1e-6,bw*bh)))
+            if distance>max(.04,1.6*max(aw,bw)*gap) or size>.7:continue
+            same_id=a['track_id']==b['track_id']
+            learned=None
+            if association is not None:
+                from neptune_review_learning import pair_features,probability
+                features=pair_features(a,b)
+                if features is not None:learned=probability(association,features)
+            if appearance>(.22 if same_id else .11) and not (learned is not None and learned>=.98 and appearance<=.25):continue
+            pairs.append((distance/max(.02,max(aw,bw)*gap)+4*appearance+size+(.15 if not same_id else 0),a,b))
+    accepted=0
+    for score,a,b in sorted(pairs,key=lambda row:row[0]):
+        rivals=[row for row in pairs if row[1] is a or row[2] is b]
+        if any(row[0]<score+.35 and ((row[1] is not a and row[2] is b) or
+               (row[1] is a and row[2] is not b)) for row in rivals):continue
+        rows=[p for p in current if p['track_id']==b['track_id'] and p['t']-start<=2. and
+              p['team'] is None and p['identity_status']=='unknown' and not p.get('occluded') and
+              a['team'] in p.get('candidate_teams',[]) and not (p.get('read_teams') and a['team'] not in p['read_teams'])]
+        if not rows or any(any(q is not p and q['t']==p['t'] and q['team']==a['team'] for q in current) for p in rows):continue
+        for p in rows:
+            p.update(team=a['team'],identity_status='inferred',reason='short_gap_visual_match_needs_review',
+                     candidate_teams=[a['team']],identity_evidence={'solver':VERSION,'source_point_id':a['point_id'],
+                     'uses_future_evidence':True,'training_eligible':False})
+        accepted+=len(rows)
+    return accepted
+
+def bridge_track_fragments(points):
+    """Suggest a unique reappearance after a tracker ID changes within one shot.
+
+    Both endpoints must be free of same-alliance contact. A different robot
+    with a plausible visual match, or a team already visible, blocks the link.
+    """
+    tracks=collections.defaultdict(list)
+    for p in points:tracks[p['track_id']].append(p)
+    fragments=[]
+    for rows in tracks.values():
+        fragment=[];last=None
+        for p in sorted(rows,key=lambda q:q['t']):
+            if last is not None and p['t']-last>1.5:fragments.append(fragment);fragment=[]
+            fragment.append(p);last=p['t']
+        if fragment:fragments.append(fragment)
+    sources=[f for f in fragments if f[-1]['team'] is not None and
+             any(p['identity_status']=='verified' and p['team']==f[-1]['team'] for p in f)]
+    targets=[f for f in fragments if f[0]['team'] is None and f[0].get('reason')=='multiple_roster_assignments']
+    by_time=collections.defaultdict(list)
+    for p in points:by_time[p['t']].append(p)
+    def isolated(p):
+        x,y,w,h=p['box']
+        return not p.get('occluded') and not any(q is not p and
+            max(0,min(x+w,q['box'][0]+q['box'][2])-max(x,q['box'][0]))*
+            max(0,min(y+h,q['box'][1]+q['box'][3])-max(y,q['box'][1]))>
+            .2*min(w*h,q['box'][2]*q['box'][3]) for q in by_time[p['t']])
+    pairs=[]
+    for source in sources:
+        a=source[-1]
+        if not isolated(a):continue
+        for target in targets:
+            b=target[0];gap=b['t']-a['t']
+            if a['track_id']==b['track_id'] or not .15<=gap<=3. or not isolated(b):continue
+            if a['team'] not in b.get('candidate_teams',[]) or b.get('read_teams') and a['team'] not in b['read_teams']:continue
+            if any(a['t']<p['t']<b['t'] and p.get('reason')=='too_many_or_duplicate_detections' for p in points):continue
+            va,vb=a.get('appearance'),b.get('appearance')
+            if not isinstance(va,list) or not isinstance(vb,list) or len(va)!=24 or len(vb)!=24:continue
+            appearance=sum(abs(x-y) for x,y in zip(va,vb))/6
+            if appearance>.11:continue
+            ax,ay,aw,ah=a['box'];bx,by,bw,bh=b['box']
+            distance=math.hypot(ax+aw/2-bx-bw/2,ay+ah/2-by-bh/2)
+            size=abs(math.log(max(1e-6,aw*ah)/max(1e-6,bw*bh)))
+            if distance>max(.04,1.6*max(aw,bw)*gap) or size>.7:continue
+            score=distance/max(.02,max(aw,bw)*gap)+4*appearance+size
+            pairs.append((score,a,b,target))
+    accepted=0
+    for score,a,b,target in sorted(pairs,key=lambda row:row[0]):
+        if any(row[0]<score+.35 and ((row[1] is a and row[2] is not b) or
+               (row[1] is not a and row[2] is b)) for row in pairs):continue
+        rows=[p for p in target if p['t']-b['t']<=2. and p['team'] is None and
+              p['identity_status']=='unknown' and not p.get('occluded') and
+              a['team'] in p.get('candidate_teams',[]) and
+              not (p.get('read_teams') and a['team'] not in p['read_teams'])]
+        if not rows or any(any(q is not p and q['team']==a['team'] for q in by_time[p['t']]) for p in rows):continue
+        for p in rows:
+            p.update(team=a['team'],identity_status='inferred',reason='short_gap_visual_match_needs_review',
+                     candidate_teams=[a['team']],identity_evidence={'solver':VERSION,'source_point_id':a['point_id'],
+                     'uses_future_evidence':True,'training_eligible':False})
+        accepted+=len(rows)
+    return accepted
+
 def reconcile(observations,roster,source_sha256,margin=1.0,association=None):
     roster_check(roster)
     if not isinstance(source_sha256,str) or len(source_sha256)!=64:raise ValueError('Video fingerprint required')
@@ -91,18 +200,25 @@ def reconcile(observations,roster,source_sha256,margin=1.0,association=None):
         p['point_id']=digest([source_sha256,p['camera'],p['scene'],p['t'],p['track_id'],box])
         groups[(p['camera'],str(p['scene']),p['alliance'])][p['t']].append(p)
     for _,timeline in sorted(groups.items()):
-        window=[];last=None
+        window=[];last=None;windows=[];barriers=[]
         def flush():
-            if window:out.extend(solve_window(window,roster[window[0][0]['alliance']],margin,association));window.clear()
+            if window:windows.append(solve_window(window,roster[window[0][0]['alliance']],margin,association));window.clear()
         for t,frame in sorted(timeline.items()):
             ids=[p['track_id'] for p in frame]
             ambiguous=len(frame)>3 or len(set(ids))!=len(ids)
             if ambiguous or last is not None and t-last>1.5:flush()
             if ambiguous:
+                barriers.append(t)
                 out.extend(dict(p,team=None,identity_status='unknown',reason='too_many_or_duplicate_detections',candidate_teams=roster[p['alliance']]) for p in frame)
             else:window.append(sorted(frame,key=lambda p:str(p['track_id'])))
             last=t
         flush()
+        for a,b in zip(windows,windows[1:]):
+            if not any(max(p['t'] for p in a)<t<min(p['t'] for p in b) for t in barriers):
+                bridge_short_gap(a,b,association)
+        solved_points=[p for solved in windows for p in solved]
+        bridge_track_fragments(solved_points)
+        out.extend(solved_points)
     out.sort(key=lambda p:(p['t'],p['camera'],str(p['scene']),str(p['track_id'])))
     # Split display/correction tracks at gaps; a recycled numeric track ID is not a single robot.
     tracks=collections.defaultdict(list)
@@ -112,8 +228,10 @@ def reconcile(observations,roster,source_sha256,margin=1.0,association=None):
         for p in points:
             if last is not None and p['t']-last>1.5:serial+=1
             p['review_track']=digest([source_sha256,key,serial])[:24];last=p['t']
+    summary=dict(collections.Counter(p['identity_status'] for p in out))
+    summary['short_gap_suggestions']=sum(p.get('reason')=='short_gap_visual_match_needs_review' for p in out)
     return {'schema_version':1,'solver':VERSION,'source_sha256':source_sha256,'roster':roster,'points':out,'corrections':[],
-        'summary':dict(collections.Counter(p['identity_status'] for p in out)),'limitations':['Inferred identities are review suggestions, not training labels.','No identity is carried across camera cuts or long unseen gaps.','Roster elimination requires distinct visible detections; false detections still need human review.']}
+        'summary':summary,'limitations':['Inferred identities are review suggestions, not training labels.','No identity is carried across camera cuts or long unseen gaps.','Roster elimination requires distinct visible detections; false detections still need human review.']}
 
 def apply_corrections(review,corrections):
     """Human anchors rerun both directions; original automatic evidence stays untouched."""

@@ -887,6 +887,18 @@ def refresh_score_timeline(facts, samples, match):
                 facts['reconciliation'][side]['official'] = match['official'].get(side)
 
 
+def recognize_with_progress(backend, paths, stage, label):
+    """Bound OCR batches so a long match reports progress instead of appearing stuck."""
+    paths=list(paths)
+    batch_size=16 if getattr(backend,'name',None)=='rapidocr' else 48
+    results={}
+    for start in range(0,len(paths),batch_size):
+        end=min(start+batch_size,len(paths))
+        stage[0]='%s · frames %d–%d of %d'%(label,start+1,end,len(paths))
+        results.update(backend.recognize(paths[start:end]))
+    return results
+
+
 def analyze_video(video, match, work, stage=None, duration=None, metadata_title=None, backend=None, every=2.0, source_sha256=None):
     """Returns the facts dict. Raises FactsError for unsupported layouts, wrong videos or unreadable clocks."""
     stage = stage if stage is not None else ['']
@@ -899,7 +911,7 @@ def analyze_video(video, match, work, stage=None, duration=None, metadata_title=
     facts = {'pipeline': PIPELINE_VERSION, 'source': {'sha256': source_sha256, 'duration_s': round(duration, 3), 'metadata_title': metadata_title},
              'ocr': backend.describe(), 'season': season, 'rules': {k: rules[k] for k in ('game', 'auto_seconds', 'teleop_seconds', 'endgame', 'source')}}
     # ---- Stage 1: overlay once per second ----
-    stage[0] = 'Reading the scoreboard'
+    stage[0] = 'Extracting scoreboard frames'
     layouts=rules.get('layout_profiles',LAYOUTS)
     if not layouts:raise FactsError('%s rules are configured, but its broadcast reader needs a validated layout profile. Import a calibrated game pack; another season’s layout will not be reused.' % rules['game'])
     band_crop = max(p['band'] for p in layouts.values())
@@ -907,7 +919,7 @@ def analyze_video(video, match, work, stage=None, duration=None, metadata_title=
     clear(folder, 'ov_*.jpg')
     ffmpeg(['-i', str(video), '-vf', 'fps=1:round=up,crop=iw:ih*%g:0:0' % band_crop, '-q:v', '3', str(folder / 'ov_%05d.jpg')])
     band = frames_at(folder, 'ov_*.jpg', 0.0, 1.0)
-    texts = backend.recognize([p for _, p in band])
+    texts = recognize_with_progress(backend,[p for _, p in band],stage,'Reading the scoreboard')
     save_raw(work / 'raw-overlay.jsonl', band, texts, work)
     layout_id, profile, layout_stats = detect_layout(band, texts, season, layouts)
     facts['layout'] = dict(layout_stats, profile=layout_id,camera_top=profile['camera_top'])
@@ -929,7 +941,7 @@ def analyze_video(video, match, work, stage=None, duration=None, metadata_title=
     if duration - rs_start > 1:
         ffmpeg(['-ss', '%.3f' % rs_start, '-i', str(video), '-vf', 'fps=1:round=up', '-q:v', '3', str(rfolder / 'rs_%05d.jpg')])
         rframes = frames_at(rfolder, 'rs_*.jpg', rs_start, 1.0)
-        rtexts = backend.recognize([p for _, p in rframes])
+        rtexts = recognize_with_progress(backend,[p for _, p in rframes],stage,'Reading the results screen')
         save_raw(work / 'raw-results.jsonl', rframes, rtexts, work)
         results = read_results_screen(rframes, rtexts, rules, work)
     facts['results_screen'] = results

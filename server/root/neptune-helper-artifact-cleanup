@@ -1,0 +1,137 @@
+#!/usr/bin/env python3
+"""Narrow root helper for previewing and pruning superseded Auto Scout installers.
+
+The web process may call this program through one exact sudoers command. It
+accepts no paths from the request and never touches model, label, or video data.
+"""
+import fcntl
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import stat
+import sys
+import time
+
+ROOT = Path("/var/www/neptune")
+LOCK = Path("/run/lock/neptune-release-mission-control.lock")
+ZIP_RE = re.compile(r"Neptune-Training-Helper-(\d+)\.(\d+)\.(\d+)\.zip")
+STAGE_RE = re.compile(r"helper-(\d+)\.(\d+)\.(\d+)")
+ENGINE_RE = re.compile(r"server-engine-\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?\.tar\.gz")
+
+
+def regular(path):
+    try:
+        info = path.lstat()
+    except FileNotFoundError:
+        return None
+    return info if stat.S_ISREG(info.st_mode) else None
+
+
+def version(match):
+    return tuple(int(part) for part in match.groups())
+
+
+def plan(root=ROOT, now=None):
+    now = time.time() if now is None else now
+    mac = root / "public_html/Neptune/community/downloads/mac"
+    stage_root = root / "maintenance-uploads"
+    appcast = mac / "appcast.xml"
+    info = regular(appcast)
+    if info is None or info.st_size > 100_000:
+        raise ValueError("The current update feed cannot be verified.")
+    feed = appcast.read_text(encoding="utf-8")
+    active = re.search(r"<sparkle:shortVersionString>(\d+)\.(\d+)\.(\d+)</sparkle:shortVersionString>", feed)
+    if active is None:
+        raise ValueError("The current helper version cannot be verified.")
+    current = version(active)
+    current_name = "Neptune-Training-Helper-%d.%d.%d.zip" % current
+    if current_name not in feed or regular(mac / current_name) is None or regular(mac / "Neptune-Training-Helper.dmg") is None:
+        raise ValueError("The current signed helper downloads cannot be verified.")
+    releases = []
+    for path in mac.iterdir():
+        match = ZIP_RE.fullmatch(path.name)
+        if match and regular(path) is not None:
+            releases.append((version(match), path))
+    releases.sort(reverse=True)
+    if not releases or releases[0][0] != current:
+        raise ValueError("The update feed and installed download versions disagree.")
+    retained = {item[0] for item in releases[:2]}
+    items = []
+
+    def add(path):
+        info = regular(path)
+        if info is None:
+            return
+        items.append({"path": str(path.relative_to(root)), "bytes": info.st_size,
+                      "inode": info.st_ino, "device": info.st_dev, "mtime_ns": info.st_mtime_ns})
+
+    for release, path in releases:
+        if release not in retained:
+            add(path)
+
+    # Completed upload bundles are disposable once a newer signed release has
+    # been published. Unknown files and recently touched bundles are excluded.
+    if stage_root.is_dir() and not stage_root.is_symlink():
+        for folder in stage_root.iterdir():
+            match = STAGE_RE.fullmatch(folder.name)
+            if match is None or version(match) >= min(retained) or folder.is_symlink() or not folder.is_dir():
+                continue
+            children = list(folder.iterdir())
+            valid = bool(children) and all(
+                regular(path) is not None and
+                (path.name in {"Neptune-Training-Helper.dmg", "appcast.xml", "SHA256SUMS.txt"}
+                 or path.name == "Neptune-Training-Helper-%d.%d.%d.zip" % version(match)
+                 or ENGINE_RE.fullmatch(path.name))
+                and now - path.lstat().st_mtime > 3600 for path in children)
+            if valid:
+                for path in children:
+                    add(path)
+
+    items.sort(key=lambda item: item["path"])
+    fingerprint = hashlib.sha256(json.dumps({"version": current, "items": items}, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+    public = [{"path": item["path"], "bytes": item["bytes"]} for item in items]
+    return {"ok": True, "fingerprint": fingerprint, "items": public,
+            "total_bytes": sum(item["bytes"] for item in items),
+            "retained": [path.name for _, path in releases[:2]] + ["Neptune-Training-Helper.dmg"]}
+
+
+def delete(root, expected):
+    if not isinstance(expected, str) or re.fullmatch(r"[0-9a-f]{64}", expected) is None:
+        raise ValueError("Preview the files again.")
+    preview = plan(root)
+    if preview["fingerprint"] != expected:
+        raise ValueError("The files changed. Preview again before deleting.")
+    removed = 0
+    folders = set()
+    for item in preview["items"]:
+        path = root / item["path"]
+        info = regular(path)
+        if info is None or info.st_size != item["bytes"]:
+            raise ValueError("The files changed. Preview again before deleting.")
+        path.unlink()
+        removed += item["bytes"]
+        if path.parent.parent == root / "maintenance-uploads":
+            folders.add(path.parent)
+    for folder in sorted(folders):
+        folder.rmdir()
+    return {"ok": True, "deleted_files": len(preview["items"]), "freed_bytes": removed}
+
+
+def main():
+    request = json.loads(sys.stdin.buffer.read(8192))
+    if not isinstance(request, dict) or request.get("action") not in ("preview", "delete"):
+        raise ValueError("Choose preview or delete.")
+    with LOCK.open("a+") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        result = plan() if request["action"] == "preview" else delete(ROOT, request.get("fingerprint"))
+    print(json.dumps(result, separators=(",", ":")))
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except (OSError, ValueError, json.JSONDecodeError) as error:
+        print(json.dumps({"ok": False, "error": str(error)}))
+        sys.exit(1)

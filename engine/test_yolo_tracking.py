@@ -108,6 +108,37 @@ class YoloTracking(unittest.TestCase):
             self.assertIn('track_buffer: 9', p.read_text())
             self.assertIn('with_reid: true', p.read_text())
 
+    def test_native_wide_tiles_cover_edge_and_only_add_distinct_boxes(self):
+        self.assertEqual(yolo.tile_starts(1920, 960), [0, 720, 960])
+        self.assertEqual(yolo.tile_starts(800, 960), [0])
+        original=[self.det(box=[10,10,30,20])]
+        candidates=[{'box':[20,20,60,40],'alliance':'red','confidence':.9},
+                    {'box':[200,20,260,40],'alliance':'blue','confidence':.8}]
+        merged,added=yolo.merge_tiled_bumpers(original,candidates,(960,400),(1920,800))
+        self.assertEqual(added,1)
+        self.assertEqual(merged[-1]['box'],[100,10,130,20])
+        self.assertEqual(merged[-1]['box_source'],'tiled_detector')
+        self.assertIsNone(merged[-1]['id'])
+
+    def test_native_tile_predictions_map_back_to_the_full_wide_panel(self):
+        import numpy as np
+        class Values:
+            def __init__(self, values):self.values=values
+            def cpu(self):return self
+            def tolist(self):return self.values
+        class Detector:
+            def __init__(self):self.widths=[]
+            def predict(self, crop, **kw):
+                self.widths.append(crop.shape[1])
+                values=[[100,10,140,30]] if len(self.widths)==3 else []
+                boxes=type('Boxes',(),{'xyxy':Values(values),'cls':Values([0]*len(values)),
+                                        'conf':Values([.8]*len(values))})()
+                return [type('Result',(),{'boxes':boxes})()]
+        model=Detector()
+        rows=yolo.tiled_bumpers(model,np.zeros((200,1920,3),dtype=np.uint8),{0:'red'},'cpu')
+        self.assertEqual(model.widths,[960,960,960])
+        self.assertEqual(rows[0]['box'],[1060.,10,1100.,30])
+
     def test_production_tracking_never_calls_legacy_linker(self):
         import neptune_tracking
         with patch('neptune_yolo.track_match', return_value={'version': yolo.VERSION}) as run, patch('neptune_tracking.legacy_track_match', side_effect=AssertionError('legacy fallback')):

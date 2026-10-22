@@ -11,3 +11,10 @@ __pycache__/
 *token*
 .env
 /local/
+
+# Built helper packages: publish them, never commit them (GitHub limit 100 MB)
+trainer-app/releases/
+*.dmg
+*.zip
+*.deb
+*.exe

@@ -51,7 +51,7 @@ class BoxFollower:
                 if key==self.serial:self.serial-=1
             elif det.get('id') is not None and det['id'] not in self.tracks and det['id'] not in claimed:key=det['id']
             else:key=self.serial;self.serial-=1;self.diagnostics['untracked_detections_retained']+=1
-            claimed.add(key);det.update(id=key,t=t,last_detection=t,box_source='detector');output.append(det)
+            claimed.add(key);det.update(id=key,t=t,last_detection=t,box_source=det.get('box_source','detector'));output.append(det)
         for key,q in predictions.items():
             if key in claimed:continue
             # No ghost boxes on a neighboring robot, person or ambiguous contact.

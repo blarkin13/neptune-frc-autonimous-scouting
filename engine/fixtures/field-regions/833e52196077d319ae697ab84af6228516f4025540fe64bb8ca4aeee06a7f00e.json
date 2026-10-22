@@ -1,0 +1,392 @@
+{
+  "schema_version": 1,
+  "contract": "neptune-field-regions-v1",
+  "coordinate_system": "normalized_full_video_frame",
+  "time_basis": "video_elapsed_ms",
+  "source": {
+    "id": "cache:jrpeWpe_iqU.mp4:135703949:1792610052859658500",
+    "name": "jrpeWpe_iqU.mp4",
+    "size": 135703949,
+    "modified": 1792610052859658500,
+    "identity_basis": "cached_file_metadata"
+  },
+  "regions": [
+    {
+      "id": "d3aa9c0e-12da-40a6-b92f-6153950e5307",
+      "game_key": "2026-rebuilt",
+      "camera_view": "wide",
+      "shot_id": "shot-1",
+      "kind": "scoring_target",
+      "alliance": "red",
+      "label": "Scoring target",
+      "shape": "polygon",
+      "points": [
+        [
+          0.294891,
+          0.522881
+        ],
+        [
+          0.352242,
+          0.522789
+        ],
+        [
+          0.342757,
+          0.418956
+        ],
+        [
+          0.290858,
+          0.421482
+        ]
+      ],
+      "start_ms": 0,
+      "end_ms": 267100,
+      "reference_ms": 0,
+      "frame_width": 1920,
+      "frame_height": 1080,
+      "reviewed": true
+    },
+    {
+      "id": "e73ac4e0-32c2-4674-acfd-224edac7feac",
+      "game_key": "2026-rebuilt",
+      "camera_view": "wide",
+      "shot_id": "shot-1",
+      "kind": "scoring_target",
+      "alliance": "blue",
+      "label": "Scoring target",
+      "shape": "polygon",
+      "points": [
+        [
+          0.5919,
+          0.507123
+        ],
+        [
+          0.649115,
+          0.513601
+        ],
+        [
+          0.644532,
+          0.417558
+        ],
+        [
+          0.588414,
+          0.407753
+        ]
+      ],
+      "start_ms": 0,
+      "end_ms": 267100,
+      "reference_ms": 0,
+      "frame_width": 1920,
+      "frame_height": 1080,
+      "reviewed": true
+    },
+    {
+      "id": "e4608619-8b00-4840-be85-51815d734689",
+      "game_key": "2026-rebuilt",
+      "camera_view": "wide",
+      "shot_id": "shot-1",
+      "kind": "scoring_zone",
+      "alliance": "blue",
+      "label": "Typical scoring position",
+      "shape": "polygon",
+      "points": [
+        [
+          0.708076,
+          0.641712
+        ],
+        [
+          0.902981,
+          0.612467
+        ],
+        [
+          0.705577,
+          0.451926
+        ],
+        [
+          0.625633,
+          0.44681
+        ]
+      ],
+      "start_ms": 0,
+      "end_ms": 267100,
+      "reference_ms": 0,
+      "frame_width": 1920,
+      "frame_height": 1080,
+      "reviewed": true
+    },
+    {
+      "id": "c9dcfd24-16a3-49fd-acaa-8239f868832d",
+      "game_key": "2026-rebuilt",
+      "camera_view": "wide",
+      "shot_id": "shot-1",
+      "kind": "scoring_zone",
+      "alliance": "red",
+      "label": "Typical scoring position",
+      "shape": "polygon",
+      "points": [
+        [
+          0.310851,
+          0.452656
+        ],
+        [
+          0.22076,
+          0.444582
+        ],
+        [
+          0.025144,
+          0.640548
+        ],
+        [
+          0.230138,
+          0.663195
+        ]
+      ],
+      "start_ms": 0,
+      "end_ms": 267100,
+      "reference_ms": 0,
+      "frame_width": 1920,
+      "frame_height": 1080,
+      "reviewed": true
+    },
+    {
+      "id": "ee0febdb-8352-40f7-8c8f-1bc480e7ca87",
+      "game_key": "2026-rebuilt",
+      "camera_view": "wide",
+      "shot_id": "shot-1",
+      "kind": "field_boundary",
+      "alliance": "neutral",
+      "label": "Field boundary",
+      "shape": "polygon",
+      "points": [
+        [
+          0.708303,
+          0.449606
+        ],
+        [
+          0.91764,
+          0.654695
+        ],
+        [
+          0.016908,
+          0.645649
+        ],
+        [
+          0.200807,
+          0.450925
+        ]
+      ],
+      "start_ms": 0,
+      "end_ms": 267100,
+      "reference_ms": 0,
+      "frame_width": 1920,
+      "frame_height": 1080,
+      "reviewed": true
+    },
+    {
+      "id": "28f7975a-b236-4045-a502-934326f2fe80",
+      "game_key": "2026-rebuilt",
+      "camera_view": "wide",
+      "shot_id": "shot-1",
+      "kind": "feeding_zone",
+      "alliance": "blue",
+      "label": "Feeding zone",
+      "shape": "polygon",
+      "points": [
+        [
+          0.70253,
+          0.447825
+        ],
+        [
+          0.729202,
+          0.46918
+        ],
+        [
+          0.710455,
+          0.475048
+        ],
+        [
+          0.689847,
+          0.448144
+        ]
+      ],
+      "start_ms": 0,
+      "end_ms": 267100,
+      "reference_ms": 0,
+      "frame_width": 1920,
+      "frame_height": 1080,
+      "reviewed": true
+    },
+    {
+      "id": "96202506-4297-4672-bbbb-fa756f9677ea",
+      "game_key": "2026-rebuilt",
+      "camera_view": "wide",
+      "shot_id": "shot-1",
+      "kind": "feeding_zone",
+      "alliance": "red",
+      "label": "Feeding zone",
+      "shape": "polygon",
+      "points": [
+        [
+          0.000928,
+          0.627586
+        ],
+        [
+          0.026042,
+          0.603066
+        ],
+        [
+          0.037711,
+          0.616192
+        ],
+        [
+          0.011295,
+          0.65637
+        ]
+      ],
+      "start_ms": 0,
+      "end_ms": 267100,
+      "reference_ms": 0,
+      "frame_width": 1920,
+      "frame_height": 1080,
+      "reviewed": true
+    },
+    {
+      "id": "81d3935a-3185-40a4-af08-9a0fa45bbf27",
+      "game_key": "2026-rebuilt",
+      "camera_view": "closeup-left",
+      "shot_id": "shot-1",
+      "kind": "scoring_target",
+      "alliance": "red",
+      "label": "Scoring target",
+      "shape": "box",
+      "points": [
+        [
+          0.230633,
+          0.720443
+        ],
+        [
+          0.340417,
+          0.720443
+        ],
+        [
+          0.340417,
+          0.805169
+        ],
+        [
+          0.230633,
+          0.805169
+        ]
+      ],
+      "start_ms": 0,
+      "end_ms": 267100,
+      "reference_ms": 0,
+      "frame_width": 1920,
+      "frame_height": 1080,
+      "reviewed": true
+    },
+    {
+      "id": "799fb48b-b832-45eb-89ed-b05aa9127171",
+      "game_key": "2026-rebuilt",
+      "camera_view": "closeup-right",
+      "shot_id": "shot-1",
+      "kind": "scoring_target",
+      "alliance": "blue",
+      "label": "Scoring target",
+      "shape": "box",
+      "points": [
+        [
+          0.644979,
+          0.66682
+        ],
+        [
+          0.750852,
+          0.66682
+        ],
+        [
+          0.750852,
+          0.767581
+        ],
+        [
+          0.644979,
+          0.767581
+        ]
+      ],
+      "start_ms": 0,
+      "end_ms": 267100,
+      "reference_ms": 0,
+      "frame_width": 1920,
+      "frame_height": 1080,
+      "reviewed": true
+    },
+    {
+      "id": "354b4939-ee05-44e5-b763-1246052f15fb",
+      "game_key": "2026-rebuilt",
+      "camera_view": "closeup-right",
+      "shot_id": "shot-1",
+      "kind": "scoring_zone",
+      "alliance": "blue",
+      "label": "Typical scoring position",
+      "shape": "polygon",
+      "points": [
+        [
+          0.797712,
+          0.814584
+        ],
+        [
+          0.971091,
+          0.863106
+        ],
+        [
+          0.993958,
+          0.993381
+        ],
+        [
+          0.610248,
+          0.995282
+        ]
+      ],
+      "start_ms": 0,
+      "end_ms": 267100,
+      "reference_ms": 0,
+      "frame_width": 1920,
+      "frame_height": 1080,
+      "reviewed": true
+    },
+    {
+      "id": "6ba4bf7d-32b0-4735-b69d-2e2b28e89ed6",
+      "game_key": "2026-rebuilt",
+      "camera_view": "closeup-left",
+      "shot_id": "shot-1",
+      "kind": "scoring_zone",
+      "alliance": "red",
+      "label": "Typical scoring position",
+      "shape": "polygon",
+      "points": [
+        [
+          0.360657,
+          0.997439
+        ],
+        [
+          0.004513,
+          0.996112
+        ],
+        [
+          0.006221,
+          0.856543
+        ],
+        [
+          0.186032,
+          0.811257
+        ]
+      ],
+      "start_ms": 0,
+      "end_ms": 267100,
+      "reference_ms": 0,
+      "frame_width": 1920,
+      "frame_height": 1080,
+      "reviewed": true
+    }
+  ],
+  "source_sha256": "833e52196077d319ae697ab84af6228516f4025540fe64bb8ca4aeee06a7f00e",
+  "video_id": "jrpeWpe_iqU",
+  "binding_method": "local_video_size_and_streamed_sha256"
+}

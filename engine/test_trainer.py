@@ -19,6 +19,17 @@ class Trainer(unittest.TestCase):
         with patch.dict('sys.modules',{'torch':torch}):
             with self.assertRaisesRegex(ValueError,'GPU unavailable'):trainer.setup_device('NVIDIA GPU',lambda s:None)
 
+    def test_reconnect_restarts_owner_approval_without_reusing_old_token(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            app=Path(tmp)
+            (app/'neptune_trainer_entry.py').write_text('')
+            source=app/'trainer-connection.json'
+            source.write_text('{"token":"kept-until-owner-approval"}')
+            with patch.object(trainer.subprocess,'Popen') as launch:
+                trainer.start_reconnect_process(source,executable='pythonw.exe')
+            launch.assert_called_once_with(['pythonw.exe',str(app/'neptune_trainer_entry.py'),'--reconnect'],cwd=str(app),close_fds=True)
+            self.assertTrue(source.is_file())
+
     def test_snapshot_fingerprint_required(self):
         with tempfile.TemporaryDirectory() as tmp,patch.object(trainer,'HOME',Path(tmp)):
             with self.assertRaisesRegex(ValueError,'fingerprint'):trainer.run_job({},dict(id='job',snapshot='',snapshot_sha256='bad'),{'device':'cpu'},lambda s:None)

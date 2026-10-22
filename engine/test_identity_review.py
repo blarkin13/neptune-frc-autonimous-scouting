@@ -1,4 +1,4 @@
-import copy,json,tempfile,threading,unittest,urllib.request,urllib.error
+import copy,json,re,shutil,subprocess,tempfile,threading,unittest,urllib.request,urllib.error
 from pathlib import Path
 from neptune_identity import reconcile,apply_corrections,digest
 R={'red':[1,2,3],'blue':[4,5,6]};SHA='a'*64
@@ -48,6 +48,38 @@ class Identity(unittest.TestCase):
   from neptune_yolo import native_ocr_width,scaled_ocr_box
   self.assertEqual(native_ocr_width(1920,[0,.24,1,.65],960),1920);self.assertIsNone(native_ocr_width(1920,[0,.65,.5,1],960))
   self.assertEqual(scaled_ocr_box([10,20,30,40],(960,400),(1920,800)),[20,40,60,80])
+ def test_short_gap_with_unique_visual_match_is_review_only(self):
+  a=point(0,11,.1,1);b=point(2,19,.105)
+  a['appearance']=[.125]*24;b['appearance']=[.125]*24
+  review=reconcile([a,b],R,SHA);result=review['points']
+  self.assertEqual(result[1]['team'],1)
+  self.assertEqual(result[1]['identity_status'],'inferred')
+  self.assertEqual(result[1]['reason'],'short_gap_visual_match_needs_review')
+  self.assertFalse(result[1]['identity_evidence']['training_eligible'])
+  self.assertEqual(review['summary']['short_gap_suggestions'],1)
+ def test_short_gap_needs_visual_support_and_cannot_cross_a_cut(self):
+  a=point(0,11,.1,1);b=point(2,19,.105)
+  a['appearance']=[0.]*24;b['appearance']=[1.]*24
+  self.assertIsNone(reconcile([a,b],R,SHA)['points'][1]['team'])
+  b['appearance']=[0.]*24;b['scene']='wide:1'
+  self.assertIsNone(reconcile([a,b],R,SHA)['points'][1]['team'])
+ def test_short_gap_does_not_guess_between_similar_teammates(self):
+  first=[point(0,11,.1,1),point(0,12,.12,2)]
+  later=point(2,19,.11)
+  for p in first+[later]:p['appearance']=[.125]*24
+  self.assertIsNone(reconcile(first+[later],R,SHA)['points'][-1]['team'])
+ def test_changed_track_id_inside_continuous_shot_is_a_review_suggestion(self):
+  obs=[point(0,11,.1,1),point(0,2,.6),point(.5,2,.6),point(1,2,.6),point(1,19,.11)]
+  for p in obs:p['appearance']=[.125]*24
+  result=reconcile(obs,R,SHA)['points']
+  target=next(p for p in result if p['track_id']==19)
+  self.assertEqual((target['team'],target['identity_status']),(1,'inferred'))
+  self.assertFalse(target['identity_evidence']['training_eligible'])
+ def test_fragment_link_rejects_unresolved_teammate_rival(self):
+  obs=[point(0,11,.1,1),point(0,12,.12,2),point(.5,3,.7),point(1,19,.11)]
+  for p in obs:p['appearance']=[.125]*24
+  target=next(p for p in reconcile(obs,R,SHA)['points'] if p['track_id']==19)
+  self.assertNotEqual(target.get('reason'),'short_gap_visual_match_needs_review')
 
 class HTTP(unittest.TestCase):
  def setUp(self):
@@ -72,6 +104,16 @@ class HTTP(unittest.TestCase):
   self.assertEqual(e.exception.code,409)
 
 class Catalog(unittest.TestCase):
+ def test_picker_script_is_valid_javascript(self):
+  from neptune_identity_review import CATALOG_HTML
+  script=re.search(r'<script>(.*?)</script>',CATALOG_HTML,re.S)
+  self.assertIsNotNone(script)
+  node=shutil.which('node')
+  if not node:self.skipTest('JavaScript parser unavailable')
+  with tempfile.NamedTemporaryFile(mode='w',suffix='.js') as f:
+   f.write(script.group(1));f.flush()
+   result=subprocess.run([node,'--check',f.name],capture_output=True,text=True)
+  self.assertEqual(result.returncode,0,result.stderr)
  def test_only_tagged_rostered_local_snapshots_are_listed(self):
   from neptune_identity_review import local_matches
   with tempfile.TemporaryDirectory() as tmp:

@@ -73,7 +73,7 @@ final class CommunityTrainingPairing {
             if(!hash_equals($r['credential_revision'],hash('sha256',$u['password_hash'])))throw new CommunityAnalysisError(401,'Your account changed. Sign in and connect again.');
             $count=(int)$this->q('SELECT COUNT(*) FROM community_training_computers WHERE user_id=? AND revoked=0 AND expires_at>?',[$u['id'],time()])->fetchColumn();
             if($count>=20)throw new CommunityAnalysisError(409,'Remove an unused helper connection from Neptune Helper Setup before connecting another.');
-            $grant=(new CommunityTrainers($this->db))->enroll(array_merge($u,['credential_revision'=>$r['credential_revision']]),'Neptune Training Helper for Mac');
+            $grant=(new CommunityTrainers($this->db))->enroll(array_merge($u,['credential_revision'=>$r['credential_revision']]),'Neptune Training Helper');
             $this->q("UPDATE community_training_pair_requests SET status='used',code_hash=NULL WHERE id=?",[$r['id']]);
             return ['access_token'=>$grant['token'],'expires_at'=>$grant['expires_at'],'computer_id'=>$grant['id']];
         });

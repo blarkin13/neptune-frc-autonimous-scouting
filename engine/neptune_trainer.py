@@ -33,7 +33,7 @@ def connection_error(error):
 def api(config,action,payload):
     # Claim/start requests are not replayed blindly: a timed-out response may already
     # have reserved work. Heartbeats and existing lease-bound result writes are safe.
-    repeatable=action in {'status','heartbeat','page_heartbeat','trial_heartbeat','finish','pause','trial_finish','page_evaluation_finish','page_fail'}
+    repeatable=action in {'status','heartbeat','page_heartbeat','trial_heartbeat','finish','pause','trial_finish','page_evaluation_finish','page_fail','review_list','review_get','review_put'}
     for attempt in range(3 if repeatable else 1):
         try:return _api_once(config,action,payload)
         except Exception as error:
@@ -147,7 +147,16 @@ def run_job(config,job,hardware,progress,benchmark=None,max_matches=None,should_
 
 def watch_jobs(config,hardware,execute,progress,closing,pause,busy=lambda value:None,connection=lambda value:None,failed=lambda message:None,device_changed=lambda:False):
     """Keep transport interruptions separate from rejected jobs and credentials."""
-    pending=None;connected=False
+    pending=None;connected=False;last_cleanup=None
+    def housekeeping(force=False):
+        # Startup, after every job, and hourly while idle: remove only re-downloadable media.
+        nonlocal last_cleanup
+        if not force and last_cleanup is not None and time.monotonic()-last_cleanup<3600:return
+        from neptune_housekeeping import sweep
+        try:sweep(HOME,progress=progress)
+        except (OSError,ValueError):pass
+        last_cleanup=time.monotonic()
+    housekeeping(force=True)
     while not closing.is_set():
         if not pending and device_changed():return
         try:
@@ -159,11 +168,13 @@ def watch_jobs(config,hardware,execute,progress,closing,pause,busy=lambda value:
                 if job:pause.clear()
             if not connected:connection(True);connected=True
             if not job:
+                housekeeping()
                 busy(False);progress('Ready. Choose training or a match test on Neptune.')
                 closing.wait(5);continue
             busy(True);pending=job
             reply=execute(config,job,hardware,progress,stop=pause.is_set)
             pending=None
+            housekeeping(force=True)
             progress('Paused safely. Resume on Neptune.' if reply.get('state') in ('remote_paused','server_paused') else 'Finished. Results are saved on Neptune.')
             busy(False)
         except Exception as error:
@@ -188,6 +199,14 @@ def result_message(state):
     }.get(state, 'Finished — your report is saved on Neptune.')
 
 
+def start_reconnect_process(source, executable=None):
+    """Hand a stopped helper to the installed owner-approval entry point."""
+    source=Path(source)
+    entry=source.with_name('neptune_trainer_entry.py')
+    if not entry.is_file():raise FileNotFoundError('The installed reconnect entry point is missing. Reinstall the helper.')
+    return subprocess.Popen([executable or sys.executable,str(entry),'--reconnect'],cwd=str(source.parent),close_fds=True)
+
+
 def main():
     """The helper supplies compute; Neptune's web page owns every run control."""
     import tkinter as tk
@@ -195,25 +214,68 @@ def main():
     import webbrowser
     from neptune_setup import LocalSetup,configure_tools
     from neptune_page_worker import execute
+    import neptune_ui as ui
     os.environ['NEPTUNE_HELPER_PIPELINE']='facts';configure_tools()
     source=Path(__file__).with_name('trainer-connection.json')
     if not source.is_file():raise ValueError('Download the connected training helper from Neptune.')
     config=json.loads(source.read_text());HOME.mkdir(mode=0o700,exist_ok=True)
-    root=tk.Tk();root.title('Neptune Training Helper');root.geometry('790x560');root.minsize(620,470)
-    frame=ttk.Frame(root,padding=28);frame.pack(fill='both',expand=True)
-    ttk.Label(frame,text='Neptune Training Helper',font=('',23,'bold')).pack(anchor='w')
+    root=tk.Tk();root.title('Neptune Training Helper');root.geometry('600x640');root.minsize(560,560)
+    ui.apply(root)
+    if sys.platform == 'win32':
+        try:root.iconbitmap(str(source.with_name('Neptune.ico')))
+        except tk.TclError:pass
+    frame=ttk.Frame(root,padding=20,style='Neptune.TFrame');frame.pack(fill='both',expand=True)
     from neptune_engine import VERSION as engine_version
-    ttk.Label(frame,text='Engine '+engine_version+' · Neptune controls training and match tests'+(' · Connection '+config['computer_id'][:4].upper() if config.get('computer_id') else ''),wraplength=710).pack(anchor='w',pady=(5,22))
-    status=tk.StringVar(value='Connecting to Neptune…');ttk.Label(frame,textvariable=status,font=('',14,'bold'),wraplength=710).pack(anchor='w',fill='x',pady=10)
-    ttk.Label(frame,text='Leave this window open. Return to Neptune to choose matches, run training, watch progress and see the results.',wraplength=710).pack(anchor='w',pady=10)
-    ttk.Button(frame,text='Open Neptune training page',command=lambda:webbrowser.open(config['site'].rstrip('/')+'/admin/community-learning.php?connect=1')).pack(anchor='w',pady=12)
-    choice=tk.StringVar(value='Automatic');settings=ttk.Frame(frame);settings.pack(fill='x',pady=5)
-    ttk.Label(settings,text='Training device').pack(side='left',padx=(0,10));device=ttk.Combobox(settings,textvariable=choice,values=['Automatic','Mac GPU','NVIDIA GPU','CPU'],state='readonly',width=20);device.pack(side='left')
-    log=tk.Text(frame,height=8,wrap='word',state='disabled');log.pack(fill='both',expand=True,pady=12)
+    ui.header(frame,logo=source.with_name('Neptune.png'),version='Engine '+engine_version.split('-')[0])
+    status=tk.StringVar(value='Connecting to Neptune…')
+    ui.status(frame,status,detail='Choose matches and review results on Neptune. Keep this window open while it works.')
+    controls=ttk.Frame(frame,style='Neptune.TFrame');controls.pack(fill='x',pady=(0,13))
+    ttk.Button(controls,text='Open Neptune',style='Neptune.TButton',command=lambda:webbrowser.open(config['site'].rstrip('/')+'/admin/community-learning.php?connect=1')).pack(side='left',padx=(0,8))
+    choice=tk.StringVar(value='Automatic');settings=ttk.Frame(frame,style='Neptune.TFrame');settings.pack(fill='x',pady=(0,14))
+    ttk.Label(settings,text='Training device',style='Muted.TLabel').pack(side='left',padx=(0,12))
+    devices=['Automatic','NVIDIA GPU','CPU'] if sys.platform in ('win32','linux') else ['Automatic','Mac GPU','CPU']
+    device=ttk.Combobox(settings,textvariable=choice,values=devices,state='readonly',width=18,style='Neptune.TCombobox');device.pack(side='left')
+    actions=ttk.Frame(frame,style='Neptune.TFrame');actions.pack(fill='x',pady=(0,12))
+    log=ui.activity(frame)
     messages=queue.Queue();closing=threading.Event();pause=threading.Event();busy={'value':False};reviewing=threading.Event();review_closing=threading.Event()
+    reconnect_requested={'value':False}
+    def reconnect():
+        if reconnect_requested['value']:return
+        if busy['value'] and not messagebox.askyesno('Reconnect after this match?','Finish the current match and save progress before reconnecting this computer to Neptune?'):return
+        reconnect_requested['value']=True
+        reconnect_button.config(state='disabled')
+        pause.set();closing.set();review_closing.set()
+        status.set('Finishing this match, then opening browser approval…' if busy['value'] else 'Opening browser approval…')
+    reconnect_button=ttk.Button(controls,text='Reconnect',style='Subtle.TButton',command=reconnect)
+    reconnect_button.pack(side='left')
+    update={'release':None,'stage':None,'checking':False}
+    update_status=tk.StringVar(value='')
+    def check_updates():
+        if sys.platform!='win32' or update['checking']:return
+        update['checking']=True;update_button.config(state='disabled');update_status.set('Checking for updates…')
+        def work():
+            try:
+                from neptune_windows_update import check
+                messages.put(('update_check',check(source.parent)))
+            except Exception as error:messages.put(('update_error',str(error)))
+        threading.Thread(target=work,daemon=True).start()
+    def install_update():
+        if busy['value'] or not update['release']:return
+        update_button.config(state='disabled');update_status.set('Downloading and verifying update…')
+        def work():
+            try:
+                from neptune_windows_update import prepare
+                messages.put(('update_ready',prepare(source.parent,update['release'])))
+            except Exception as error:messages.put(('update_error',str(error)))
+        threading.Thread(target=work,daemon=True).start()
+    update_button=ttk.Button(actions,text='Check for updates',style='Subtle.TButton',command=lambda:install_update() if update['release'] else check_updates())
+    if sys.platform=='win32':
+        update_button.pack(side='left',padx=(0,8))
+        ttk.Label(frame,textvariable=update_status,wraplength=530,style='Muted.TLabel').pack(anchor='w',pady=(7,0))
+        root.after(1500,check_updates)
     def progress(text):messages.put(('progress',str(text)))
     def stop_current():pause.set();progress('Finishing this match, then pausing. Progress stays saved on Neptune.')
-    stop_button=ttk.Button(frame,text='Stop after this match',command=stop_current,state='disabled');stop_button.pack(anchor='w')
+    stop_button=ttk.Button(actions,text='Stop after this match',style='Subtle.TButton',command=stop_current,state='disabled');stop_button.pack(side='left',padx=(0,8))
     def review_tracking():
         if busy['value']:messagebox.showinfo('Training is running','Finish or pause training before opening a tracking review.');return
         if reviewing.is_set():review_closing.set();return
@@ -221,11 +283,11 @@ def main():
         def review_worker():
             try:
                 from neptune_identity_review import choose
-                choose(HOME/'jobs',HOME/'identity-reviews',review_closing,webbrowser.open)
+                choose(HOME/'jobs',HOME/'identity-reviews',review_closing,webbrowser.open,connection=config)
             except Exception as error:progress('Tracking review: '+str(error))
             finally:reviewing.clear();messages.put(('review_closed',None))
         threading.Thread(target=review_worker,daemon=True).start()
-    review_button=ttk.Button(frame,text='Review robot tracking…',command=review_tracking);review_button.pack(anchor='w',pady=5)
+    review_button=ttk.Button(actions,text='Review tracking…',style='Subtle.TButton',command=review_tracking);review_button.pack(side='left')
     def worker():
         hardware=None;selected=None
         while not closing.is_set():
@@ -257,9 +319,38 @@ def main():
         choice_value['value']=choice.get()
         while not messages.empty():
             kind,message=messages.get()
-            if kind=='closed':review_closing.set();root.destroy();return
+            if kind=='closed':
+                review_closing.set()
+                if reconnect_requested['value']:
+                    try:
+                        start_reconnect_process(source)
+                    except Exception as error:
+                        reconnect_requested['value']=False
+                        messagebox.showerror('Reconnect could not start',str(error))
+                root.destroy();return
             if kind=='review_closed':review_button.config(text='Review robot tracking…');continue
-            if kind=='busy':busy['value']=message;review_button.config(state='disabled' if message else 'normal');stop_button.config(state='normal' if message else 'disabled');device.config(state='disabled' if message else 'readonly');continue
+            if kind=='update_check':
+                update['checking']=False;update['release']=message
+                update_button.config(text=('Install update '+message['version']) if message else 'Check for updates',state='normal' if not busy['value'] else 'disabled')
+                update_status.set(('Version '+message['version']+' is ready to install.') if message else 'You’re up to date.');continue
+            if kind=='update_error':
+                update['checking']=False;update_button.config(state='normal' if not busy['value'] else 'disabled')
+                update_status.set('Update check: '+message);continue
+            if kind=='update_ready':
+                update['stage']=message
+                if busy['value']:
+                    update_status.set('Update downloaded. It will install when this match finishes.');continue
+                try:
+                    from neptune_windows_update import launch_apply
+                    launch_apply(source.parent,message);closing.set();review_closing.set();root.destroy();return
+                except Exception as error:
+                    update_status.set('Update install: '+str(error));update_button.config(state='normal');continue
+            if kind=='busy':
+                busy['value']=message;review_button.config(state='disabled' if message else 'normal');stop_button.config(state='normal' if message else 'disabled');device.config(state='disabled' if message else 'readonly')
+                if sys.platform=='win32':update_button.config(state='disabled' if message else 'normal')
+                if not message and update['stage']:
+                    stage=update['stage'];update['stage']=None;messages.put(('update_ready',stage))
+                continue
             status.set(message);log.config(state='normal');log.insert('end',time.strftime('%H:%M:%S')+'  '+message+'\n')
             if int(log.index('end-1c').split('.')[0])>250:log.delete('1.0','2.0')
             log.see('end');log.config(state='disabled')

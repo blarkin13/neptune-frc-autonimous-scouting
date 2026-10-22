@@ -1,0 +1,15 @@
+{
+  "workspace": "frc-robot-recognition",
+  "project": "frc-robot-detection-6-hjmz0",
+  "version": 21,
+  "model_id": "frc-robot-detection-6-hjmz0/21",
+  "source": "https://universe.roboflow.com/frc-robot-recognition/frc-robot-detection-6-hjmz0",
+  "expected_project_classes": [
+    "bumper",
+    "frc-bumpers",
+    "frc-robot",
+    "fuels"
+  ],
+  "status": "awaiting_authorized_weights_download",
+  "baseline_report_detector_fingerprint": "e10b771ed5b2335f871c86565dbf7fd88cc8958d586a73ae0ea6878147effeb2"
+}

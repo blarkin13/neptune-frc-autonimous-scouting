@@ -1,0 +1,10 @@
+{
+  "device": "mps",
+  "classes": {
+    "0": "blue",
+    "1": "red"
+  },
+  "end2end": true,
+  "smoke_test": "passed",
+  "full_match_accuracy": "not evaluated"
+}

@@ -66,7 +66,7 @@ DISABLED_AFTER_SECONDS = 5.0
 STATIONARY_RADIUS_IN_BUMPER_WIDTHS = .20
 
 
-def stationary_disabled(facts, model_id):
+def stationary_disabled(facts, model_id, threshold=DISABLED_AFTER_SECONDS, radius_widths=STATIONARY_RADIUS_IN_BUMPER_WIDTHS, max_gap=1.1):
     import math
     from neptune_clock import phase_at
     groups = {}
@@ -82,15 +82,15 @@ def stationary_disabled(facts, model_id):
         for p in sorted(rows,key=lambda p:p['t']):
             b=p.get('box',[])
             if len(b)!=4 or not all(type(v) in (int,float) and math.isfinite(v) for v in b) or min(b[2:])<=0:run=[];emitted=False;continue
-            if run and (p['t']-run[-1]['t']<=0 or p['t']-run[-1]['t']>1.1):run=[];emitted=False
+            if run and (p['t']-run[-1]['t']<=0 or p['t']-run[-1]['t']>max_gap):run=[];emitted=False
             if run:
-                first=run[0]['box'];radius=STATIONARY_RADIUS_IN_BUMPER_WIDTHS*min(first[2],b[2])
+                first=run[0]['box'];radius=radius_widths*min(first[2],b[2])
                 if math.hypot(b[0]+b[2]/2-first[0]-first[2]/2,b[1]+b[3]/2-first[1]-first[3]/2)>radius or not .8<=b[2]/first[2]<=1.25:
                     run=[];emitted=False
             run.append(p)
             if emitted:
                 events[-1]['end_ms']=round(p['t']*1000);continue
-            if p['t']-run[0]['t']<=DISABLED_AFTER_SECONDS:continue
+            if p['t']-run[0]['t']<=threshold:continue
             # A replay/frozen video cannot establish five seconds of live play.
             phase=phase_at(facts,p['t'])[1]
             clocks=[c for c in phase.get('clock_samples',[]) if run[0]['t']<=c.get('t',-1)<=p['t'] and type(c.get('remaining')) in (int,float)]

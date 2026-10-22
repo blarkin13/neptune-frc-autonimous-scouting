@@ -14,12 +14,13 @@ import sys
 
 VERSION = 'yolo-botsort-1'
 # Bump whenever Identities/recover_segments change: cached tracking is reused only on an exact match.
-CONTINUITY_REVISION = 'reviewed-flow-continuity-v5'
+CONTINUITY_REVISION = 'robot26-reacquisition-ocr3-v2'
 ULTRALYTICS_VERSION = '8.4.63'
 
 
 def bundle_path():
-    return Path(os.environ.get('NEPTUNE_ROBOT_MODELS', Path(__file__).with_name('robot-models')))
+    trial = Path(__file__).with_name('trial-robot-models')
+    return trial if trial.is_dir() else Path(os.environ.get('NEPTUNE_ROBOT_MODELS', Path(__file__).with_name('robot-models')))
 
 
 def bundle(root=None, season=2026):
@@ -197,7 +198,9 @@ def bumper_classes(names):
     return result
 
 
-def crop_box(box, width, height):
+def crop_box(box, width, height, box_kind="bumper"):
+    if box_kind == "robot":
+        return [max(0, int(box[0])), max(0, int(box[1])), min(width, int(math.ceil(box[2]))), min(height, int(math.ceil(box[3])))]
     """A bumper is not a complete robot: keep this expanded chassis crop explicit."""
     x0, y0, x1, y1 = box
     w, h = x1-x0, y1-y0
@@ -205,13 +208,13 @@ def crop_box(box, width, height):
             min(width, int(math.ceil(x1+.3*w))), min(height, int(math.ceil(y1+.4*h)))]
 
 
-def tracker_config(path, fps):
+def tracker_config(path, fps, with_reid=True):
     # Ultralytics sets frame_rate=30 internally for ndarray inputs. Convert seconds
     # to the sampled frame count so CPU mode and GPU mode retain the same gap.
     path.write_text('tracker_type: botsort\ntrack_high_thresh: 0.3\ntrack_low_thresh: 0.1\n'
                     'new_track_thresh: 0.4\ntrack_buffer: %d\nmatch_thresh: 0.7\n'
                     'fuse_score: true\ngmc_method: sparseOptFlow\nproximity_thresh: 0.5\n'
-                    'appearance_thresh: 0.8\nwith_reid: true\nmodel: auto\n' % max(1, round(fps*1.5)))
+                    'appearance_thresh: 0.8\nwith_reid: %s\nmodel: auto\n' % (max(1, round(fps*1.5)), 'true' if with_reid else 'false'))
 
 
 def native_ocr_width(source_width,bounds,working_width):
@@ -224,7 +227,48 @@ def scaled_ocr_box(box,working_size,native_size):
             min(W,int(math.ceil(box[2]*W/w))),min(H,int(math.ceil(box[3]*H/h)))]
 
 
-def _track_camera(video, facts, profile, backend, work, fps=6., width=960, read_every=1., progress=None, camera=None):
+def tile_starts(length, size, overlap=.25):
+    """Cover a native-resolution panel with overlapping tiles, including its far edge."""
+    if length <= size:return [0]
+    step=max(1,round(size*(1-overlap)))
+    return sorted(set(range(0,length-size+1,step)) | {length-size})
+
+
+def tiled_bumpers(detector,image,colours,device,tile_width=960):
+    """Supplement a full-panel pass with native-pixel wide-shot bumper candidates."""
+    height,width=image.shape[:2]
+    candidates=[]
+    for left in tile_starts(width,min(tile_width,width)):
+        crop=image[:,left:left+min(tile_width,width)]
+        result=detector.predict(crop,device=device,imgsz=960,conf=.16,iou=.5,max_det=12,verbose=False,save=False)[0]
+        boxes=result.boxes
+        if boxes is None:continue
+        for xyxy,cls,conf in zip(boxes.xyxy.cpu().tolist(),boxes.cls.cpu().tolist(),boxes.conf.cpu().tolist()):
+            alliance=colours.get(int(cls))
+            x0,y0,x1,y1=xyxy
+            box=[max(0.,left+x0),max(0.,y0),min(float(width),left+x1),min(float(height),y1)]
+            if alliance and x1>x0 and y1>y0 and box[2]>box[0] and box[3]>box[1]:
+                candidates.append({'box':box,'alliance':alliance,'confidence':float(conf),'box_source':'tiled_detector'})
+    return unique_bumpers(candidates)
+
+
+def merge_tiled_bumpers(detections,candidates,working_size,native_size):
+    """Add only distinct, nonconflicting tile detections in working-frame pixels."""
+    w,h=working_size;W,H=native_size
+    kept=list(detections);added=0
+    for candidate in sorted(candidates,key=lambda d:d['confidence'],reverse=True):
+        box=[max(0.,min(float(w),candidate['box'][i]*(w/W if i%2==0 else h/H))) for i in range(4)]
+        if box[2]<=box[0] or box[3]<=box[1]:continue
+        if any(overlap(box,d['box'])>.45 for d in kept):continue
+        # A nearby opposite-colour prediction is ambiguous, not an extra robot.
+        if any(d['alliance']!=candidate['alliance'] and overlap(box,d['box'])>.20 for d in kept):continue
+        kept.append({'id':None,'alliance':candidate['alliance'],'box':box,
+                     'confidence':candidate['confidence'],'box_source':'tiled_detector'})
+        added+=1
+    return kept,added
+
+
+def _track_camera(video, facts, profile, backend, work, fps=6., width=960, read_every=.5, progress=None, camera=None):
     import importlib.metadata
     if importlib.metadata.version('ultralytics') != ULTRALYTICS_VERSION:
         raise ValueError('Robot tracking runtime needs the updated helper setup (ultralytics '+ULTRALYTICS_VERSION+').')
@@ -239,6 +283,10 @@ def _track_camera(video, facts, profile, backend, work, fps=6., width=960, read_
     root = bundle_path()
     model = YOLO(str(root/meta['bumper']['file']))
     colours = bumper_classes(model.names)
+    box_kind = meta['bumper'].get('box_kind', 'bumper')
+    motion_only = meta['bumper'].get('tracking_mode') == 'motion-only'
+    if motion_only and box_kind != 'robot':
+        raise ValueError('Motion-only trial requires explicitly declared robot boxes.')
     duplicate_counts={'removed':0}
     def deduplicate_before_tracking(predictor):
         # Registered BEFORE Ultralytics adds its tracker callback: each physical
@@ -257,7 +305,7 @@ def _track_camera(video, facts, profile, backend, work, fps=6., width=960, read_
 
     # Require native detector features: don't silently download a people ReID model.
     head = model.model.model[-1]
-    if type(head).__name__ != 'Detect' or getattr(head, 'end2end', False):
+    if not motion_only and (type(head).__name__ != 'Detect' or getattr(head, 'end2end', False)):
         raise ValueError('The detector does not expose native appearance features for BoT-SORT.')
     context = YOLO(str(root/meta['context']['file']))
     person = [int(k) for k, v in context.names.items() if v == 'person']
@@ -272,7 +320,7 @@ def _track_camera(video, facts, profile, backend, work, fps=6., width=960, read_
     if not 1 <= fps <= 15 or not 320 <= width <= 1920:
         raise ValueError('Invalid robot tracking sampling settings.')
     work = Path(work); work.mkdir(parents=True, exist_ok=True)
-    config = work/'neptune-botsort.yaml'; tracker_config(config, fps)
+    config = work/'neptune-botsort.yaml'; tracker_config(config, fps, with_reid=not motion_only)
     periods = [p for k, p in facts['periods'].items() if k in ('auto', 'teleop') and p]
     if not periods:
         raise ValueError('Robot tracking needs observed match periods.')
@@ -283,19 +331,24 @@ def _track_camera(video, facts, profile, backend, work, fps=6., width=960, read_
     left,top,right,bottom=bounds;band=(top,bottom)
     roster = {c: [int(t) for t, value in facts['bumpers']['identities'].items() if value['alliance'] == c] for c in ('red', 'blue')}
     resolver = Identities(roster); teams = set(roster['red']+roster['blue'])
+    from neptune_reacquisition import Reacquisition
+    reacquisition=Reacquisition();reacquisition_rows=[]
     scene = 0; cuts = []; previous = None; localizations = []; anchors = []; frame_count = 0; visual_tracks = set()
     segment_points=[];confirmations={};observations=[]
     from neptune_box_follow import BoxFollower
     from neptune_review_learning import descriptor
-    follower=BoxFollower()
+    follower=BoxFollower(max_gap=max(.75,read_every+1/fps))
     sample_step=max(1,round(fps*read_every))
     probe=subprocess.check_output(['ffprobe','-v','error','-select_streams','v:0','-show_entries','stream=width','-of','csv=p=0',str(video)],text=True,timeout=30)
     ocr_width=native_ocr_width(int(probe.strip().splitlines()[0]),bounds,width)
     hires=decode(video,*band,start,end,fps/sample_step,ocr_width,left=left,right=right) if ocr_width else None
+    tile_model=YOLO(str(root/meta['bumper']['file'])) if hires is not None and (camera is None or camera['name']=='wide') else None
+    tile_counts={'frames':0,'candidates':0,'added':0}
     people = []; ocr_folder = work/'yolo-ocr'; ocr_folder.mkdir(exist_ok=True)
     try:
         for t, w, h, y, u, v in decode(video, *band, start, end, fps, width, left=left, right=right):
             frame_count += 1
+            sample = (frame_count-1) % sample_step == 0
             if progress and frame_count % max(1, round(fps*10)) == 0:
                 progress('Tracking robot identities: %d of %d video seconds processed' % (t-start, end-start))
             gray = np.frombuffer(y, dtype=np.uint8).reshape(h, w)
@@ -319,8 +372,18 @@ def _track_camera(video, facts, profile, backend, work, fps=6., width=960, read_
                         continue
                     dets.append({'id': int(tid) if tid is not None else None, 'alliance': colours[int(cls)], 'box': box, 'confidence': float(conf)})
                     if tid is not None:visual_tracks.add((scene, int(tid)))
+            ocr_image=image
+            if sample and hires is not None:
+                try:th,W,H,Y,U,V=next(hires)
+                except StopIteration:raise ValueError('Native OCR stream ended before the tracking sample')
+                if abs(th-t)>.5/fps:raise ValueError('Native OCR frame is not aligned to the tracking sample')
+                ocr_image=cv2.cvtColor(np.stack([np.frombuffer(q,dtype=np.uint8).reshape(H,W) for q in (Y,U,V)],axis=2),cv2.COLOR_YUV2BGR)
+            if sample and tile_model is not None:
+                candidates=tiled_bumpers(tile_model,ocr_image,colours,device)
+                tile_counts['frames']+=1;tile_counts['candidates']+=len(candidates)
+                dets,added=merge_tiled_bumpers(dets,candidates,(w,h),(ocr_image.shape[1],ocr_image.shape[0]))
+                tile_counts['added']+=added
             dets=follower.update(gray,t,scene,dets)
-            sample = (frame_count-1) % max(1, round(fps*read_every)) == 0
             if sample or cut:
                 cr = context.predict(image, device=device, imgsz=640, classes=person, conf=.5, verbose=False, save=False)[0]
                 people = cr.boxes.xyxy.cpu().tolist() if cr.boxes is not None else []
@@ -341,12 +404,6 @@ def _track_camera(video, facts, profile, backend, work, fps=6., width=960, read_
                 if len(hits) == 1:
                     reads.append({'track': hits[0]['id'], 'team': r['team'], 'kind': 'exact'})
             if sample:
-                ocr_image=image
-                if hires is not None:
-                    try:th,W,H,Y,U,V=next(hires)
-                    except StopIteration:raise ValueError('Native OCR stream ended before the tracking sample')
-                    if abs(th-t)>.5/fps:raise ValueError('Native OCR frame is not aligned to the tracking sample')
-                    ocr_image=cv2.cvtColor(np.stack([np.frombuffer(q,dtype=np.uint8).reshape(H,W) for q in (Y,U,V)],axis=2),cv2.COLOR_YUV2BGR)
                 paths = []
                 for d in dets:
                     if d.get('box_source')=='optical_flow':continue
@@ -362,10 +419,12 @@ def _track_camera(video, facts, profile, backend, work, fps=6., width=960, read_
                             if matched and matched[0] == 'exact':
                                 reads.append({'track': d['id'], 'team': matched[1], 'kind': 'exact'})
                     path.unlink(missing_ok=True)
+            proposals=reacquisition.propose(scene,t,dets,resolver.states,reads,width=w)
+            reacquisition_rows.extend(dict(p,camera=camera['name'] if camera else 'wide') for p in proposals)
             # Retain unassigned detections for offline reconciliation and human review,
             # including contact frames the strict training resolver intentionally rejects.
             for d in dets:
-                a,b,c,e=crop_box(d['box'],w,h)
+                a,b,c,e=crop_box(d['box'],w,h,box_kind)
                 observations.append({'t':round(t,4),'box':[left+a/w*(right-left),band[0]+b/h*(band[1]-band[0]),(c-a)/w*(right-left),(e-b)/h*(band[1]-band[0])],
                     'track_id':d['id'],'alliance':d['alliance'],'scene':(camera['name']+':'+str(scene)) if camera else scene,
                     'camera':camera['name'] if camera else 'wide','camera_bounds':list(bounds),
@@ -380,7 +439,7 @@ def _track_camera(video, facts, profile, backend, work, fps=6., width=960, read_
             for d in dets:
                 state=resolver.states.get(d['id'])
                 if not state or abs(state['last']-t)>.001:continue
-                a,b,c,e=crop_box(d['box'],w,h)
+                a,b,c,e=crop_box(d['box'],w,h,box_kind)
                 segment_points.append({'t':round(t,4),'box':[left+a/w*(right-left),band[0]+b/h*(band[1]-band[0]),(c-a)/w*(right-left),(e-b)/h*(band[1]-band[0])],
                     'bumper_box':d['box'],'identity_segment':state['segment'],'track_id':d['id'],'scene':(camera['name']+':'+str(scene)) if camera else scene,
                     'camera':camera['name'] if camera else 'wide','camera_bounds':list(bounds),'detection_confidence':round(d['confidence'],4)})
@@ -394,10 +453,10 @@ def _track_camera(video, facts, profile, backend, work, fps=6., width=960, read_
     for p in observations:p['verified_team']=verified.get((p['track_id'],p['t']))
     points = {team: [(s['t'],) for s in localizations if s['team'] == team] for team in teams}
     return {'status': 'measured', 'version': VERSION, 'model_fingerprint': fingerprint(), 'model_source': meta['source'],
-            'box_following':follower.diagnostics,'ocr_width':ocr_width or width,'observations':observations,'decoder_revision':FRAME_DECODER_REVISION,'duplicate_bumper_boxes_removed':duplicate_counts['removed'],'anchors':anchors,'continuity_revision':CONTINUITY_REVISION,'fps': fps, 'band': list(band), 'start': start, 'end': end, 'scene_cuts': cuts, 'localizations': localizations,
+            'box_following':follower.diagnostics,'wide_tile_detection':tile_counts,'ocr_width':ocr_width or width,'observations':observations,'decoder_revision':FRAME_DECODER_REVISION,'duplicate_bumper_boxes_removed':duplicate_counts['removed'],'anchors':anchors,'continuity_revision':CONTINUITY_REVISION,'fps': fps, 'band': list(band), 'start': start, 'end': end, 'scene_cuts': cuts, 'localizations': localizations,
             'coverage': {str(k): v for k, v in coverage(points, start, end).items()}, 'tracks': len({(s['scene'], s['track_id']) for s in localizations}),
-            'frames_processed': frame_count, 'visual_tracks': len(visual_tracks), 'bumper_anchors': len(anchors), 'device': device,
-            'limitations': ['Bumper detections provide expanded chassis crops, not robot segmentation.', 'Identity is cleared on ambiguous overlap, camera cuts and long detection gaps.',
+            'frames_processed': frame_count, 'visual_tracks': len(visual_tracks), 'bumper_anchors': len(anchors), 'device': device, 'ocr_every_processed_frames':sample_step, 'reacquisition_proposals':reacquisition_rows, 'detector_box_kind':box_kind, 'appearance_reid':not motion_only,
+            'limitations': [('Whole-robot detector trial uses motion association without appearance ReID.' if motion_only else 'Bumper detections provide expanded chassis crops, not robot segmentation.'), 'Identity is cleared on ambiguous overlap, camera cuts and long detection gaps.',
                             'Tracks alone do not establish successful scoring, climb outcomes or points.']}
 
 
@@ -422,7 +481,7 @@ def camera_views(profile):
     return views
 
 
-def track_match(video,facts,profile,backend,work,fps=6.,width=960,read_every=1.,progress=None):
+def track_match(video,facts,profile,backend,work,fps=6.,width=960,read_every=.5,progress=None):
     from neptune_tracking import coverage
     all_points=[];all_anchors=[];all_observations=[];results=[]
     for camera in camera_views(profile):
@@ -441,5 +500,6 @@ def track_match(video,facts,profile,backend,work,fps=6.,width=960,read_every=1.,
         from neptune_review_learning import active_association
         association=active_association();out['association_sha']=hashlib.sha256(json.dumps(association,sort_keys=True,separators=(',',':')).encode()).hexdigest()
         out['identity_review']=reconcile(all_observations,roster,facts['source']['sha256'],association=association)
+    out['reacquisition_proposals']=[p for r in results for p in r.get('reacquisition_proposals',[])]
     out['observations']=all_observations
     return out

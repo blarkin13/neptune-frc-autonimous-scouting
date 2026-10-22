@@ -1,0 +1,53 @@
+{
+  "device": "mps",
+  "video": "ZlnweItn8ww.mp4",
+  "note": "Full-frame sample detections only. Counts are not accuracy or verified identities.",
+  "models": {
+    "baseline": {
+      "classes": {
+        "0": "red",
+        "1": "blue"
+      },
+      "samples": [
+        {
+          "video_fraction": 0.3,
+          "detections": 8,
+          "seconds": 1.866
+        },
+        {
+          "video_fraction": 0.5,
+          "detections": 7,
+          "seconds": 0.049
+        },
+        {
+          "video_fraction": 0.7,
+          "detections": 9,
+          "seconds": 0.046
+        }
+      ]
+    },
+    "candidate": {
+      "classes": {
+        "0": "blue",
+        "1": "red"
+      },
+      "samples": [
+        {
+          "video_fraction": 0.3,
+          "detections": 10,
+          "seconds": 0.324
+        },
+        {
+          "video_fraction": 0.5,
+          "detections": 6,
+          "seconds": 0.035
+        },
+        {
+          "video_fraction": 0.7,
+          "detections": 9,
+          "seconds": 0.018
+        }
+      ]
+    }
+  }
+}

@@ -105,7 +105,7 @@ def plan(facts, sight):
     points = [s for s in candidates if s['track_id'] == anchor['track_id'] and s['scene'] == anchor['scene'] and s.get('camera')==anchor.get('camera')
               and (anchor.get('identity_segment') is None or s.get('identity_segment')==anchor['identity_segment'])]
     cuts=track.get('camera_cuts',{}).get(anchor.get('camera'),track.get('scene_cuts', []))
-    if anchor.get('identity_method')=='human_reviewed_track' or track.get('continuity_revision') in ('segment-verified-v3','bidirectional-roster-review-v4','reviewed-flow-continuity-v5'):
+    if anchor.get('identity_method')=='human_reviewed_track' or track.get('continuity_revision') in ('segment-verified-v3','bidirectional-roster-review-v4','reviewed-flow-continuity-v5','wide-tile-and-gap-continuity-v6'):
         # A clip can start at a track's visible boundary rather than insist on
         # two seconds of invisible pre-roll. It must still contain the anchor,
         # have sixteen detected positions and stay inside one phase/camera/segment.

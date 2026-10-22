@@ -14,6 +14,24 @@ PROFILE = nf.LAYOUTS['frc-2026-field-overlay-v1']
 ROSTER = {'red': [6369, 2689, 127], 'blue': [9128, 11178, 5414]}
 
 
+class OcrProgressTests(unittest.TestCase):
+    def test_windows_ocr_reports_bounded_scoreboard_batches(self):
+        class Reader:
+            name='rapidocr'
+            def __init__(self):self.calls=[]
+            def recognize(self,paths):
+                self.calls.append(list(paths))
+                return {p:[] for p in paths}
+        reader=Reader();stage=[''];updates=[]
+        class Stage(list):
+            def __setitem__(self,key,value):super().__setitem__(key,value);updates.append(value)
+        stage=Stage([''])
+        result=nf.recognize_with_progress(reader,list(range(35)),stage,'Reading the scoreboard')
+        self.assertEqual([len(batch) for batch in reader.calls],[16,16,3])
+        self.assertEqual(len(result),35)
+        self.assertIn('frames 33–35 of 35',updates[-1])
+
+
 def ev(t, text='0'):
     return {'t': t, 'frame': 'overlay/ov_%05d.jpg' % int(t), 'text': text, 'confidence': 1.0, 'box': [0, 0, 0, 0], 'correction': None}
 

@@ -55,3 +55,11 @@ The existing Neptune web queue still queues action/scoring training using this d
 - No production deployment or training/reset/import request is made by the build script.
 
 Sources: https://docs.ultralytics.com/modes/track and the pinned Ultralytics 8.4.63 tracking callbacks/configuration; the owner-supplied Prosper repository.
+
+## 2026-10-21 wide-view and short-gap update (engine 2.4.6 preview)
+
+The wide camera now runs an additional native-resolution bumper pass about once per second. Its 960-pixel horizontal tiles overlap by 25%, cover the far edge, and add only boxes distinct from the existing full-panel detections. Those boxes enter the same optical-flow follower and OCR path. The saved tracking report includes `wide_tile_detection` frame, candidate and added-box counts. This uses the existing bumper weights; it is a detection-resolution change, not a newly trained model. The separate reviewed-box detector trainer now fits at 960 pixels. It still needs complete reviewed frames from training and validation matches before a new weight candidate can be made.
+
+The offline identity review now proposes links between uniquely matched track fragments, including a tracker-ID change while other robots remain visible and a 1.5–3 second detection gap. It requires the same camera shot and alliance, roster compatibility, box motion/size and close appearance; same-alliance contact, competing teammate matches and ambiguous crowd frames block a link. A proposed link is marked `short_gap_visual_match_needs_review` and `training_eligible: false`; the review summary counts these suggestions. Only owner-confirmed corrections can turn them into reviewed training examples. This conservative link does not silently turn an uncertain robot into an action or score label.
+
+The engine continuity revision invalidates stale tracking caches. Replaying saved Q3 observations produced 14 new review suggestions; that is a coverage diagnostic, not 14 verified correct identities or an accuracy gain. The change still needs an independent per-robot detection/identity comparison on held-out video. Q7 stays evaluation-only and cannot be used for detector fitting or threshold tuning.

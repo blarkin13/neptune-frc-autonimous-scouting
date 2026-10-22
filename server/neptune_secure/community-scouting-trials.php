@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__.'/community-model-json.php';
+require_once __DIR__.'/community-contributions.php';
 require_once __DIR__.'/community-trainers.php';
 /** Owner-only experimental model runs. Results never become human scouting labels. */
 final class CommunityScoutingTrials {
@@ -46,8 +47,10 @@ final class CommunityScoutingTrials {
   }
   foreach($sums as $a=>$sum)if(isset($request['alliance_scores'][$a])&&$sum>$request['alliance_scores'][$a])throw new CommunityAnalysisError(422,'Predicted robot points exceed the alliance score.');
   $model=json_decode($r['model_json'],true);
-  $tagKeys=array_unique(array_merge(array_keys(community_video_tag_catalog()),array_keys($model['heads']??[])));
+  $tagKeys=array_unique(array_merge(array_keys(community_video_tag_catalog()),array_keys($model['heads']??[]),['disabled']));
   $tags=[];foreach($data['tags'] as $tag){if(!in_array($tag['team']??null,array_merge($roster['red'],$roster['blue']),true)||!in_array($tag['tag_key']??'',$tagKeys,true)||!is_int($tag['start_ms']??null)||$tag['start_ms']<0||$tag['start_ms']>$data['duration_s']*1000)throw new CommunityAnalysisError(422,'Invalid predicted action tag.');$tags[]=['team'=>$tag['team'],'tag_key'=>$tag['tag_key'],'start_ms'=>$tag['start_ms'],'certainty'=>'uncertain','evidence_type'=>'model_prediction'];if(isset($model['action_definitions'][$tag['tag_key']])){$definition=$model['action_definitions'][$tag['tag_key']];$i=array_key_last($tags);$tags[$i]+=['schema_version'=>2,'game_key'=>$definition['game_key'],'action_code'=>$definition['action_code'],'label_scope'=>'moment','time_basis'=>'video_elapsed_ms','end_ms'=>$tag['start_ms'],'definition_variants'=>$definition['variants']];if(count($definition['variants'])===1)$tags[$i]+=$definition['variants'][0];}}
+  foreach($data['tags'] as $j=>$source){if(($source['tag_key']??'')==='disabled'&&($source['rule']??'')==='teleop_stationary_over_5_seconds_v1'&&is_int($source['end_ms']??null)&&$source['end_ms']>$source['start_ms']+5000&&$source['end_ms']<=$data['duration_s']*1000){$tags[$j]['end_ms']=$source['end_ms'];$tags[$j]['rule']='teleop_stationary_over_5_seconds_v1';$tags[$j]['assessment']='owner_defined_stationary_rule';}}
+  $scores=community_recorded_contributions($scores,$tags);
   $model=json_decode($r['model_json'],true);$overlap=in_array($data['source_sha256'],$model['scoring_head']['training_sources']??[],true);
   foreach($model['heads']??[] as $head)if(in_array($data['source_sha256'],$head['training_sources']??[],true))$overlap=true;
   $diagnostics=[];$raw=$data['diagnostics']??[];if(is_array($raw)){if(is_int($raw['action_heads_available']??null)&&$raw['action_heads_available']>=0&&$raw['action_heads_available']<=count($tagKeys))$diagnostics['action_heads_available']=$raw['action_heads_available'];if(is_bool($raw['scoring_video_validated']??null))$diagnostics['scoring_video_validated']=$raw['scoring_video_validated'];if(is_string($raw['engine']??null)&&preg_match('/^[a-zA-Z0-9.\-]{1,40}$/D',$raw['engine']))$diagnostics['engine']=$raw['engine'];$diagnostics['blocked_action_heads']=array_values(array_intersect($tagKeys,is_array($raw['blocked_action_heads']??null)?array_filter($raw['blocked_action_heads'],'is_string'):[]));foreach($raw['identity_coverage']??[] as $team=>$coverage)if(in_array((int)$team,array_merge($roster['red'],$roster['blue']),true)&&is_numeric($coverage)&&is_finite((float)$coverage)&&$coverage>=0&&$coverage<=1)$diagnostics['identity_coverage'][(string)$team]=(float)$coverage;}

@@ -70,7 +70,7 @@ def train(manifest, output, epochs=30, device='cpu'):
     meta = bundle(); output = Path(output)
     config = prepare(manifest, output/'dataset')
     model = YOLO(str(bundle_path()/meta['bumper']['file']))
-    result = model.train(data=str(config), epochs=epochs, imgsz=640, batch=2,
+    result = model.train(data=str(config), epochs=epochs, imgsz=960, batch=2,
                          workers=0, cache=False, device=device, project=str(output/'fit'),
                          name='bumper', seed=2026, exist_ok=False, plots=False, amp=False)
     best = Path(result.save_dir)/'weights/best.pt'

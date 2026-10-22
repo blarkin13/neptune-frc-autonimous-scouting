@@ -18,3 +18,4 @@
    pointers in `data-pointers/`.
 8. **Log your work in `WORK.md`.** Who, what, why, and how it was checked, newest first.
 9. Stop when the repo owner says stop.
+10. **Keep deployment backups small.** For server code updates, back up only files being replaced. Never recursively copy `public_html/Neptune/community/downloads` into a code rollback directory. For a helper release, retain only the current appcast, checksum manifest, allowlist, website text, and prior current DMG needed for rollback; verify hashes before and after publication. Remove temporary transfer stages after verification.
