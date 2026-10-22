@@ -33,3 +33,46 @@ main:has(.auto-scout-platform .tag-studio){padding-top:10px}.auto-scout-platform
 .auto-scout-platform .tag-studio{width:100%;min-width:0}
 .auto-scout-platform :is(.studio-heading,.studio-status,.studio-actions){flex-wrap:wrap;min-width:0}
 .auto-scout-platform .options-panel{width:min(560px,calc(100% - 16px))}
+
+
+/* 2026-10-22: Match Neptune's Mission Control design in Community and Auto Scout.
+   Use the active organization's tokens; never impose a separate dark/light palette. */
+.auto-scout-platform .community-platform-hero.neptune-page-hero[data-neptune-hero="server"]{
+  padding:clamp(24px,4vw,48px)!important;
+  margin-bottom:18px!important;
+  min-height:200px!important;
+  border-radius:20px!important;
+  background:radial-gradient(ellipse at 88% 17%,color-mix(in srgb,var(--accent) 9%,transparent),transparent 60%),linear-gradient(125deg,color-mix(in srgb,var(--panel) 22%,transparent),color-mix(in srgb,var(--panel) 14%,transparent))!important;
+}
+.auto-scout-platform .community-platform-hero[data-neptune-hero="server"]>.stage-label{display:none}
+.auto-scout-platform .community-platform-hero.neptune-page-hero h1{
+  max-width:850px;font-size:clamp(2.1rem,4.6vw,4.3rem)!important;
+  line-height:1.04!important;letter-spacing:-.048em!important;
+}
+.auto-scout-platform .community-platform-hero.neptune-page-hero p{max-width:65ch!important;font-size:clamp(.99rem,1.4vw,1.14rem)!important}
+.auto-scout-platform .community-nav{gap:8px;margin-bottom:24px}
+.auto-scout-platform .community-nav a{
+  display:inline-flex;align-items:center;justify-content:center;
+  padding:10px 15px;border:1px solid var(--line);border-radius:8px;
+  background:color-mix(in srgb,var(--panel) 86%,transparent);color:var(--text);
+  transition:background .17s ease,border-color .17s ease;
+}
+.auto-scout-platform .community-nav a:hover{border-color:var(--accent);background:var(--panel2)}
+.auto-scout-platform .community-nav a[aria-current=page]{color:var(--solid-text);background:var(--accent);border-color:var(--accent)}
+.auto-scout-platform>section,.auto-scout-platform>article,
+.auto-scout-platform #training-app>section,.auto-scout-platform .connection-panel{
+  background:color-mix(in srgb,var(--panel) 93%,transparent);
+  border:1px solid var(--line);border-radius:12px;
+  box-shadow:0 12px 32px color-mix(in srgb,var(--shadow) 50%,transparent);
+}
+.auto-scout-platform .workflow-grid>div,.auto-scout-platform .community-stage{
+  border-radius:10px;background:var(--panel2);border-color:var(--line);
+}
+.auto-scout-platform :is(button,.community-button){background:var(--accent);color:var(--solid-text);border-radius:7px}
+.auto-scout-platform :is(button,.community-button):hover{background:var(--accent);filter:brightness(1.1)}
+.auto-scout-platform :is(input[type=text],textarea,select){background:var(--panel2);color:var(--text);border-color:var(--line);border-radius:7px}
+@media(max-width:700px){
+  .auto-scout-platform .community-platform-hero.neptune-page-hero[data-neptune-hero="server"]{min-height:0!important;padding:24px 20px!important}
+  .auto-scout-platform .community-nav a{flex:1 1 calc(50% - 8px);padding:10px 8px}
+}
+@media(prefers-reduced-motion:reduce){.auto-scout-platform .community-nav a{transition:none}}

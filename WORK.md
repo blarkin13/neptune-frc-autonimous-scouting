@@ -1,5 +1,16 @@
 # Work log (newest first)
 
+## 2026-10-22 — Claude: scoring-areas page in the site layout
+- `admin/scoring-areas.php` now uses `community_page_start/end` (site header, breadcrumbs, hero, Auto Scout
+  tabs, footer) like Watch & tag and Train & test, with a "training aid only" note.
+- `community/layout.php` (refreshed from live) has a "Scoring areas" tab after Watch & tag.
+- `partials_hero.php` (refreshed from live) has the hero icon and guide steps for "Scoring Areas".
+- `field-regions/style.css` is rewritten and scoped to `.field-regions` using site tokens. The old sheet styled
+  `body`, `header`, `h1`, buttons etc. page-wide, and its global `canvas` rule caused the dark block that hid
+  the page. The scripts read settings from `#field-regions-app` instead of `<body>`.
+- Checked with PHP's built-in server and stand-ins for login and the database: the full layout renders, QM4
+  plays from YouTube with 11 saved regions, and the footer shows.
+
 ## 2026-10-22 — Claude: scoring areas play from YouTube; Scouting card; helper 3.2.9 (engine 2.4.8-field-map-recovery-preview3)
 - `scouting.php` (from the live site, downloaded 2026-10-22) is now tracked; it has a "Scoring areas" card after
   "Watch & tag" in the Auto Scout section.
