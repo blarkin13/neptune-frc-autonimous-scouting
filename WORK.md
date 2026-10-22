@@ -1,5 +1,21 @@
 # Work log (newest first)
 
+## 2026-10-22 — Claude: event-wide scoring regions; training checks scoring labels; helper 3.2.10 (engine 2.4.9-event-regions-preview1)
+- Regions marked on one match now apply to every match at that event (`neptune_field_regions.load` → event
+  file). Times come from the reference video, so only the camera view carries over.
+- Sides: the reference's red side comes from where its red and blue wide-view regions were drawn; each match's
+  red side comes from wide-view bumper positions in the first 5 s of auto. Alliance labels swap when they
+  differ, and nothing is applied when a match's sides can't be read (e.g. QM1 starts mid-teleop).
+- `api/field-regions.php` answers `{event}` with all of the owner's region sets for that event; the trainer
+  downloads them before training (`sync_events`).
+- Training: an outside-scouting scoring row whose robot is outside its alliance's marked scoring zone is
+  dropped (`external_scoring_away_from_scoring_area`); human labels are kept and counted. Measured on
+  QM3/QM4: 96-100% of hand-labelled scoring moments were inside the zone vs 81-89% of all sightings.
+  Distance to the hub did not separate them, so it is not used.
+- Train on 2026txcmp1, test on 2026txcmp2: these regions only cover txcmp1. txcmp2 needs regions found
+  automatically (a learned detector), which is not built yet.
+- 423 tests pass on the bundled Python; appcast signature verified.
+
 ## 2026-10-22 — Claude: scoring-areas page in the site layout
 - `admin/scoring-areas.php` now uses `community_page_start/end` (site header, breadcrumbs, hero, Auto Scout
   tabs, footer) like Watch & tag and Train & test, with a "training aid only" note.

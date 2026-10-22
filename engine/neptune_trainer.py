@@ -122,6 +122,12 @@ def run_job(config,job,hardware,progress,benchmark=None,max_matches=None,should_
         def checkpoint(info):
             state['checkpoint']=info;status('%d of %d matches prepared · %s'%(info['matches_done'],info['matches_total'],info['current_match'] or info['phase']))
             if job.get('control'):send_heartbeat()
+        try:
+            # Saved scoring areas for each event in this batch: training applies them to every match there.
+            from neptune_field_regions import sync_events,event_key
+            events={event_key(json.loads(line).get('match_key')) for line in (root/'labels.ndjson').read_text().splitlines() if line.strip()}
+            sync_events(config,events)
+        except (OSError,ValueError):pass
         result=run(root/'training',job['season'],export_path=root/'labels.ndjson',progress=status,
                    cache_root=HOME/'cache'/site_key,max_matches=max_matches,should_pause=lambda:state['stop_requested'] or bool(should_pause and should_pause()),checkpoint=checkpoint)
         if result.get('state')=='paused':

@@ -48,4 +48,44 @@ class Regions(unittest.TestCase):
    self.assertEqual(out['status'],'synced')
    saved=j.loads((Path(t)/'.neptune-trainer/field-regions'/(d['source_sha256']+'.json')).read_text())
    self.assertEqual(saved['source_sha256'],d['source_sha256'])
+
+class EventRegions(unittest.TestCase):
+ def match(self,red_x,blue_x,sha='b'*64,key='2026txcmp1_qm9'):
+  obs=[{'camera':'wide','t':10+i*.2,'alliance':c,'box':[x,.5,.02,.02]} for i in range(5) for c,x in (('red',red_x),('blue',blue_x))]
+  return {'source':{'sha256':sha},'identity':{'checks':{'match_number':{'status':'match','claimed_key':key}}},'periods':{'auto':{'start':10,'end':30}},
+          'tracking':{'camera_cuts':{'wide':[5.0]},'observations':obs,'localizations':[]},'bumpers':{'identities':{'1':{'alliance':'red'}}}}
+ def test_same_sides_keep_labels(self):
+  from neptune_field_regions import event_document
+  out=event_document(self.match(.3,.7),'2026-rebuilt',[copy.deepcopy(d)])
+  self.assertFalse(out['sides_swapped']);self.assertEqual(out['sides'],'red_left')
+  self.assertEqual(sorted(r['alliance'] for r in out['regions']),sorted(r['alliance'] for r in d['regions']))
+ def test_swapped_sides_swap_alliances_not_geometry(self):
+  from neptune_field_regions import event_document
+  out=event_document(self.match(.7,.3),'2026-rebuilt',[copy.deepcopy(d)])
+  self.assertTrue(out['sides_swapped'])
+  for a,b in zip(d['regions'],out['regions']):
+   self.assertEqual(a['points'],b['points']);self.assertEqual(b['alliance'],{'red':'blue','blue':'red','neutral':'neutral'}[a['alliance']])
+ def test_unknown_sides_apply_nothing(self):
+  from neptune_field_regions import event_document
+  f=self.match(.3,.7);f['tracking']['observations']=[]
+  self.assertEqual(event_document(f,'2026-rebuilt',[copy.deepcopy(d)])['regions'],[])
+ def test_event_regions_ignore_reference_cut_timeline(self):
+  from neptune_field_regions import event_document,active
+  out=event_document(self.match(.3,.7),'2026-rebuilt',[copy.deepcopy(d)])
+  r=next(r for r in out['regions'] if r['camera_view']=='wide')
+  self.assertTrue(active(r,100,'wide',self.match(.3,.7)));self.assertFalse(active(r,100,'closeup-left',self.match(.3,.7)))
+ def test_load_falls_back_to_event_file(self):
+  import tempfile,json as j,neptune_field_regions as fr
+  with tempfile.TemporaryDirectory() as t:
+   (Path(t)/'events').mkdir();(Path(t)/'events'/'2026txcmp1.json').write_text(j.dumps([d]))
+   self.assertEqual(fr.load(self.match(.3,.7),'2026-rebuilt',t)['application'],'event_template')
+   self.assertIsNone(fr.load(self.match(.3,.7,key='2026txcmp2_qm1'),'2026-rebuilt',t))
+ def test_scoring_reach_uses_own_scoring_zone(self):
+  from neptune_field_regions import event_document,scoring_reach
+  f=self.match(.3,.7);out=event_document(f,'2026-rebuilt',[copy.deepcopy(d)])
+  zone=next(r for r in out['regions'] if r['kind']=='scoring_zone' and r['alliance']=='red' and r['camera_view']=='wide')
+  cx=sum(p[0] for p in zone['points'])/len(zone['points']);cy=sum(p[1] for p in zone['points'])/len(zone['points'])
+  self.assertTrue(scoring_reach({'team':1,'t':50,'camera':'wide','box':[cx-.01,cy-.02,.02,.02]},out,f))
+  self.assertFalse(scoring_reach({'team':1,'t':50,'camera':'wide','box':[.97,.0,.01,.01]},out,f))
+  self.assertIsNone(scoring_reach({'team':1,'t':50,'camera':'other','box':[.5,.5,.01,.01]},out,f))
 if __name__=='__main__':unittest.main()

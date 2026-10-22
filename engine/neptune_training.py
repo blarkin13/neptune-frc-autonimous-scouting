@@ -285,7 +285,7 @@ def clock_excluded(rows, facts):
     return clock_report(facts,external)['verdict']=='exclude'
 
 
-def labeled_examples(rows, fact_map, sources, videos, progress=lambda s:None, extractor=None,audit=None,temporal_required=False):
+def labeled_examples(rows, fact_map, sources, videos, progress=lambda s:None, extractor=None,audit=None,temporal_required=False,field_regions=None):
     examples={};excluded=collections.Counter();cache={};hash_groups={};clock_gate={}
     def reject(row,reason):
         excluded[reason]+=1
@@ -355,6 +355,15 @@ def labeled_examples(rows, fact_map, sources, videos, progress=lambda s:None, ex
                 candidates=candidates[:1]
             else:candidates=[s for s in candidates if row['start_ms']/1000<=s['t']<=row['end_ms']/1000]
         if not candidates:reject(original_row,'robot_not_localized_at_label');continue
+        # Marked scoring areas check scoring labels. Outside rows far from every scoring area are likely the
+        # wrong robot or moment and are dropped; human labels are kept and only counted.
+        reach=None
+        if tag=='scoring' or str(tag).startswith('gb:score_'):
+            from neptune_field_regions import scoring_reach
+            results=[scoring_reach(c,(field_regions or {}).get(row['video_id']),facts) for c in candidates]
+            reach=True if True in results else False if False in results else None
+            if reach is False and is_external:reject(original_row,'external_scoring_away_from_scoring_area');continue
+            if reach is False:excluded['human_scoring_away_from_scoring_area_kept']+=1
         if audit is not None:audit.append({'label_id':row['id'],'match_key':row['match_key'],'team':row['team_number'],'category':tag,'status':'localized','examples':len(candidates),'clock_alignment':row.get('clock_alignment'),'action_time_window':row.get('action_time_window')})
         for sight in candidates:
             ck=(row['video_id'],sight['team'],sight['t'],sight.get('camera'),tuple(sight['box']))
@@ -974,7 +983,11 @@ def run(root,year,export_url=labels.EXPORT_URL,download=True,progress=print,expo
                     diagnostics['identity_review']=facts.get('tracking',{}).get('review_supervision')
                     diagnostics['action_encoder']=action_encoder_document(selected_action_version())
                     action_selected=[r for r in selected if r['id'] in action_ids]
-                    examples,skipped=labeled_examples(action_selected,{vid:facts},sources,videos,progress,extractor=temporal_extractor,audit=diagnostics['labels'],temporal_required=True)
+                    from neptune_field_regions import load as load_regions
+                    try:regions=load_regions(facts,game['game_key'])
+                    except ValueError:regions=None
+                    diagnostics.setdefault('field_regions',{})[record['match_key']]={'applied':bool(regions),'application':(regions or {}).get('application','exact_video' if regions else None),'sides':(regions or {}).get('sides'),'sides_swapped':(regions or {}).get('sides_swapped')}
+                    examples,skipped=labeled_examples(action_selected,{vid:facts},sources,videos,progress,extractor=temporal_extractor,audit=diagnostics['labels'],temporal_required=True,field_regions={vid:regions})
                     # Include the same action vocabulary for each match, even when a
                     # particular action has only been labelled in another match.
                     references=unlabeled_examples(action_selected,{vid:facts},sources,videos,progress,extractor=temporal_extractor,tag_keys=all_tags,temporal_required=True)

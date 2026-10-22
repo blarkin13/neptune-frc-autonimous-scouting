@@ -29,6 +29,15 @@ class OutsideScouting(unittest.TestCase):
   examples,skipped=training.labeled_examples([row],{'AAAAAAAAAAA':facts},src,Path('/unused'),extractor=lambda *a:[1.0]*1296)
   self.assertEqual(len(examples),1);self.assertEqual(examples[0]['t_ms'],10000);self.assertEqual(examples[0]['external_sources'][0]['quantity'],5);self.assertEqual(row['start_ms'],2000);self.assertEqual(examples[0]['y'],1)
   facts['periods']['auto']['start_observed']=False;facts['periods']['auto']['clock_samples']=[];examples,skipped=training.labeled_examples([row],{'AAAAAAAAAAA':facts},src,Path('/unused'));self.assertFalse(examples);self.assertEqual(skipped['external_clock_no_local_clock_bracket'],1)
+ def test_outside_scoring_row_outside_scoring_zone_is_dropped(self):
+  row=self.row();facts=self.facts();src={'AAAAAAAAAAA':{'status':'verified','sha256':'b'*64,'duration_ms':180000,'file':'AAAAAAAAAAA.mp4'}}
+  zone={'id':'z','kind':'scoring_zone','camera_view':'wide','alliance':'red','points':[[.8,.8],[.95,.8],[.95,.95],[.8,.95]],'start_ms':0,'reference_ms':0,'end_ms':10**9,'event_template':True,'game_key':'2026-rebuilt','reviewed':True}
+  far={'regions':[zone],'source_sha256':'b'*64}
+  examples,skipped=training.labeled_examples([row],{'AAAAAAAAAAA':facts},src,Path('/unused'),extractor=lambda *a:[1.0]*1296,field_regions={'AAAAAAAAAAA':far})
+  self.assertFalse(examples);self.assertEqual(skipped['external_scoring_away_from_scoring_area'],1)
+  near=dict(zone,points=[[0,0],[1,0],[1,1],[0,1]])
+  examples,skipped=training.labeled_examples([row],{'AAAAAAAAAAA':facts},src,Path('/unused'),extractor=lambda *a:[1.0]*1296,field_regions={'AAAAAAAAAAA':{'regions':[near],'source_sha256':'b'*64}})
+  self.assertEqual(len(examples),1)
  def test_source_failure_report_does_not_blame_human_tags(self):
   with tempfile.TemporaryDirectory() as tmp:
    root=Path(tmp);snapshot=Checkpoints().snapshot(root)
