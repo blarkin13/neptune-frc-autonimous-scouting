@@ -5,7 +5,7 @@ require_once __DIR__.'/robot-detector-jobs.php';
 /** One status read for the Train page: helpers, what is running and waiting, and each trainable part's model and data. */
 function autoscout_train_overview(PDO $pdo,array $panel,int $org,int $user,string $game):array {
  $secure=__DIR__;$jobs=new RobotDetectorJobs($secure,$org);
- $requests=array_map(fn($r)=>array_intersect_key($r,array_flip(['id','kind','state','created_at','claimed_at','heartbeat_at','finished_at','message','report','video_id','match_key'])),$jobs->requests());
+ $requests=array_map(fn($r)=>array_intersect_key($r,array_flip(['id','kind','state','computer_id','created_at','claimed_at','heartbeat_at','finished_at','message','report','video_id','match_key'])),$jobs->requests());
  // Robot labels: complete frames per match (site saves take precedence over the local seed frames).
  $videos=[];
  foreach(array_merge(glob($secure.'/robot-labels/seed/*.json')?:[],glob($secure.'/robot-labels/'.$org.'/*.json')?:[]) as $f){
@@ -32,7 +32,11 @@ function autoscout_train_overview(PDO $pdo,array $panel,int $org,int $user,strin
  foreach(array_reverse($panel['jobs']) as $j)if(in_array($j['state'],$active,true))$queue[]=['part'=>str_starts_with($j['state'],'test_')||str_starts_with($j['state'],'evaluation_')?'test':'actions','state'=>str_ends_with($j['state'],'_queued')||$j['state']==='queued'?'waiting':'running','title'=>str_starts_with($j['state'],'test_')?'Test a match':(str_starts_with($j['state'],'evaluation_')?'Independent evaluation':'Train action models & scoring'),'message'=>$j['message']??'','since'=>$j['created_at']];
  usort($queue,fn($a,$b)=>[$a['state']!=='running',$a['since']]<=>[$b['state']!=='running',$b['since']]);
  return [
-  'helpers'=>array_map(fn($c)=>['name'=>$c['name'],'status'=>$c['status'],'online'=>$c['online'],'ready'=>$c['ready']],array_values(array_filter($panel['computers'],fn($c)=>!$c['revoked']))),
+  // A helper on a detector job reports to that queue, not the action-training one, so its last_seen goes stale.
+  'helpers'=>array_map(function($c)use($requests){
+   $job=null;foreach($requests as $r)if($r['state']==='claimed'&&($r['computer_id']??null)===$c['id']&&time()-(int)($r['heartbeat_at']??0)<900)$job=$r;
+   return $job?['name'=>$c['name'],'status'=>'working','online'=>true,'ready'=>false,'working'=>true]:['name'=>$c['name'],'status'=>$c['status'],'online'=>$c['online'],'ready'=>$c['ready']];
+  },array_values(array_filter($panel['computers'],fn($c)=>!$c['revoked']))),
   'queue'=>$queue,
   'robot'=>['current'=>$robot,'history'=>count($jobs->history('robot')),'matches'=>$robotMatches,'events'=>array_values(array_unique(array_filter(array_map($event,array_keys($robotMatches))))),'min_frames'=>8,'runs'=>array_values(array_filter($requests,fn($r)=>$r['kind']==='train'))],
   'field'=>['game_key'=>$game,'current'=>$field,'history'=>count($jobs->history('field',$game)),'matches'=>$fieldMatches,'events'=>array_values(array_unique(array_filter(array_map($event,array_keys($fieldMatches))))),'runs'=>array_values(array_filter($requests,fn($r)=>$r['kind']==='train_field'&&($r['game_key']??RobotDetectorJobs::defaultGame())===$game))],

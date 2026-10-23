@@ -90,7 +90,7 @@
   let o;try{const r=await fetch(`train.php?overview=1&season=${encodeURIComponent(season)}`,{headers:{Accept:'application/json'}});o=await r.json();if(!r.ok)throw Error(o.error)}catch(e){document.querySelector('#train-status [data-slot="helpers"]').textContent='Status unavailable: '+e.message;return}
   const status=k=>document.querySelector(`#train-status [data-slot="${k}"]`);
   const on=o.helpers.filter(h=>h.online);
-  status('helpers').textContent=on.length?on.map(h=>`${h.name} · ${h.ready?'ready':h.status}`).join('\n'):(o.helpers.length?'No helper open. Open the helper app on your computer.':'No helper connected — see Helpers & settings.');
+  status('helpers').textContent=on.length?on.map(h=>`${h.name} · ${h.working?'working':h.ready?'ready':h.status}`).join('\n'):(o.helpers.length?'No helper open. Open the helper app on your computer.':'No helper connected — see Helpers & settings.');
   const running=o.queue.filter(q=>q.state==='running'),waiting=o.queue.filter(q=>q.state==='waiting');
   status('now').textContent=running.length?running.map(q=>q.message&&q.message.includes(' · step ')?q.message:q.title+(q.message?'\n'+q.message:'')).join('\n\n'):'Nothing';
   status('waiting').textContent=waiting.length?waiting.map((q,i)=>`${i+1}. ${q.title}`).join('\n'):'Nothing';
