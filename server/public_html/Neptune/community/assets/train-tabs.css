@@ -1,0 +1,28 @@
+/* Train & test: one status bar, then one tab per trainable part. */
+.tt-status{display:grid;grid-template-columns:1fr 1.4fr 1fr;gap:12px;margin:18px 0;padding:14px 16px;border:1px solid var(--line);border-radius:14px;background:var(--panel)}
+.tt-status>div{display:flex;flex-direction:column;gap:4px;min-width:0}
+.tt-status [data-slot]{font-size:.95rem;white-space:pre-line;overflow-wrap:anywhere}
+.tt-tabs{display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid var(--line);margin:22px 0 0}
+.tt-tabs button{background:transparent!important;color:var(--muted)!important;border:0!important;border-bottom:3px solid transparent!important;border-radius:0!important;padding:12px 14px!important;min-height:0!important;font-weight:650}
+.tt-tabs button b{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;border:1px solid var(--line);margin-right:6px;font-size:.8rem}
+.tt-tabs button[aria-selected=true]{color:var(--text)!important;border-bottom-color:var(--accent)!important}
+.tt-tabs .tt-tab-aside{margin-left:auto}
+.tt-tabs .tt-flag{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--c1-orange,#f0a03c);margin-left:6px;vertical-align:middle}
+.tt-part{padding-top:18px}
+.tt-part[hidden]{display:none}
+.tt-how{font-size:1.02rem;line-height:1.65;max-width:900px;margin:6px 0 18px}
+.tt-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.tt-card{border:1px solid var(--line);border-radius:14px;background:var(--panel);padding:16px 18px;margin:0 0 14px}
+.tt-card .stage-label{display:block;margin-bottom:8px}
+.tt-card dl{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;margin:0 0 10px}
+.tt-card dt{color:var(--muted)}.tt-card dd{margin:0}
+.tt-next ul{margin:0 0 14px;padding-left:20px;line-height:1.7}
+.tt-next li.tt-ok{list-style:'✓  ';color:var(--muted)}
+.tt-next li.tt-todo{list-style:'→  '}
+.tt-runs{width:100%;border-collapse:collapse;font-size:.92rem}
+.tt-runs td,.tt-runs th{text-align:left;padding:7px 8px;border-top:1px solid var(--line);vertical-align:top}
+.tt-runs .tt-msg{white-space:pre-line}
+.tt-badge{display:inline-block;padding:2px 9px;border-radius:999px;border:1px solid var(--line);font-size:.8rem}
+.tt-badge.ok{border-color:var(--c1-green,#3cbf7a);color:var(--c1-green,#3cbf7a)}
+.tt-badge.warn{border-color:var(--c1-orange,#f0a03c);color:var(--c1-orange,#f0a03c)}
+@media(max-width:800px){.tt-status,.tt-grid{grid-template-columns:1fr}.tt-tabs .tt-tab-aside{margin-left:0}}

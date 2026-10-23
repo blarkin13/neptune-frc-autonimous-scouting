@@ -95,6 +95,21 @@ final class RobotDetectorJobs {
   self::write($old,['schema_version'=>1,'file'=>$file,'sha256'=>$sha,'adopted_at'=>time(),'request_id'=>$r['id'],'report'=>is_array($p['report']??null)?$p['report']:[]]);
   return ['ok'=>true,'sha256'=>$sha];
  }
+ /** Earlier adopted detectors, newest first: ['robot'|'field'] -> [{stamp, manifest}]. */
+ public function history(string $which):array{
+  $out=[];foreach(array_reverse(glob($this->root.'/'.($which==='field'?'field-history':'history').'/*/manifest.json')?:[]) as $m){$d=json_decode((string)file_get_contents($m),true);if(is_array($d))$out[]=['stamp'=>basename(dirname($m)),'manifest'=>$d];}
+  return $out;
+ }
+ /** Go back to the previous adopted detector. The one replaced is set aside, not deleted. Helpers pick it up on their next hourly sync. */
+ public function rollback(string $which):array{
+  if(!in_array($which,['robot','field'],true))throw new InvalidArgumentException('Unknown detector');
+  $hist=$this->root.'/'.($which==='field'?'field-history':'history');$cur=$this->root.'/'.($which==='field'?'field-current':'current');
+  $dirs=glob($hist.'/*',GLOB_ONLYDIR)?:[];if(!$dirs)throw new InvalidArgumentException('There is no earlier detector to go back to.');
+  $prev=end($dirs);$aside=$this->dir(($which==='field'?'field-':'').'undone/'.date('Ymd-His'));
+  foreach(glob($cur.'/*')?:[] as $f)rename($f,$aside.'/'.basename($f));
+  foreach(glob($prev.'/*')?:[] as $f)rename($f,$this->dir($which==='field'?'field-current':'current').'/'.basename($f));
+  rmdir($prev);return ['ok'=>true,'restored'=>basename($prev)];
+ }
  /** Adopt a detector the helper trained and showed better on a held-out match. Previous one is kept. */
  public function adopt(array $computer,array $p):array{
   $r=$this->owned($computer,$p);if($r['kind']!=='train')throw new InvalidArgumentException('Only a training request can adopt a detector');

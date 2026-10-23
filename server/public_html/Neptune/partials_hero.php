@@ -195,7 +195,7 @@ if (!function_exists('neptune_hero_buffer_start')) {
             ['~maintenance console~i', [['fa-file-zipper','Upload patch'],['fa-magnifying-glass','Inspect contents'],['fa-screwdriver-wrench','Install safely']]],
             ['~system check~i', [['fa-stethoscope','Run checks'],['fa-circle-exclamation','Review issues'],['fa-wrench','Fix configuration']]],
             ['~file manager~i', [['fa-folder-open','Browse files'],['fa-upload','Upload / organize'],['fa-shield-halved','Stay org scoped']]],
-            ['~train & test robot scouting~i', [['fa-laptop','Connect a worker'],['fa-brain','Train and evaluate'],['fa-circle-check','Release a model']]],
+            ['~train & test robot scouting~i', [['fa-robot','Robot detector'],['fa-border-all','Field detector'],['fa-brain','Actions & scoring'],['fa-circle-check','Test & release']]],
             ['~community scouting settings~i', [['fa-toggle-on','Enable tagging'],['fa-tags','Review contributions'],['fa-brain','Open training']]],
             ['~^auto scout$~i', [['fa-tags','Add examples'],['fa-robot','Train a model'],['fa-circle-check','Test what it learned']]],
             ['~scoring areas~i', [['fa-calendar-days','Choose a match'],['fa-draw-polygon','Mark targets & zones'],['fa-cloud-arrow-up','Save to Neptune']]],

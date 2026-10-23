@@ -31,10 +31,23 @@
   if(String(job.message||'').startsWith('Unsupported broadcast layout:')){const d=node('details',null,'training-more');d.append(node('summary','Technical details'),node('p',job.message));target.append(d);}
   if(job.video){target.append(node('p',job.video.title||job.video.match_key));const a=node('a','Watch the video used for this test →','community-button');a.href=job.video.source_url;a.target='_blank';a.rel='noopener';target.append(a);const tag=node('a','Tag this match manually →');tag.href='/community/tag-video.php?match_id='+encodeURIComponent(job.video.match_id);target.append(tag);}
  }
- function computer(){return panel.computers.find(c=>c.id===$('helper-computer').value);}
+ // Only show helpers that are usable or were seen recently. Historical records remain in the database.
+ function relevantComputers(){
+  const now=Date.now(),maxIdle=14*24*60*60*1000;
+  return (panel.computers||[]).filter(c=>{
+   if(c.revoked||/\b(?:revoked|expired)\b/i.test(String(c.status||'')))return false;
+   if(c.ready||c.online)return true;
+   const stamp=c.last_seen_at??c.last_seen??c.seen_at??c.updated_at;
+   if(stamp===undefined||stamp===null||stamp==='')return false;
+   const numeric=Number(stamp);
+   const seen=Number.isFinite(numeric)&&numeric>0?(numeric>1e12?numeric:numeric*1000):Date.parse(String(stamp));
+   return Number.isFinite(seen)&&seen<=now&&now-seen<=maxIdle;
+  });
+ }
+ function computer(){return relevantComputers().find(c=>c.id===$('helper-computer').value);}
  function renderConnection(){
-  const items=panel.computers.map(c=>({value:c.id,label:c.name+' · '+c.status+' · '+c.id.slice(0,4).toUpperCase()}));options($('helper-computer'),items,'Open the helper to connect');let chosen=computer();if(!chosen?.ready){const ready=panel.computers.find(c=>c.ready);if(ready){$('helper-computer').value=ready.id;chosen=ready;}}
-  $('helper-picker').hidden=panel.computers.length<2;
+  const computers=relevantComputers(),items=computers.map(c=>({value:c.id,label:c.name+' · '+c.status+' · '+c.id.slice(0,4).toUpperCase()}));options($('helper-computer'),items,'Open the helper to connect');let chosen=computer();if(!chosen?.ready){const ready=computers.find(c=>c.ready);if(ready){$('helper-computer').value=ready.id;chosen=ready;}}
+  $('helper-picker').hidden=computers.length<2;
   const needsOutside=modalKind==='training'&&batchDataset.slice(0,Number($('batch-size').value)||batchDataset.length).some(m=>m.external>0),needsUpdate=chosen?.ready&&needsOutside&&chosen.protocol!=='page-v2';
   const box=$('connection-status');box.className='training-connection-status'+(chosen?.ready?' connected':chosen?.online?' warning':'');box.textContent=needsUpdate?'Connected. Update this helper to the current release (Mac app 3.2.6 / engine 2.4.6) to include outside scouting. Use the download below; your saved videos and human tags are kept.':chosen?.ready?'Connected — '+chosen.name+' · engine '+(chosen.engine_version||'older version')+'. Leave the helper open. You can run from here.':chosen?.online?chosen.status+'. Wait here while it finishes setup.':'Waiting for your helper to connect…';
   $('modal-run').disabled=executor==='helper'?(!chosen?.ready||needsUpdate):!serverHealth?.ready;
@@ -202,7 +215,7 @@
   options($('run-history'),panel.jobs.map(j=>({value:j.id,label:date(j.created_at)+' · '+j.state_label})),'No runs yet');if(selectedRun&&panel.jobs.some(j=>j.id===selectedRun))$('run-history').value=selectedRun;
   const models=panel.models.map((m,i)=>({value:m.id,label:(i===0?'Latest model · ':'Model · ')+date(m.created_at)+(m.evaluated?' · evaluation passed':' · experimental')}));options($('trial-model'),models,'Train a model first');$('try-model').disabled=!models.length||!$('trial-match').value;$('open-evaluation').disabled=!models.length;
   const model=panel.models.find(m=>m.id===$('trial-model').value);$('release-model').disabled=!model?.evaluated;const releaseText=panel.released?'A model is currently released for this game.':model?.evaluated?'This model passed independent checks. Review the evaluation, then choose Release evaluated model.':'No passing independent evaluation is saved for the selected model. You can still try its predictions.';$('evaluation-status').replaceChildren(node('p',releaseText,'training-model-state'));
-  renderReport();const manage=$('manage-computers');const connectionKey=JSON.stringify(panel.computers.map(c=>[c.id,c.status]));if(manage.dataset.connections!==connectionKey){manage.dataset.connections=connectionKey;manage.replaceChildren();for(const c of panel.computers){const row=node('div',null,'training-computer-row');row.append(node('strong',c.name+' · '+c.id.slice(0,4).toUpperCase()),node('p',c.status));if(!c.revoked){const b=node('button','Disconnect this helper','button-secondary');b.type='button';b.onclick=async()=>{try{await send('revoke_computer',{computer:c.id});await refresh();}catch(e){pageMessage(e.message);}};row.append(b);}manage.append(row);}}const latestTrial=panel.jobs.find(j=>j.report?.kind==='scouting_trial');const pk=latestTrial?latestTrial.id+JSON.stringify(latestTrial.report):'none';if(pk!==predictionKey){predictionKey=pk;$('prediction-results').replaceChildren();if(latestTrial)renderPrediction($('prediction-results'),latestTrial.report);else $('prediction-results').append(node('p','No prediction results yet. Run a match test to see them here.'));}
+  renderReport();const manage=$('manage-computers'),connections=relevantComputers();$('manage-helper-section').hidden=connections.length===0;const connectionKey=JSON.stringify(connections.map(c=>[c.id,c.status,c.ready,c.online]));if(manage.dataset.connections!==connectionKey){manage.dataset.connections=connectionKey;manage.replaceChildren();for(const c of connections){const row=node('div',null,'training-computer-row');row.append(node('strong',c.name+' · '+c.id.slice(0,4).toUpperCase()),node('p',c.status));if(!c.revoked){const b=node('button','Disconnect this helper','button-secondary');b.type='button';b.onclick=async()=>{try{await send('revoke_computer',{computer:c.id});await refresh();}catch(e){pageMessage(e.message);}};row.append(b);}manage.append(row);}}const latestTrial=panel.jobs.find(j=>j.report?.kind==='scouting_trial');const pk=latestTrial?latestTrial.id+JSON.stringify(latestTrial.report):'none';if(pk!==predictionKey){predictionKey=pk;$('prediction-results').replaceChildren();if(latestTrial)renderPrediction($('prediction-results'),latestTrial.report);else $('prediction-results').append(node('p','No prediction results yet. Run a match test to see them here.'));}
   if(modal.open){renderConnection();if(following)renderProgress();}
  }
  async function refresh(){if(polling)return;polling=true;try{panel=await get({panel:1,job:selectedRun||following||''});render();$('page-message').hidden=true;}catch(e){pageMessage(e.message+' Your saved work is kept. This page will retry automatically; you do not need to restart training.');}finally{polling=false;}}

@@ -356,11 +356,13 @@ def train_field(config, req, progress):
 
 def run_pending(config, progress, busy=lambda value: None):
     """Claim and run one queued request. Returns True when a request was handled."""
+    from neptune_steps import Steps, PLANS
     req = api(config, 'claim').get('request')
     if not req:
         return False
-    busy(True); last = [0.]
+    busy(True); last = [0.]; steps = Steps(req['kind'] if req['kind'] in PLANS else 'train')
     def report(message):
+        message = steps.describe(message)
         progress(message)
         if time.monotonic()-last[0] > 20:
             last[0] = time.monotonic()

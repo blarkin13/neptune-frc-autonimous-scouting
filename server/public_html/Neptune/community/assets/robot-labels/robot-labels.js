@@ -14,7 +14,7 @@
   const c=d.current;const rep=c&&c.report;$('current').textContent=c?`Current detector adopted ${new Date(c.adopted_at*1000).toLocaleDateString()}${rep&&rep.new?` · held-out ${rep.holdout_match||''}: found ${Math.round(rep.new.recall*100)}%, right ${Math.round(rep.new.precision*100)}%`:''}`:'Using the detector shipped with the helper.'}catch(e){}}
  async function queue(action){try{const r=await fetch('robot-labels.php',{method:'POST',headers:{'Content-Type':'application/json','X-Robot-Labels-CSRF':app.dataset.csrf},body:JSON.stringify({action,video_id:app.dataset.youtube,match_key:app.dataset.matchKey})});
   const d=await r.json();if(!r.ok)throw Error(d.error||'Could not queue');say(action==='queue_train'?'Detector training queued for your helper.':'Frame preparation queued for your helper.');detectorStatus()}catch(e){say(e.message)}}
- $('prepare').onclick=()=>queue('queue_prepare');$('train').onclick=()=>queue('queue_train');
+ $('prepare').onclick=()=>queue('queue_prepare');
  detectorStatus();setInterval(detectorStatus,15000);
  const stamp=s=>{const m=Math.floor(s/60),r=(s%60).toFixed(2).padStart(5,'0');return String(m).padStart(2,'0')+':'+r};
  function setColor(c){color=c;$('red').classList.toggle('active',c==='red');$('blue').classList.toggle('active',c==='blue');$('red').setAttribute('aria-pressed',c==='red');$('blue').setAttribute('aria-pressed',c==='blue')}

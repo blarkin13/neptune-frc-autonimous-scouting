@@ -111,8 +111,11 @@ def run_job(config,job,hardware,progress,benchmark=None,max_matches=None,should_
         while not done.wait(5 if job.get('control') else 20):
             try:send_heartbeat()
             except Exception as error:lost.append(error);return
+    from neptune_steps import Steps
+    steps=Steps('actions') if benchmark is None else None
     def status(message):
         if lost:raise lost[0]
+        message=steps.describe(message) if steps else message
         state['message']=str(message)[:900];progress(message)
     thread=threading.Thread(target=heartbeat,daemon=True);thread.start()
     try:
