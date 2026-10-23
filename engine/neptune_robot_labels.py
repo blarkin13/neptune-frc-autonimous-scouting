@@ -88,7 +88,7 @@ def build(docs, out, holdout=(), download=None, progress=print):
 def youtube_download(video_id, path):
     """Download a catalog match video the way the helper does for training."""
     from neptune_helper import download_video
-    download_video({'source_url': 'https://www.youtube.com/watch?v='+video_id}, Path(path), [''])
+    download_video({'source_url': 'https://www.youtube.com/watch?v='+video_id, 'source_sha256': None}, Path(path), [''])
 
 
 def main():

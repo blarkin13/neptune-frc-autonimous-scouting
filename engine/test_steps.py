@@ -25,3 +25,16 @@ class StepsTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class LabelDownloadTest(unittest.TestCase):
+    def test_download_needs_no_fingerprint(self):
+        import sys, types
+        from unittest import mock
+        import neptune_robot_labels
+        seen = {}
+        def fake(match, video, stage):
+            seen['ok'] = match['source_sha256'] is None and match['source_url'].endswith('abcdefghijk')
+        with mock.patch.dict(sys.modules, {'neptune_helper': types.SimpleNamespace(download_video=fake)}):
+            neptune_robot_labels.youtube_download('abcdefghijk', '/tmp/x.mp4')
+        self.assertTrue(seen['ok'])
