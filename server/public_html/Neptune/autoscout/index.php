@@ -4,9 +4,9 @@ declare(strict_types=1);
 require_once dirname(__DIR__,3).'/neptune_secure/bootstrap.php';
 require_once dirname(__DIR__,3).'/neptune_secure/google-auth.php';
 require_once dirname(__DIR__,3).'/neptune_secure/platform-security.php';
-$u=require_role(['owner']);
-if((int)$u['organization_id']!==(int)($config['app']['platform_organization_id']??1))access_denied('Platform owner access required.');
-neptune_require_platform_owner_google($u);
+$u=require_role(['owner','admin']);
+if((int)$u['organization_id']!==(int)($config['app']['platform_organization_id']??1))access_denied('Auto Scout is for admins of the owner organization.');
+
 header('Cache-Control: private, no-store');
 require_once dirname(__DIR__).'/community/layout.php';community_page_start('Auto Scout','Three pillars, in order: Robots, Field, Actions. Each page holds its examples, its training and what it learned. Then test and release.','hub','PLATFORM OWNER · AUTO SCOUT');
 ?>

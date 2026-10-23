@@ -18,8 +18,7 @@ try {
     if($_SERVER['REQUEST_METHOD']==='POST') {
         if(!$user)throw new CommunityAnalysisError(401,'Sign in to Neptune first, then return to this page.');
         verify_csrf();
-        if($user['role']!=='owner'||(int)$user['organization_id']!==$settings['platform_organization_id'])access_denied('Platform owner required.');
-        neptune_require_platform_owner_google($user);
+        if(!in_array($user['role'],['owner','admin'],true)||(int)$user['organization_id']!==$settings['platform_organization_id'])access_denied('Auto Scout is for admins of the owner organization.');
         $decision=(string)($_POST['decision']??'');
         if(!in_array($decision,['approve','deny'],true))throw new CommunityAnalysisError(422,'Choose Approve or Cancel.');
         $redirect=$pairing->authorize($id,(int)$user['id'],(string)$user['credential_revision'],$decision==='approve');

@@ -593,7 +593,7 @@ if(($u || $isDashboardBreadcrumb) && !$hideChrome && !$hideBreadcrumbs && !$isLi
             <a class="<?=$isNeptuneAccountView?'active':''?>" href="<?=e(base_url('dashboard/index.php?view=account'))?>"><i class="fa-solid fa-user-gear"></i><span>My Account</span></a>
             <a class="<?=$activeSection==='scouting'?'active':''?>" href="<?=e(base_url('scouting.php'))?>"><i class="fa-solid fa-crosshairs"></i><span>Scouting</span></a>
             <a class="<?=$activeSection==='analytics'?'active':''?>" href="<?=e(base_url('analytics/index.php'))?>"><i class="fa-solid fa-chart-line"></i><span>Analytics &amp; Strategy</span></a>
-            <?php if(($u['role']??'')==='owner'&&(int)($u['organization_id']??0)===(int)($config['app']['platform_organization_id']??1)): ?>
+            <?php if(in_array($u['role']??'',['owner','admin'],true)&&(int)($u['organization_id']??0)===(int)($config['app']['platform_organization_id']??1)): ?>
                 <a class="<?=$activeSection==='autoscout'?'active':''?>" href="<?=e(base_url('autoscout/index.php'))?>"><i class="fa-solid fa-robot"></i><span>Auto Scout</span></a>
             <?php endif; ?>
 

@@ -25,7 +25,7 @@ final class CommunityTrainingPairing {
     private function user(int $id):array {
         $u=$this->q('SELECT u.id,u.role,u.organization_id,u.password_hash,u.active,u.must_change_password,u.display_name,u.username,o.platform_status FROM users u JOIN organizations o ON o.id=u.organization_id WHERE u.id=?',[$id])->fetch(PDO::FETCH_ASSOC);
         if(!$u||!(int)$u['active']||(int)$u['must_change_password']||($u['platform_status']??'active')!=='active')throw new CommunityAnalysisError(403,'This account is not currently eligible to connect a helper.');
-        if($u['role']!=='owner'||(int)$u['organization_id']!==(int)$this->settings['platform_organization_id'])throw new CommunityAnalysisError(403,'Platform owner required.');
+        if(!in_array($u['role'],['owner','admin'],true)||(int)$u['organization_id']!==(int)$this->settings['platform_organization_id'])throw new CommunityAnalysisError(403,'Auto Scout helpers are for admins of the owner organization.');
         return $u;
     }
     public function start(array $p,string $ip):array {

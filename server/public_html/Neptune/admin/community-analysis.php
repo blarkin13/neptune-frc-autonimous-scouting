@@ -4,9 +4,9 @@ require_once dirname(__DIR__,3).'/neptune_secure/bootstrap.php';
 require_once dirname(__DIR__,3).'/neptune_secure/google-auth.php';
 require_once dirname(__DIR__,3).'/neptune_secure/platform-security.php';
 require_once dirname(__DIR__,3).'/neptune_secure/community-analysis-install.php';
-$u=require_role(['owner']);
-if((int)$u['organization_id']!==(int)($config['app']['platform_organization_id']??1))access_denied('Platform owner access required.');
-neptune_require_platform_owner_google($u);
+$u=require_role(['owner','admin']);
+if((int)$u['organization_id']!==(int)($config['app']['platform_organization_id']??1))access_denied('Auto Scout is for admins of the owner organization.');
+
 header('Cache-Control: private, no-store');
 header('Referrer-Policy: no-referrer');
 $message='';

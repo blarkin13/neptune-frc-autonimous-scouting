@@ -18,7 +18,7 @@ if($_SERVER['REQUEST_METHOD']==='GET'&&in_array(($_GET['native']??''),['mac','wi
  header('Content-Type: '.$type);header('Content-Disposition: attachment; filename="'.basename($file).'"');
  header('Content-Length: '.filesize($path));readfile($path);exit;
 }
-$u=require_role(['owner']);if((int)$u['organization_id']!==(int)($config['app']['platform_organization_id']??1))access_denied('Platform owner required.');neptune_require_platform_owner_google($u);
+$u=require_role(['owner','admin']);if((int)$u['organization_id']!==(int)($config['app']['platform_organization_id']??1))access_denied('Platform owner required.');
 function neptune_trainer_site(): string {
  global $config;
  $site=rtrim(base_url(''),'/');

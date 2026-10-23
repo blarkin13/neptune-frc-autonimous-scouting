@@ -35,3 +35,4 @@
 .tt-tabs+[data-panel]{padding-top:6px}
 @media(max-width:1000px){.tt-grid-3{grid-template-columns:1fr}}
 .tt-runs-more{margin:8px 0 10px}.tt-runs-more summary{cursor:pointer;color:var(--accent)}.tt-runs-more .tt-runs{margin-top:8px}
+#use-server[hidden],#modal-use-server[hidden]{display:none!important}

@@ -6,9 +6,9 @@ require_once dirname(__DIR__,3).'/neptune_secure/platform-security.php';
 require_once dirname(__DIR__,3).'/neptune_secure/community-analysis-install.php';
 require_once dirname(__DIR__,3).'/neptune_secure/community-video-tags.php';
 require_once dirname(__DIR__,3).'/neptune_secure/robot-detector-jobs.php';
-$u=require_role(['owner']);
-if((int)$u['organization_id']!==(int)($config['app']['platform_organization_id']??1))access_denied('Platform owner access required.');
-neptune_require_platform_owner_google($u);
+$u=require_role(['owner','admin']);
+if((int)$u['organization_id']!==(int)($config['app']['platform_organization_id']??1))access_denied('Auto Scout is for admins of the owner organization.');
+
 header('Cache-Control: private, no-store');
 $_SESSION['robot_labels_csrf']??=bin2hex(random_bytes(32));
 $csrf=$_SESSION['robot_labels_csrf'];

@@ -40,7 +40,7 @@ final class CommunityTrainers {
  private function lock():string{return $this->db->getAttribute(PDO::ATTR_DRIVER_NAME)==='mysql'?' FOR UPDATE':'';}
  private function tx(callable $fn):mixed{$this->db->beginTransaction();try{$r=$fn();$this->db->commit();return $r;}catch(Throwable $e){if($this->db->inTransaction())$this->db->rollBack();throw $e;}}
  public function enroll(array $user,string $name):array {
-  if(($user['role']??'')!=='owner')throw new CommunityAnalysisError(403,'Platform owner required.');
+  if(!in_array($user['role']??'',['owner','admin'],true))throw new CommunityAnalysisError(403,'Auto Scout helpers are for admins of the owner organization.');
   $id=bin2hex(random_bytes(16));$token=bin2hex(random_bytes(32));$expiry=time()+30*86400;
   $this->q('INSERT INTO community_training_computers(id,user_id,credential_revision,token_hash,name,created_at,expires_at) VALUES(?,?,?,?,?,?,?)',[$id,$user['id'],$user['credential_revision'],hash('sha256',$token),mb_substr($name,0,100),time(),$expiry]);
   return ['id'=>$id,'token'=>$token,'expires_at'=>$expiry];
@@ -48,7 +48,7 @@ final class CommunityTrainers {
  public function authenticate(string $token,int $platformOrg):array {
   if(!preg_match('/^[a-f0-9]{64}$/D',$token))throw new CommunityAnalysisError(401,'Training computer connection required.');
   $r=$this->q('SELECT c.*,u.role,u.organization_id,u.active,u.must_change_password,u.password_hash,o.platform_status FROM community_training_computers c JOIN users u ON u.id=c.user_id JOIN organizations o ON o.id=u.organization_id WHERE c.token_hash=?',[hash('sha256',$token)])->fetch(PDO::FETCH_ASSOC);
-  if(!$r||$r['revoked']||(int)$r['expires_at']<=time()||!(int)$r['active']||(int)$r['must_change_password']||($r['platform_status']??'active')!=='active'||$r['role']!=='owner'||(int)$r['organization_id']!==$platformOrg||!hash_equals($r['credential_revision'],hash('sha256',$r['password_hash'])))throw new CommunityAnalysisError(401,'Training connection expired, revoked or no longer authorized. Download a new connection from Training & Models.');
+  if(!$r||$r['revoked']||(int)$r['expires_at']<=time()||!(int)$r['active']||(int)$r['must_change_password']||($r['platform_status']??'active')!=='active'||!in_array($r['role'],['owner','admin'],true)||(int)$r['organization_id']!==$platformOrg||!hash_equals($r['credential_revision'],hash('sha256',$r['password_hash'])))throw new CommunityAnalysisError(401,'Training connection expired, revoked or no longer authorized. Download a new connection from Training & Models.');
   return $r;
  }
  public function queue(int $season,int $user):string {

@@ -5,7 +5,7 @@ function community_page_start(string $title,string $subtitle,string $active='pub
  $pageTitle=$title;$moduleName='AUTO SCOUT';$hideChrome=false;
  $viewer=function_exists('current_user')?current_user():null;
  // Auto Scout pages sit under the Auto Scout menu section for the platform owner who has it.
- if(($viewer['role']??'')==='owner'&&(int)($viewer['organization_id']??0)===(int)($config['app']['platform_organization_id']??1))$navigationSection='autoscout';
+ if(in_array($viewer['role']??'',['owner','admin'],true)&&(int)($viewer['organization_id']??0)===(int)($config['app']['platform_organization_id']??1))$navigationSection='autoscout';
  include dirname(__DIR__).'/partials_header.php';
  ?>
 <link rel="stylesheet" href="/community/assets/community.css?v=9-mission-pages">
