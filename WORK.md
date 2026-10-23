@@ -1,5 +1,15 @@
 # Work log (newest first)
 
+## 2026-10-23 — Claude: pillars, per-game field detector, 2025 layouts, helper 3.2.15–3.2.20
+- Auto Scout is three pillar pages (Robots → Field → Actions) plus Test & release and Helpers; each pillar
+  holds its examples, Train, model in use and past runs (commit b9d6539, previewed locally, not packaged yet).
+- Field detector per `game_key` (server `field-current/<game>/`, helper `field-detector/<game>/`), with the
+  reference marks it was trained on; old single detector migrates to 2026 automatically. Game-neutral wording.
+- 2025 REEFSCAPE layout profiles (standard FIRST, FIM); checked on 3 broadcasts: layout, periods, scores.
+- Fixes: label video download (`source_sha256`), frames list/dict, helper shown as working during detector jobs.
+- Storage: release script keeps two build folders; helper deletes detector work folders after 6 h.
+- Helper shows "step N of M / Now / Next". Handoff for Codex: `docs/HANDOFF.md`.
+
 ## 2026-10-23 — Claude: field-detector training job (engine 2.7.1-field-detector-training)
 - Scoring areas has "Train field detector". An idle helper downloads every saved region document (new
   `api/field-regions.php {all:true}`), samples broadcast frames from each marked match, trains YOLO on hubs +

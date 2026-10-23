@@ -27,6 +27,12 @@ server worker (`server_run.py`, `install-server.sh`, run by `neptune-community-l
 - `public_html/Neptune/community/`: tag-video, review-tags, training-labels, scouting-results, connect pages.
 - `public_html/Neptune/admin/community-*.php`, `api/community-*.php`: admin and JSON API.
 
+- `public_html/Neptune/autoscout/`: the Auto Scout section, three pillars: `robot-labels.php` (1 · Robots),
+  `scoring-areas.php` (2 · Field), `train.php` (3 · Actions; `?view=test`, `?view=helpers`). Shared blocks:
+  `community/pillar.php` + `community/assets/pillar.js`, data from `train.php?overview`.
+- `neptune_secure/robot-detector-jobs.php` + `api/robot-detector.php`: detector jobs for helpers; field detectors
+  are stored per `game_key`. Folder layout on the Mac and AWS: `docs/HANDOFF.md`.
+
 ## Known problems (from reviews/2026-10-20-auto-scout)
 - Action heads near chance on held-out data.
 - Robot identity coverage is concentrated in close-ups and auto; wide shots are weak.
