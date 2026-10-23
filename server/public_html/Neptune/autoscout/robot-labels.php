@@ -59,22 +59,34 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
   robot_reply(200,['ok'=>true,'frames'=>count($doc['frames']),'complete'=>count(array_filter($doc['frames'],fn($f)=>!empty($f['complete'])))]);
  }catch(Throwable $e){robot_reply(422,['error'=>$e->getMessage()]);}
 }
-$matches=[];$selected=null;$counts=[];
-try{
- foreach($pdo->query('SELECT id,match_key,title,source_url FROM community_matches ORDER BY match_key')->fetchAll(PDO::FETCH_ASSOC) as $m){
-  $video=CommunityVideoTags::videoId((string)$m['source_url']);if(!$video)continue;
-  $m['video_id']=$video;$matches[]=$m;if((int)$m['id']===(int)($_GET['match_id']??0))$selected=$m;
-  $f=$store.'/'.$video.'.json';if(is_file($f)){$d=json_decode((string)file_get_contents($f),true);$counts[$video]=count(array_filter($d['frames']??[],fn($x)=>!empty($x['complete'])));}
- }
-}catch(Throwable $e){error_log('Robot labels match list: '.$e->getMessage());}
+// Year -> event -> match, from the same catalog as Train & test (events by start date).
+if($_SERVER['REQUEST_METHOD']==='GET'&&(isset($_GET['events'])||isset($_GET['event_matches']))){
+ require_once dirname(__DIR__,3).'/neptune_secure/community-catalog.php';
+ header('Content-Type: application/json');
+ try{
+  community_catalog_schema($pdo);$catalog=new CommunityCatalog($pdo);session_write_close();
+  if(isset($_GET['events']))echo json_encode(['events'=>$catalog->events((int)$_GET['events'])],JSON_THROW_ON_ERROR);
+  else echo json_encode(['matches'=>array_map(fn($m)=>['id'=>$m['id'],'match_key'=>$m['match_key'],'title'=>$m['title'],'video_url'=>$m['video_url']],$catalog->matches((string)$_GET['event_matches']))],JSON_THROW_ON_ERROR);
+ }catch(CommunityAnalysisError $e){http_response_code($e->httpStatus);echo json_encode(['error'=>$e->getMessage()]);}
+ catch(Throwable $e){error_log('Match picker: '.$e->getMessage());http_response_code(503);echo json_encode(['error'=>'Events are unavailable right now.']);}
+ exit;
+}
+$selected=null;
+if((int)($_GET['match_id']??0)>0){
+ $q=$pdo->prepare('SELECT id,match_key,title,source_url FROM community_matches WHERE id=?');$q->execute([(int)$_GET['match_id']]);$m=$q->fetch(PDO::FETCH_ASSOC);
+ if($m&&($video=CommunityVideoTags::videoId((string)$m['source_url'])))$selected=$m+['video_id'=>$video];
+}
+// Progress across all labelled videos.
+$counts=[];foreach(glob($store.'/*.json')?:[] as $f){$d=json_decode((string)file_get_contents($f),true);$counts[basename($f,'.json')]=count(array_filter($d['frames']??[],fn($x)=>!empty($x['complete'])));}
 $total=array_sum($counts);
 require_once dirname(__DIR__).'/community/layout.php';community_page_start('Robot Labels','Box every robot bumper on match frames so Auto Scout learns to find robots in any broadcast.','robots','PLATFORM OWNER · TRAINING DATA');
 ?>
+<link rel="stylesheet" href="../community/assets/match-picker/match-picker.css?v=1">
 <link rel="stylesheet" href="../community/assets/field-regions/style.css?v=4-site-layout">
 <link rel="stylesheet" href="../community/assets/robot-labels/robot-labels.css?v=1">
 <div class="field-regions robot-labels" id="robot-labels-app" data-csrf="<?=e($csrf)?>"<?php if($selected):?> data-youtube="<?=e($selected['video_id'])?>" data-match-key="<?=e($selected['match_key'])?>"<?php endif?>>
 <div class="fr-actions"><p>Training data for the robot detector: box <strong>every</strong> visible bumper, including robots the current detector misses. <?=$total?> frames complete across <?=count(array_filter($counts))?> matches.</p></div>
-<div class="workspace"><section class="viewer"><div class="toolbar"><div class="step">01 <b>Choose a match</b></div><div class="sources"><form method="get" class="match-picker"><select name="match_id" aria-label="Match"><option value="">Choose a match…</option><?php foreach($matches as $m):?><option value="<?=(int)$m['id']?>"<?=$selected&&(int)$selected['id']===(int)$m['id']?' selected':''?>><?=e($m['match_key'].($m['title']?' · '.$m['title']:'').(!empty($counts[$m['video_id']])?' · '.$counts[$m['video_id']].' done':''))?></option><?php endforeach?></select><noscript><button>Open</button></noscript></form></div></div>
+<div class="workspace"><section class="viewer"><div class="toolbar"><div class="step">01 <b>Choose a match</b></div><div class="sources"><div class="match-picker-v2" data-match-picker data-endpoint="robot-labels.php" data-selected="<?=e($selected['match_key']??'')?>"></div></div></div>
 <div id="frame" class="rl-frame"><div id="zoomer" class="rl-zoomer"><div id="stage" class="stage"><video id="video" playsinline></video><canvas id="canvas" aria-label="Bumper boxes. Drag to draw; click to select."></canvas></div></div><div id="empty"><div class="empty-icon">▣</div><h2>Choose a match to start labeling.</h2><p>It plays from YouTube, like Watch &amp; tag.</p></div><div class="framebadge" id="framebadge">NO MATCH</div></div>
 <div class="transport"><button id="prevframe" title="Previous frame to label (←)">◀ Frame</button><button id="play">Play</button><button id="nextframe" title="Next frame to label (→)">Frame ▶</button><span id="clock">00:00.00</span><span id="framecount" class="rl-count"></span></div>
 <div class="tips"><span>PAUSE → BOX EVERY BUMPER → ENTER</span><p>Dashed boxes are the detector's guesses (from your tracking review); fix, delete or keep them and draw the ones it missed. Scroll to zoom, Space+drag to pan, 0 to fit.</p></div></section>
@@ -84,5 +96,5 @@ require_once dirname(__DIR__).'/community/layout.php';community_page_start('Robo
 <button id="complete" class="primary save">All bumpers boxed ↵</button><button id="skip" class="save rl-secondary">Skip frame (replay, graphic, blurry)</button>
 <div id="status" role="status" aria-live="polite">Choose a match.</div>
 <div class="note"><b>What makes good labels</b><p>Every bumper you can see, red or blue, even partly hidden or far away. Box just the bumper, not the whole robot. Skip frames that aren't live match footage.</p></div></aside></div></div>
-<script src="../community/assets/field-regions/youtube-source.js?v=3-generic"></script><script src="../community/assets/robot-labels/robot-labels.js?v=1"></script>
+<script src="../community/assets/match-picker/match-picker.js?v=1"></script><script src="../community/assets/field-regions/youtube-source.js?v=3-generic"></script><script src="../community/assets/robot-labels/robot-labels.js?v=1"></script>
 <?php community_page_end(); ?>

@@ -43,20 +43,30 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
   field_reply(200,['ok'=>true,'regions'=>count($d['regions']),'key'=>$key]);
  }catch(Throwable $e){field_reply(422,['error'=>$e->getMessage()]);}
 }
-// Matches come from the same catalog as Community Tag Scouting and play from YouTube.
-$matches=[];$selected=null;
-try{
- foreach($pdo->query('SELECT id,match_key,title,source_url FROM community_matches ORDER BY match_key')->fetchAll(PDO::FETCH_ASSOC) as $m){
-  $video=CommunityVideoTags::videoId((string)$m['source_url']);if(!$video)continue;
-  $m['video_id']=$video;$matches[]=$m;if((int)$m['id']===(int)($_GET['match_id']??0))$selected=$m;
- }
-}catch(Throwable $e){error_log('Scoring areas match list: '.$e->getMessage());}
+// Year -> event -> match, from the same catalog as Train & test (events by start date).
+if($_SERVER['REQUEST_METHOD']==='GET'&&(isset($_GET['events'])||isset($_GET['event_matches']))){
+ require_once dirname(__DIR__,3).'/neptune_secure/community-catalog.php';
+ header('Content-Type: application/json');
+ try{
+  community_catalog_schema($pdo);$catalog=new CommunityCatalog($pdo);session_write_close();
+  if(isset($_GET['events']))echo json_encode(['events'=>$catalog->events((int)$_GET['events'])],JSON_THROW_ON_ERROR);
+  else echo json_encode(['matches'=>array_map(fn($m)=>['id'=>$m['id'],'match_key'=>$m['match_key'],'title'=>$m['title'],'video_url'=>$m['video_url']],$catalog->matches((string)$_GET['event_matches']))],JSON_THROW_ON_ERROR);
+ }catch(CommunityAnalysisError $e){http_response_code($e->httpStatus);echo json_encode(['error'=>$e->getMessage()]);}
+ catch(Throwable $e){error_log('Match picker: '.$e->getMessage());http_response_code(503);echo json_encode(['error'=>'Events are unavailable right now.']);}
+ exit;
+}
+$selected=null;
+if((int)($_GET['match_id']??0)>0){
+ $q=$pdo->prepare('SELECT id,match_key,title,source_url FROM community_matches WHERE id=?');$q->execute([(int)$_GET['match_id']]);$m=$q->fetch(PDO::FETCH_ASSOC);
+ if($m&&($video=CommunityVideoTags::videoId((string)$m['source_url'])))$selected=$m+['video_id'=>$video];
+}
 ?>
 <?php require_once dirname(__DIR__).'/community/layout.php';community_page_start('Scoring Areas','Mark where scoring happens on a match video so training can learn the field.','scoring','PLATFORM OWNER · TRAINING DATA'); ?>
+<link rel="stylesheet" href="../community/assets/match-picker/match-picker.css?v=1">
 <link rel="stylesheet" href="../community/assets/field-regions/style.css?v=4-site-layout">
 <div class="field-regions" id="field-regions-app" data-cloud-endpoint="scoring-areas.php" data-cloud-csrf="<?=htmlspecialchars($fieldCsrf,ENT_QUOTES)?>"<?php if($selected):?> data-youtube="<?=htmlspecialchars($selected['video_id'],ENT_QUOTES)?>" data-match-key="<?=htmlspecialchars($selected['match_key'],ENT_QUOTES)?>"<?php endif?>>
 <div class="fr-actions"><p>Training aid: mark scoring targets, zones and the four field corners on training matches. Scouting a match works without any marks.</p><div class="fr-buttons"><button id="cloudsave" class="primary">Save to Neptune</button><button id="export">Export annotations ↗</button></div></div>
-<div class="workspace"><section class="viewer"><div class="toolbar"><div class="step">01 <b>Choose your footage</b></div><div class="sources"><form method="get" class="match-picker"><select name="match_id" aria-label="Match"><option value="">Choose a match…</option><?php foreach($matches as $m):?><option value="<?=(int)$m['id']?>"<?=$selected&&(int)$selected['id']===(int)$m['id']?' selected':''?>><?=htmlspecialchars($m['match_key'].($m['title']?' · '.$m['title']:''),ENT_QUOTES)?></option><?php endforeach?></select><noscript><button>Open</button></noscript></form><select id="library" aria-label="Saved regions"><option value="">Saved regions…</option></select><label class="button">Open video file<input id="file" type="file" accept="video/*" hidden></label></div></div>
+<div class="workspace"><section class="viewer"><div class="toolbar"><div class="step">01 <b>Choose your footage</b></div><div class="sources"><div class="match-picker-v2" data-match-picker data-endpoint="scoring-areas.php" data-selected="<?=e($selected['match_key']??'')?>"></div><select id="library" aria-label="Saved regions"><option value="">Saved regions…</option></select><label class="button">Open video file<input id="file" type="file" accept="video/*" hidden></label></div></div>
 <div id="stage" class="stage"><video id="video" playsinline preload="metadata"></video><canvas id="canvas" aria-label="Annotation canvas. Drag a box or click polygon vertices."></canvas><div id="empty"><div class="empty-icon">▱</div><h2>Your next training example starts here.</h2><p>Choose a match above. It plays from YouTube, like Community Tag Scouting.<br>No download needed. Open video file is still available for other footage.</p></div><div class="framebadge" id="framebadge">NO VIDEO LOADED</div></div>
 <div class="transport"><button id="back" aria-label="Back one second">−1s</button><button id="play">Play</button><button id="next" aria-label="Forward one second">+1s</button><span id="clock">00:00.00 / 00:00.00</span><select id="speed" aria-label="Playback speed"><option value="0.25">¼×</option><option value="0.5">½×</option><option selected value="1">1×</option></select></div><input id="timeline" type="range" min="0" max="1" step=".01" value="0" aria-label="Video timeline">
 <div class="tips"><span>PAUSE → DRAW → SET RANGE → SAVE</span><p>Targets and zones are supporting evidence. Being inside a zone does not prove that a robot scored.</p></div>
@@ -65,5 +75,5 @@ try{
 <label for="kind">Region type</label><select id="kind"><option value="scoring_target">Scoring target</option><option value="scoring_zone">Typical scoring position</option><option value="collection_zone">Collection zone</option><option value="feeding_zone">Feeding zone</option><option value="field_boundary">Field boundary</option><option value="field_calibration">Top-down map · four field corners</option></select><label for="alliance">Alliance</label><select id="alliance"><option value="neutral">Neutral / shared</option><option value="red">Red</option><option value="blue">Blue</option></select><label for="label">Region name</label><input id="label" placeholder="e.g. Red hub opening" maxlength="100">
 <div class="shape-picker"><button id="box" class="active" aria-pressed="true">▭ Box</button><button id="polygon" aria-pressed="false">⬡ Polygon</button></div><p class="hint" id="hint">Pause and drag around the target.</p><div class="inline"><button id="finish">Finish polygon</button><button id="clear">Clear drawing</button></div>
 <div class="step range-step">03 <b>Set the visible interval</b></div><div class="range"><div><label for="start">From second</label><input id="start" type="number" min="0" step=".01" value="0"><button id="setstart">Use current</button></div><div><label for="end">Through second</label><input id="end" type="number" min="0" step=".01" value="0"><button id="setend">Use current</button></div></div><small>Only include time where the region stays in this position. A single instant is valid for a reference frame.</small><button id="save" class="primary save">Save region</button><div id="status" role="status" aria-live="polite">Ready when you are.</div><div class="note"><b>Top-down trajectory</b><p>For a field map, mark exactly four corners in order: top-left, top-right, bottom-right, bottom-left. Use a separate calibration after each camera movement.</p><label class="button">Open trajectory result<input id="trajectoryfile" type="file" accept="application/json,.json" hidden></label><canvas id="fieldmap" width="560" height="300" aria-label="Top-down robot trajectories"></canvas><small id="mapstatus">Waiting for a calibrated match result.</small></div><div class="note"><b>Boxes or polygons?</b><p>Boxes work well for openings and goals. Polygons follow angled field zones more closely. Coordinates are saved relative to the full video frame.</p></div></aside></div></div>
-<script src="../community/assets/field-regions/youtube-source.js?v=2-site-layout"></script><script src="../community/assets/field-regions/app.js?v=3-site-layout"></script>
+<script src="../community/assets/match-picker/match-picker.js?v=1"></script><script src="../community/assets/field-regions/youtube-source.js?v=2-site-layout"></script><script src="../community/assets/field-regions/app.js?v=3-site-layout"></script>
 <?php community_page_end(); ?>
