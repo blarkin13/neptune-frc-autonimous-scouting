@@ -78,6 +78,21 @@ def all_cores():
     return scope()
 
 
+def batch_progress(model, label, epochs, progress):
+    """Report within each pass, not only at its end, so Neptune sees the helper working during long passes."""
+    seen = {'epoch': None, 'batch': 0, 'said': 0.}
+    def on_batch(trainer):
+        if seen['epoch'] != trainer.epoch:
+            seen.update(epoch=trainer.epoch, batch=0)
+        seen['batch'] += 1
+        if time.monotonic()-seen['said'] < 15:     # the helper log gets a line at most every 15 s
+            return
+        seen['said'] = time.monotonic()
+        batches = len(trainer.train_loader) if getattr(trainer, 'train_loader', None) is not None else '?'
+        progress('%s: pass %d of up to %d · batch %d of %s' % (label, trainer.epoch+1, epochs, seen['batch'], batches))
+    model.add_callback('on_train_batch_end', on_batch)
+
+
 def adopted_holdout(manifest):
     """The match the adopted detector was checked on (None before the first adoption)."""
     try:
@@ -228,6 +243,7 @@ def train(config, req, progress):
     def epoch_end(trainer):
         progress('Training robot detector: pass %d of up to %d' % (trainer.epoch+1, epochs))
     model.add_callback('on_fit_epoch_end', epoch_end)
+    batch_progress(model, 'Training robot detector', epochs, progress)
     # CPU: Apple GPU training hangs with this PyTorch build.
     with all_cores():
         result = model.train(data=str(config_yaml), epochs=epochs, imgsz=1280, batch=4, device='cpu', workers=0, patience=20, seed=2026,
@@ -378,10 +394,11 @@ def train_field(config, req, progress):
         if split == 'val':
             held = frames[::3]
     (data/'data.yaml').write_text('path: %s\ntrain: images/train\nval: images/val\nnames:\n  0: scoring_target\n  1: field_corner\n' % data)
-    model = YOLO(str(bundle_path()/bundle()['context']['file'])); epochs = int(req.get('epochs') or 60)
+    model = YOLO(str(bundle_path()/bundle()['context']['file'])); epochs = int(req.get('epochs') or 30)
     model.add_callback('on_fit_epoch_end', lambda trainer: progress('Training field detector: pass %d of up to %d' % (trainer.epoch+1, epochs)))
+    batch_progress(model, 'Training field detector', epochs, progress)
     with all_cores():
-        result = model.train(data=str(data/'data.yaml'), epochs=epochs, imgsz=fd.FRAME_WIDTH, batch=8, device='cpu', workers=0, patience=15, seed=7,
+        result = model.train(data=str(data/'data.yaml'), epochs=epochs, imgsz=960, batch=8, device='cpu', workers=0, patience=8, seed=7,
                          deterministic=True, plots=False, project=str(work/'runs'), name='field', exist_ok=True, verbose=False,
                          translate=.3, scale=.6, degrees=3, perspective=.0005, fliplr=.5, mosaic=1.0, hsv_v=.4, hsv_s=.6)
     best = Path(result.save_dir)/'weights'/'best.pt'
