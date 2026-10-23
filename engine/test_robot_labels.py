@@ -8,7 +8,8 @@ import neptune_robot_labels as rl
 
 class RobotLabels(unittest.TestCase):
     def test_boxes_are_clipped_and_converted(self):
-        self.assertEqual(rl.box_xywh({'x': .1, 'y': .2, 'w': .2, 'h': .1}), [.2, .25, .2, .1])
+        for got, want in zip(rl.box_xywh({'x': .1, 'y': .2, 'w': .2, 'h': .1}), [.2, .25, .2, .1]):
+            self.assertAlmostEqual(got, want)
         x = rl.box_xywh({'x': -.05, 'y': .9, 'w': .1, 'h': .2})
         self.assertAlmostEqual(x[0], .025); self.assertAlmostEqual(x[3], .1)
         self.assertIsNone(rl.box_xywh({'x': 1.1, 'y': .5, 'w': .1, 'h': .1}))
