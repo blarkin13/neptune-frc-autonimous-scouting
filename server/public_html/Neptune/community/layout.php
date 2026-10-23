@@ -25,7 +25,7 @@ function community_page_start(string $title,string $subtitle,string $active='pub
       <?php endforeach; ?>
     </div>
   </div>
-<nav class="community-nav" aria-label="Auto Scout"><?php foreach(['catalog'=>['Watch & tag','/community/?view=catalog'],'scoring'=>['Scoring areas','/admin/scoring-areas.php'],'results'=>['Saved tags & scores','/community/?view=results'],'learning'=>['Train & test','/admin/community-learning.php']] as $key=>$link):?><a href="<?=e($link[1])?>" <?=$active===$key||($key==='catalog'&&$active==='contribute')?'aria-current="page"':''?>><?=e($link[0])?></a><?php endforeach ?><a href="/scouting.php">← Scouting</a></nav>
+<nav class="community-nav" aria-label="Auto Scout"><?php foreach(['catalog'=>['Watch & tag','/community/?view=catalog'],'scoring'=>['Scoring areas','/admin/scoring-areas.php'],'robots'=>['Robot labels','/admin/robot-labels.php'],'results'=>['Saved tags & scores','/community/?view=results'],'learning'=>['Train & test','/admin/community-learning.php']] as $key=>$link):?><a href="<?=e($link[1])?>" <?=$active===$key||($key==='catalog'&&$active==='contribute')?'aria-current="page"':''?>><?=e($link[0])?></a><?php endforeach ?><a href="/scouting.php">← Scouting</a></nav>
 <?php }
 function community_page_end():void {
  global $pdo,$config,$u,$pageTitle,$moduleName,$hideChrome,$isPublicHome;

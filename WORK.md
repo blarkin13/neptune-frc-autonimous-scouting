@@ -1,5 +1,18 @@
 # Work log (newest first)
 
+## 2026-10-22 — Claude: online Robot labels page (engine 2.5.2-robot-labels-preview1)
+- `admin/robot-labels.php`: Auto Scout page in the site layout. Pick a catalog match; it plays from YouTube; box
+  every bumper on frames about 4 s apart; Enter saves and moves on; Skip for replays and graphics. Frames come
+  from the match's tracking review when one is backed up (and boxes are pre-filled from the detector boxes in
+  that review), else every 4 s. Stored per video in `neptune_secure/robot-labels/<org>/<video_id>.json`.
+- Card after Scoring areas on Scouting, "Robot labels" tab in `community/layout.php`, hero entry in
+  `partials_hero.php`. `youtube-source.js` now reads `[data-youtube]` from any page.
+- `api/robot-labels.php` (helper bearer) returns completed frames; `engine/neptune_robot_labels.py` downloads
+  them, finds or downloads each video, extracts the exact frames and writes the detector-training manifest.
+- Tested in a local site copy with the real QM4 review: 41 frames, pre-fill shown, save/complete/reload works,
+  manifest built from the saved frame. Still to check on real use: that a paused YouTube frame matches the
+  downloaded file's frame for hand-drawn boxes.
+
 ## 2026-10-22 — Claude: bumper detector from the owner's 82 labelled frames
 - Labels: 82 frames (41 QM3, 41 QM4), 747 bumpers, all checked by the owner. QM1 had no tracking, so no frames.
 - Trained YOLO11n (COCO start, 1280 px, CPU) on QM3; scored on QM4 with `tools/robot-labeler/evaluate.py`

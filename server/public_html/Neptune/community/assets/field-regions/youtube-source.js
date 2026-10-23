@@ -3,7 +3,7 @@
 // Exposes the subset of HTMLVideoElement that app.js uses, so drawing, ranges and saves are unchanged.
 (()=>{
  const picker=document.querySelector('.match-picker select');if(picker)picker.addEventListener('change',()=>picker.form.submit());
- const id=(document.getElementById('field-regions-app')||document.body).dataset.youtube;if(!id||!/^[A-Za-z0-9_-]{11}$/.test(id))return;
+ const id=(document.querySelector('[data-youtube]')||document.body).dataset.youtube;if(!id||!/^[A-Za-z0-9_-]{11}$/.test(id))return;
  const handlers={};let player=null,ready=false,state=-1,time=0,seekTarget=null,rate=1,poll=null;
  const fire=name=>{try{handlers[name]&&handlers[name]()}catch(e){console.error(e)}};
  const v={

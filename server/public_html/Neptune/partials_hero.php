@@ -198,6 +198,7 @@ if (!function_exists('neptune_hero_buffer_start')) {
             ['~train & test robot scouting~i', [['fa-laptop','Connect a worker'],['fa-brain','Train and evaluate'],['fa-circle-check','Release a model']]],
             ['~community scouting settings~i', [['fa-toggle-on','Enable tagging'],['fa-tags','Review contributions'],['fa-brain','Open training']]],
             ['~scoring areas~i', [['fa-calendar-days','Choose a match'],['fa-draw-polygon','Mark targets & zones'],['fa-cloud-arrow-up','Save to Neptune']]],
+            ['~robot labels~i', [['fa-calendar-days','Choose a match'],['fa-vector-square','Box every bumper'],['fa-check','Press Enter for next']]],
             ['~community tag scouting~i', [['fa-calendar-days','Choose a match'],['fa-video','Watch the footage'],['fa-tags','Tag robot actions']]],
             ['~community scouting data~i', [['fa-tags','Review examples'],['fa-file-export','Export observations'],['fa-brain','Train a model']]],
             ['~watch and tag~i', [['fa-robot','Choose robot'],['fa-tags','Tag the video'],['fa-floppy-disk','Save observations']]],
@@ -221,6 +222,7 @@ if (!function_exists('neptune_hero_buffer_start')) {
         $rules = [
             ['~train & test|machine learning|model training~i', 'fa-brain'],
             ['~scoring areas~i', 'fa-draw-polygon'],
+            ['~robot labels~i', 'fa-vector-square'],
             ['~community scouting settings~i', 'fa-sliders'],
             ['~community.*data|saved.*tags|scouting results~i', 'fa-chart-column'],
             ['~community.*tag|watch and tag|tag scouting~i', 'fa-tags'],
