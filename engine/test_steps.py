@@ -38,3 +38,15 @@ class LabelDownloadTest(unittest.TestCase):
         with mock.patch.dict(sys.modules, {'neptune_helper': types.SimpleNamespace(download_video=fake)}):
             neptune_robot_labels.youtube_download('abcdefghijk', '/tmp/x.mp4')
         self.assertTrue(seen['ok'])
+
+
+class DetectorWorkCleanupTest(unittest.TestCase):
+    def test_detector_work_removed_after_six_hours(self):
+        import tempfile, time
+        from pathlib import Path
+        from neptune_housekeeping import sweep
+        home = Path(tempfile.mkdtemp()).resolve()
+        run = home/'robot-detector-work'/'a'/'frames'; run.mkdir(parents=True); (run/'f.jpg').write_bytes(b'x'*10)
+        self.assertEqual(sweep(home, now=time.time()+3600)['removed_files'], 0)
+        self.assertEqual(sweep(home, now=time.time()+7*3600)['removed_files'], 1)
+        self.assertFalse((home/'robot-detector-work'/'a').exists())

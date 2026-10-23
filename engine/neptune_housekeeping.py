@@ -1,9 +1,10 @@
 """Bounded cleanup of regenerable media only; durable learning files are retained."""
 from pathlib import Path
 import json,time,re
-VERSION='idle-media-retention-v1'
+VERSION='idle-media-retention-v2'
 CACHE_AGE_SECONDS=24*3600
 REVIEW_AGE_SECONDS=7*24*3600
+WORK_AGE_SECONDS=6*3600
 MEDIA={'.mp4','.webm','.mkv','.mov','.png','.jpg','.jpeg','.ppm'}
 def sweep(home,now=None,progress=lambda text:None,dry_run=False):
  from neptune_cache import session
@@ -43,5 +44,17 @@ def sweep(home,now=None,progress=lambda text:None,dry_run=False):
      for p in media.iterdir():
       if re.fullmatch(r'[A-Za-z0-9_-]{11}\.(mp4|webm|mkv)',p.name):discard(p,REVIEW_AGE_SECONDS)
    except ValueError:report['skipped_active']+=1
+ # Robot/field detector work folders: frames and training runs from finished requests. The weights that
+ # matter were uploaded to Neptune or discarded; housekeeping only runs between jobs.
+ for name in ('robot-detector-work','field-detector-work'):
+  work=home/name
+  if not work.is_dir() or work.is_symlink():continue
+  for run in work.iterdir():
+   if run.is_symlink() or not run.is_dir():continue
+   for q in run.rglob('*'):discard(q,WORK_AGE_SECONDS)
+   if not dry_run:
+    for d in sorted([x for x in run.rglob('*') if x.is_dir() and not x.is_symlink()],reverse=True)+[run]:
+     try:d.rmdir()
+     except OSError:pass
  if report['removed_files']:progress('Automatic cleanup freed %.1f MB; labels, models, corrections and results kept.'%(report['removed_bytes']/1024**2))
  return report
