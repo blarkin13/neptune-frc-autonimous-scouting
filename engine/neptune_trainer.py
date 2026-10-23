@@ -169,8 +169,9 @@ def watch_jobs(config,hardware,execute,progress,closing,pause,busy=lambda value:
         import neptune_robot_jobs as robot_jobs
         now=time.monotonic()
         if now-last_detector[0]>3600:
-            try:robot_jobs.sync_detector(config)
-            except Exception:pass
+            for sync in (robot_jobs.sync_detector,robot_jobs.sync_field_detector):
+                try:sync(config)
+                except Exception:pass
             last_detector[0]=now
         if now-last_detector[1]>30:
             last_detector[1]=now

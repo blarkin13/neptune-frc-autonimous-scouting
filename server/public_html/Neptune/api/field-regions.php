@@ -12,6 +12,10 @@ try {
  $raw=file_get_contents('php://input',false,null,0,4097);if(strlen($raw)>4096)throw new CommunityAnalysisError(413,'Request too large.');
  $p=json_decode($raw,true,16,JSON_THROW_ON_ERROR);
  $base=dirname(__DIR__,3).'/neptune_secure/field-regions';
+ if(!empty($p['all'])){
+  $docs=[];foreach(array_merge(glob($base.'/seed-documents/*.json')?:[],glob($base.'/'.(int)$computer['user_id'].'/*.json')?:[]) as $file){if(filesize($file)>2097152)continue;$d=json_decode((string)file_get_contents($file),true,64,JSON_THROW_ON_ERROR);if(is_array($d))$docs[]=$d;}
+  community_training_json_response(['documents'=>$docs]);
+ }
  if(isset($p['event'])){
   // Every saved region set from a match at this event, so the helper can apply them event-wide.
   $event=(string)$p['event'];if(!preg_match('/^[0-9]{4}[a-z0-9]{1,20}$/D',$event))throw new CommunityAnalysisError(422,'Invalid event.');

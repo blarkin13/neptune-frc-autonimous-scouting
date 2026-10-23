@@ -6,6 +6,7 @@ declare(strict_types=1);
  * Kept apart from the action-model job tables on purpose. Files live under neptune_secure/robot-detector/<org>/:
  *   requests/<id>.json   queued / claimed / done requests
  *   current/             the adopted wide-shot bumper detector (manifest.json + weights) every helper downloads
+ *   field-current/       the adopted field detector (hubs + field corners for the top-down map)
  *   prefill/<video>.json detector boxes for Robot labels frames
  */
 final class RobotDetectorJobs {
@@ -20,7 +21,7 @@ final class RobotDetectorJobs {
 
  /** Queue a request from the website. Re-queuing the same open request returns the existing one. */
  public function queue(string $kind,array $p,int $user):array{
-  if(!in_array($kind,['prepare','train'],true))throw new InvalidArgumentException('Unknown request');
+  if(!in_array($kind,['prepare','train','train_field'],true))throw new InvalidArgumentException('Unknown request');
   $body=['kind'=>$kind];
   if($kind==='prepare'){$body['video_id']=self::video((string)($p['video_id']??''));$body['match_key']=(string)($p['match_key']??'');if(!preg_match('/^\d{4}[A-Za-z0-9_-]{1,95}$/D',$body['match_key']))throw new InvalidArgumentException('Invalid match');}
   foreach($this->requests() as $r)if(in_array($r['state'],['queued','claimed'],true)&&$r['kind']===$kind&&($r['video_id']??null)===($body['video_id']??null))return $r;
@@ -75,6 +76,24 @@ final class RobotDetectorJobs {
   $manifest=json_decode((string)file_get_contents($m),true);$out=['detector'=>$manifest];
   if($have!==($manifest['by_camera']['wide']['sha256']??null)){$w=$this->root.'/current/'.($manifest['by_camera']['wide']['file']??'');if(is_file($w))$out['weights_b64']=base64_encode((string)file_get_contents($w));}
   return $out;
+ }
+ /** The adopted field detector (hubs + corners); weights only when the helper's copy differs. */
+ public function currentField(?string $have=null):array{
+  $m=$this->root.'/field-current/manifest.json';if(!is_file($m))return ['detector'=>null];
+  $manifest=json_decode((string)file_get_contents($m),true);$out=['detector'=>$manifest];
+  if($have!==($manifest['sha256']??null)){$w=$this->root.'/field-current/'.($manifest['file']??'');if(is_file($w))$out['weights_b64']=base64_encode((string)file_get_contents($w));}
+  return $out;
+ }
+ /** Adopt a field detector that placed hubs and corners better on a held-out match. Previous one is kept. */
+ public function adoptField(array $computer,array $p):array{
+  $r=$this->owned($computer,$p);if($r['kind']!=='train_field')throw new InvalidArgumentException('Only a field training request can adopt a field detector');
+  $raw=base64_decode((string)($p['weights_b64']??''),true);if($raw===false||strlen($raw)<1000||strlen($raw)>60*1024*1024)throw new InvalidArgumentException('Invalid detector weights');
+  $sha=hash('sha256',$raw);$cur=$this->dir('field-current');$old=$cur.'/manifest.json';
+  if(is_file($old)){$hist=$this->dir('field-history/'.date('Ymd-His'));foreach(glob($cur.'/*')?:[] as $f)copy($f,$hist.'/'.basename($f));}
+  $file='field_'.substr($sha,0,12).'.pt';file_put_contents($cur.'/'.$file,$raw,LOCK_EX);chmod($cur.'/'.$file,0600);
+  foreach(glob($cur.'/field_*.pt')?:[] as $f)if(basename($f)!==$file)unlink($f);
+  self::write($old,['schema_version'=>1,'file'=>$file,'sha256'=>$sha,'adopted_at'=>time(),'request_id'=>$r['id'],'report'=>is_array($p['report']??null)?$p['report']:[]]);
+  return ['ok'=>true,'sha256'=>$sha];
  }
  /** Adopt a detector the helper trained and showed better on a held-out match. Previous one is kept. */
  public function adopt(array $computer,array $p):array{

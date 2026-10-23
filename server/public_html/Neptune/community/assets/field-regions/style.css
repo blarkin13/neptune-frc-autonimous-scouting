@@ -68,3 +68,9 @@
 .field-regions #fieldmap{position:static;display:block;width:100%;height:auto;margin-top:14px;background:color-mix(in srgb,var(--fr-accent) 6%,#0a1813);border-radius:8px}
 @media(max-width:1050px){.field-regions .workspace{grid-template-columns:minmax(0,1fr) 280px}}
 @media(max-width:800px){.field-regions .workspace{grid-template-columns:1fr}.field-regions .toolbar{flex-direction:column;align-items:stretch}.field-regions .match-picker select,.field-regions .sources select{max-width:none;width:100%}.field-regions .transport select{margin-left:0}}
+.field-regions .fr-detector button{margin-top:8px;width:100%}
+.field-regions .fr-requests{margin-top:8px;display:grid;gap:5px}
+.field-regions .fr-request{font-size:11px;color:var(--fr-muted);border-left:3px solid var(--fr-line);padding-left:7px}
+.field-regions .fr-request.claimed{border-color:var(--fr-accent);color:var(--fr-text)}
+.field-regions .fr-request.done{border-color:#4fd18b}.field-regions .fr-request.failed{border-color:#ff6b6b}
+.field-regions .fr-current{margin-top:8px;font-size:11px;color:var(--fr-muted)}

@@ -3,6 +3,8 @@
   prepare  run the current detector on a match's labelling frames and upload its boxes as pre-fill
   train    train a wide-shot bumper detector from every completed robot label, score it against the current
            detector on a held-out match, and adopt it on Neptune only if it is better
+  train_field  the same for the field detector (hubs + field corners for the top-down map), from every match
+           marked on Scoring areas; adopted only if it places hubs and corners better on a held-out match
 Adopted detectors are shared through Neptune; every helper keeps a copy in ~/.neptune-trainer/robot-detector.
 """
 import base64
@@ -16,6 +18,8 @@ from pathlib import Path
 VERSION = 'robot-detector-jobs-v1'
 HOME = Path.home()/'.neptune-trainer'
 SHARED = HOME/'robot-detector'
+SHARED_FIELD = HOME/'field-detector'
+FIELD_ADOPT_MARGIN = .002         # mean placement error must improve by this much (fraction of frame width)
 FRAME_STEP_S = 4.0
 WIDE_BAND = (.24, .6506)          # 2026 broadcast wide-camera band (normalized y)
 ADOPT_MARGIN = .02                # new detector must beat the current one's held-out F1 by this much
@@ -214,6 +218,140 @@ def train(config, req, progress):
     return report
 
 
+# ---------- field detector ----------
+
+def sync_field_detector(config):
+    """Download Neptune's adopted field detector when it differs from this computer's copy."""
+    manifest = SHARED_FIELD/'manifest.json'
+    have = json.loads(manifest.read_text()).get('sha256') if manifest.is_file() else None
+    reply = api(config, 'current_field', {'have': have})
+    current = reply.get('detector')
+    if not current or not reply.get('weights_b64'):
+        return {'status': 'unchanged' if current else 'none_adopted'}
+    raw = base64.b64decode(reply['weights_b64'])
+    if hashlib.sha256(raw).hexdigest() != current['sha256']:
+        raise ValueError('Shared field detector failed verification')
+    SHARED_FIELD.mkdir(parents=True, exist_ok=True)
+    tmp = SHARED_FIELD/'model.pending'; tmp.write_bytes(raw); tmp.replace(SHARED_FIELD/'model.pt')
+    tmp = manifest.with_suffix('.pending'); tmp.write_text(json.dumps(current)); tmp.replace(manifest)
+    return {'status': 'updated', 'sha256': current['sha256']}
+
+
+def region_documents(config):
+    """Every saved Scoring-areas document this owner can train from."""
+    import urllib.request
+    from neptune_helper import public_https, NoRedirect
+    url = public_https(config['site'].rstrip('/')+'/api/field-regions.php')
+    request = urllib.request.Request(url, data=json.dumps({'all': True}).encode(), headers={'Content-Type': 'application/json', 'Authorization': 'Bearer '+config['token']})
+    with urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect()).open(request, timeout=60) as response:
+        return json.loads(response.read(32*1024*1024)).get('documents', [])
+
+
+def doc_video(doc):
+    source = doc.get('source') or {}
+    vid = source.get('video_id') or str(source.get('name', '')).rsplit('.', 1)[0]
+    return vid if len(vid) == 11 else None
+
+
+def sample_frames(video, step=2.0):
+    """Frames across the video that look like the broadcast's usual view (replays and graphics dropped)."""
+    import cv2
+    import numpy as np
+    length = duration_s(video); frames = []
+    t = length*.03
+    while t < length*.97:
+        image = frame(video, t)
+        if image is not None:
+            frames.append((t, cv2.resize(image, (1280, 720))))
+        t += step
+    if not frames:
+        return []
+    thumbs = np.stack([cv2.resize(cv2.cvtColor(i, cv2.COLOR_BGR2GRAY), (64, 36)).astype('float32') for _, i in frames])
+    diffs = np.abs(thumbs-np.median(thumbs, axis=0)).mean(axis=(1, 2)); limit = np.percentile(diffs, 50)*2.5+4
+    return [f for f, d in zip(frames, diffs) if d <= limit]
+
+
+def placement(weights, frames, doc):
+    """How close a field detector puts hubs and corners to where they were marked on a held-out match."""
+    import neptune_field_detector as fd
+    from ultralytics import YOLO
+    model = YOLO(str(weights)); per = []
+    for _, image in frames:
+        h, w = image.shape[:2]
+        r = model.predict(image, imgsz=fd.FRAME_WIDTH, conf=fd.MIN_CONFIDENCE, verbose=False, device='cpu')[0]
+        per.append([{'class': fd.CLASSES[int(c)], 'box': [b[0]/w, b[1]/h, b[2]/w, b[3]/h],
+                     'view': fd.view_of((b[0]+b[2])/2/w, (b[1]+b[3])/2/h, doc)} for b, c in zip(r.boxes.xyxy.tolist(), r.boxes.cls.tolist())])
+    found = fd.aggregate(per, doc); errors = []; expected = 0
+    for target in [x for x in doc['regions'] if x['kind'] == 'scoring_target']:
+        expected += 1; c = fd.centre(fd.box_of(target['points']))
+        near = [math.dist(c, fd.centre(t['box'])) for t in found['scoring_target'] if t['view'] == target['camera_view']]
+        if near and min(near) < .1:
+            errors.append(min(near))
+    corners = fd.boundary_corners(doc)
+    if corners:
+        expected += 4
+        quad = fd.ordered_quad([fd.centre(c['box']) for c in found['field_corner']]) if len(found['field_corner']) == 4 else None
+        if quad:
+            errors += [math.dist(a, b) for a, b in zip(corners, quad) if math.dist(a, b) < .1]
+    return {'found': len(errors), 'expected': expected, 'mean_error': round(sum(errors)/len(errors), 4) if errors else None}
+
+
+def better_placement(new, old):
+    if old is None or not old['found']:
+        return bool(new['found'])
+    if new['found'] != old['found']:
+        return new['found'] > old['found']
+    return new['mean_error'] is not None and new['mean_error'] <= old['mean_error']-FIELD_ADOPT_MARGIN
+
+
+def train_field(config, req, progress):
+    """Train the field detector from every marked match; adopt only if it places hubs/corners better."""
+    import os
+    os.environ.setdefault('YOLO_OFFLINE', '1')
+    import cv2
+    from ultralytics import YOLO
+    import neptune_field_detector as fd
+    from neptune_yolo import bundle, bundle_path
+    progress('Downloading scoring areas')
+    docs = [d for d in region_documents(config) if doc_video(d) and fd.yolo_labels(d)]
+    if len(docs) < 2:
+        raise ValueError('Mark scoring areas (hubs and the field outline) on at least two matches first.')
+    docs.sort(key=lambda d: ((d.get('source') or {}).get('match_key') or '', doc_video(d)))
+    holdout = docs[-1]                 # the most recent match is checked, never trained on
+    work = HOME/'field-detector-work'/req['id']; data = work/'dataset'; held = []
+    for split in ('train', 'val'):
+        (data/'images'/split).mkdir(parents=True, exist_ok=True); (data/'labels'/split).mkdir(parents=True, exist_ok=True)
+    for d in docs:
+        vid = doc_video(d); split = 'val' if d is holdout else 'train'
+        progress('Preparing field frames from '+((d.get('source') or {}).get('match_key') or vid))
+        frames = sample_frames(match_video(vid, work))
+        labels = fd.yolo_labels(d)
+        for t, image in frames:
+            name = '%s_%07d' % (vid, round(t*1000))
+            cv2.imwrite(str(data/'images'/split/(name+'.jpg')), image, [cv2.IMWRITE_JPEG_QUALITY, 90])
+            (data/'labels'/split/(name+'.txt')).write_text('\n'.join(labels)+'\n')
+        if split == 'val':
+            held = frames[::3]
+    (data/'data.yaml').write_text('path: %s\ntrain: images/train\nval: images/val\nnames:\n  0: scoring_target\n  1: field_corner\n' % data)
+    model = YOLO(str(bundle_path()/bundle()['context']['file'])); epochs = int(req.get('epochs') or 60)
+    model.add_callback('on_fit_epoch_end', lambda trainer: progress('Training field detector: pass %d of up to %d' % (trainer.epoch+1, epochs)))
+    result = model.train(data=str(data/'data.yaml'), epochs=epochs, imgsz=fd.FRAME_WIDTH, batch=8, device='cpu', workers=0, patience=15, seed=7,
+                         deterministic=True, plots=False, project=str(work/'runs'), name='field', exist_ok=True, verbose=False,
+                         translate=.3, scale=.6, degrees=3, perspective=.0005, fliplr=.5, mosaic=1.0, hsv_v=.4, hsv_s=.6)
+    best = Path(result.save_dir)/'weights'/'best.pt'
+    key = (holdout.get('source') or {}).get('match_key') or doc_video(holdout)
+    progress('Comparing new and current field detector on '+key)
+    new = placement(best, held, holdout)
+    current = fd.model_path(); old = placement(current, held, holdout) if current else None
+    adopt = better_placement(new, old)
+    report = {'engine': VERSION, 'holdout_match': key, 'matches': len(docs), 'new': new, 'current': old, 'adopted': adopt, 'margin': FIELD_ADOPT_MARGIN}
+    if adopt:
+        progress('Sharing the new field detector with Neptune')
+        api(config, 'adopt_field', {'request_id': req['id'], 'lease': req['lease'], 'weights_b64': base64.b64encode(best.read_bytes()).decode(), 'report': report}, timeout=600)
+        sync_field_detector(config)
+    return report
+
+
 # ---------- polling ----------
 
 def run_pending(config, progress, busy=lambda value: None):
@@ -231,8 +369,10 @@ def run_pending(config, progress, busy=lambda value: None):
             except Exception:
                 pass
     try:
-        result = prepare(config, req, report) if req['kind'] == 'prepare' else train(config, req, report)
+        result = prepare(config, req, report) if req['kind'] == 'prepare' else train_field(config, req, report) if req['kind'] == 'train_field' else train(config, req, report)
+        fmt = lambda p: 'none found' if not p or not p['found'] else '%d/%d within %.1f%%' % (p['found'], p['expected'], p['mean_error']*100)
         message = ('Prepared %d frames' % result['frames']) if req['kind'] == 'prepare' else \
+            (('Adopted: hubs/corners %s vs %s' if result['adopted'] else 'Kept the current field detector: new %s vs %s') % (fmt(result['new']), fmt(result['current']))) if req['kind'] == 'train_field' else \
             ('Adopted: held-out F1 %.2f vs %s' % (result['new']['f1'], '%.2f' % result['current']['f1'] if result['current'] else 'none')) if result['adopted'] else \
             ('Kept the current detector: new held-out F1 %.2f vs %.2f' % (result['new']['f1'], result['current']['f1']))
         api(config, 'finish', {'request_id': req['id'], 'lease': req['lease'], 'ok': True, 'message': message, 'report': result})

@@ -1,5 +1,14 @@
 # Work log (newest first)
 
+## 2026-10-23 — Claude: field-detector training job (engine 2.7.1-field-detector-training)
+- Scoring areas has "Train field detector". An idle helper downloads every saved region document (new
+  `api/field-regions.php {all:true}`), samples broadcast frames from each marked match, trains YOLO on hubs +
+  field-boundary corners, holds out the most recent match, and adopts on Neptune only if it finds more
+  hubs/corners there, or the same number 0.2% of frame width closer. Helpers download the adopted one
+  (`~/.neptune-trainer/field-detector`, preferred by `neptune_field_detector.model_path`).
+- Smoke test (QM3 + QM4 marks, 1 epoch): current detector 8/8 within 0.12% on held-out QM4; the 1-epoch model
+  found none and was not adopted.
+
 ## 2026-10-23 — Claude: helper 3.2.13 (engine 2.7.0-identity-coverage) + robot-detector jobs
 - Measured with full re-tracks vs the hybrid detector alone (same clip-planner fix in both):
   QM3 named 1,860 -> 2,887, median coverage 0.22 -> 0.38, usable label clips 191 -> 209 of 379;

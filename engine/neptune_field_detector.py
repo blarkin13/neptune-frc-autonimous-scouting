@@ -19,7 +19,18 @@ MIN_CONFIDENCE = .35
 
 
 def model_dir():
+    """The engine's field-detector folder (reference regions; shipped weights)."""
     return Path(__file__).with_name('field-detector')
+
+
+def model_path():
+    """The field detector to use: the one adopted on Neptune (downloaded by the helper), else the shipped one."""
+    import os
+    shared = Path(os.environ.get('NEPTUNE_FIELD_DETECTOR', Path.home()/'.neptune-trainer'/'field-detector'))/'model.pt'
+    for path in (shared, model_dir()/'model.pt'):
+        if path.is_file():
+            return path
+    return None
 
 
 def ordered_quad(points):
@@ -244,8 +255,8 @@ def detect(video, facts, reference, weights=None, step=2.0, device=None, progres
     import os
     import subprocess
     os.environ.setdefault('YOLO_OFFLINE', '1')
-    weights = Path(weights or model_dir()/'model.pt')
-    if not weights.is_file():
+    weights = Path(weights) if weights else model_path()
+    if not weights or not weights.is_file():
         return {'status': 'no_field_detector', 'version': VERSION, 'regions': []}
     from ultralytics import YOLO
     model = YOLO(str(weights))
