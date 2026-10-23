@@ -5,7 +5,7 @@ import json
 import re
 import shutil
 
-POLICY='delete-used-media-v1'
+POLICY='keep-match-videos-14d-v1'
 MEDIA={'.mp4','.webm','.mkv','.mov','.jpg','.jpeg','.png','.ppm'}
 RAW={'raw-overlay.jsonl','raw-bumpers.jsonl','raw-results.jsonl','neptune-botsort.yaml'}
 
@@ -44,10 +44,12 @@ def cleanup(cache, video_id, source_sha=None, work=None, progress=lambda s:None)
     cache=Path(cache).resolve();removed=files=0
     if not re.fullmatch(r'[A-Za-z0-9_-]{11}',str(video_id)):raise ValueError('Invalid cached video identifier.')
     candidates=[]
-    videos=cache/'videos'
-    if videos.is_symlink():raise ValueError('Refusing a linked video cache.')
-    if videos.is_dir():
-        candidates.extend(p for p in videos.glob(video_id+'.*') if p.suffix.lower() in MEDIA or p.name.endswith(('.mp4.part','.webm.part','.mp4.ytdl')))
+    # The match video itself stays in the shared video cache (14 days, 5 GB cap; neptune_housekeeping) so later runs
+    # and detector jobs reuse it instead of downloading it from YouTube again. Only unfinished downloads go now.
+    for videos in (cache/'videos', cache.parent/'videos'):
+        if videos.is_symlink():raise ValueError('Refusing a linked video cache.')
+        if videos.is_dir():
+            candidates.extend(p for p in videos.glob(video_id+'.*') if p.name.endswith(('.mp4.part','.webm.part','.mp4.ytdl')))
     if work is not None:
         work=Path(work)
         relative=work.resolve().relative_to(cache)

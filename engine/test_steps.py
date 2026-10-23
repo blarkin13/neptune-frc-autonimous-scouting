@@ -76,3 +76,33 @@ class HoldoutTest(unittest.TestCase):
         # never a match the detector in use trained on
         self.assertEqual(pick_holdout(['2026a_qm3', '2026a_qm4', '2026b_qm8'], None, ['2026a_qm3', '2026a_qm4']), '2026b_qm8')
         self.assertEqual(pick_holdout(['2026a_qm4', '2026b_qm8'], '2026a_qm4', ['2026a_qm4']), '2026b_qm8')
+
+
+class SharedVideoCacheTest(unittest.TestCase):
+    def test_videos_kept_14_days(self):
+        import tempfile, time
+        from pathlib import Path
+        import neptune_housekeeping as hk
+        home = Path(tempfile.mkdtemp()).resolve(); v = home/'cache'/'videos'; v.mkdir(parents=True)
+        (v/'match.mp4').write_bytes(b'x'*100)
+        hk.sweep(home, now=time.time()+10*86400)
+        self.assertTrue((v/'match.mp4').exists())          # 10 days old: kept
+        hk.sweep(home, now=time.time()+15*86400)
+        self.assertFalse((v/'match.mp4').exists())         # 15 days old: gone
+
+    def test_cap_keeps_newest(self):
+        import os, tempfile, time
+        from pathlib import Path
+        from unittest import mock
+        import neptune_housekeeping as hk
+        home = Path(tempfile.mkdtemp()).resolve(); v = home/'cache'/'videos'; v.mkdir(parents=True)
+        for i, name in enumerate(('a.mp4', 'b.mp4', 'c.mp4')):
+            (v/name).write_bytes(b'x'*100); t = time.time()-(3-i)*3600; os.utime(v/name, (t, t))
+        with mock.patch.object(hk, 'VIDEO_CAP_BYTES', 250):
+            hk.sweep(home, now=time.time()+10)
+        self.assertEqual(sorted(p.name for p in v.iterdir()), ['b.mp4', 'c.mp4'])
+
+    def test_bot_check_is_recognised(self):
+        from neptune_robot_labels import youtube_blocked
+        self.assertTrue(youtube_blocked("ERROR: [youtube] x: Sign in to confirm you’re not a bot. Use --cookies"))
+        self.assertFalse(youtube_blocked('Video unavailable'))

@@ -893,7 +893,7 @@ def run(root,year,export_url=labels.EXPORT_URL,download=True,progress=print,expo
         folder=root/'models'/game['game_key']/('needs-data-'+datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%S')+'-'+uuid.uuid4().hex[:5])
         result=train([],game,folder,inv);result['folder']=str(folder);return result
     cache_root=Path(cache_root) if cache_root is not None else root
-    videos=cache_root/'videos';fact_map={};paths=[];processed=0;done=0
+    videos=cache_root.parent/'videos';fact_map={};paths=[];processed=0;done=0   # shared with detector jobs; kept 14 days
     from neptune_facts import analyze_video
     snapshot_order={vid:i for i,vid in enumerate(ingested.get('video_order',[]))}
     vids=sorted({r['video_id'] for r in combined},key=lambda vid:(snapshot_order.get(vid,10**9),vid))
@@ -1036,7 +1036,12 @@ def run(root,year,export_url=labels.EXPORT_URL,download=True,progress=print,expo
         if data.get('localization_error'):inv.setdefault('localization_errors',[]).append(data['localization_error'])
         for item in data.get('scoring_examples',[]):score_examples.append(dict({k:v for k,v in item.items() if k!='feature'},x=data['features'][item['feature']]))
         for item in data['examples']:examples.append(dict({k:v for k,v in item.items() if k!='feature'},x=data['features'][item['feature']]))
-    inv['excluded_examples']=dict(skipped);save_checkpoint(phase='fitting')
+    inv['excluded_examples']=dict(skipped)
+    # YouTube's bot check: stop with a clear message instead of "finishing" a run that learned from almost nothing.
+    from neptune_robot_labels import youtube_blocked,BLOCKED
+    blocked=[e for e in inv.get('source_errors',[]) if youtube_blocked(e.get('reason',''))]
+    if blocked and len(blocked)*2>=len(vids):raise RuntimeError(BLOCKED+' (%d of %d match videos were refused.)'%(len(blocked),len(vids)))
+    save_checkpoint(phase='fitting')
     progress('Fitting action candidates from human tags and unlabelled footage')
     import uuid
     run_id=datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%S')+'-'+digest(rows)[:8]+'-'+uuid.uuid4().hex[:5]

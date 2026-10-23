@@ -165,7 +165,8 @@ def match_video(video_id, folder):
     video = local_video(video_id)
     if video:
         return video
-    video = Path(folder)/(video_id+'.mp4')
+    from neptune_robot_labels import VIDEOS
+    video = VIDEOS/(video_id+'.mp4'); video.parent.mkdir(parents=True, exist_ok=True)
     if not video.is_file():
         youtube_download(video_id, video)
     return video

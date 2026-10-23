@@ -11,6 +11,9 @@ from pathlib import Path
 
 VERSION = 'site-robot-labels-v1'
 HOME = Path.home()/'.neptune-trainer'
+# Every job's match videos, kept 14 days (5 GB cap) so a video is downloaded from YouTube once, not per run.
+VIDEOS = HOME/'cache'/'videos'
+BLOCKED = 'YouTube is blocking downloads from this computer for now (bot check). Nothing was trained on missing videos. Try again in a few hours.'
 
 
 def sync(config):
@@ -64,11 +67,11 @@ def build(docs, out, holdout=(), download=None, progress=print):
     for doc in docs:
         vid, match = doc['video_id'], doc.get('match_key') or ''
         frames = {int(t): f for t, f in (doc.get('frames') or {}).items() if f.get('complete')}
-        if not frames or not match.startswith('2026'):
+        if not frames or not match[:4].isdigit():
             continue
         video = local_video(vid)
         if video is None and download:
-            video = out/'videos'/(vid+'.mp4')
+            video = VIDEOS/(vid+'.mp4'); video.parent.mkdir(parents=True, exist_ok=True)
             if not video.is_file():
                 progress('Downloading '+match)
                 download(vid, video)
@@ -93,7 +96,18 @@ def build(docs, out, holdout=(), download=None, progress=print):
 def youtube_download(video_id, path):
     """Download a catalog match video the way the helper does for training."""
     from neptune_helper import download_video
-    download_video({'source_url': 'https://www.youtube.com/watch?v='+video_id, 'source_sha256': None}, Path(path), [''])
+    try:
+        download_video({'source_url': 'https://www.youtube.com/watch?v='+video_id, 'source_sha256': None}, Path(path), [''])
+    except Exception as error:
+        if youtube_blocked(error):
+            raise RuntimeError(BLOCKED) from error
+        raise
+
+
+def youtube_blocked(error):
+    """YouTube's bot check: retrying now only makes it last longer."""
+    text = str(error).lower()
+    return 'confirm you' in text and 'not a bot' in text or 'sign in to confirm' in text
 
 
 def main():

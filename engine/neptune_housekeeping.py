@@ -1,8 +1,10 @@
 """Bounded cleanup of regenerable media only; durable learning files are retained."""
 from pathlib import Path
 import json,time,re
-VERSION='idle-media-retention-v2'
+VERSION='idle-media-retention-v3'
 CACHE_AGE_SECONDS=24*3600
+VIDEO_AGE_SECONDS=14*24*3600   # shared match videos (cache/videos): downloaded from YouTube once, reused for two weeks
+VIDEO_CAP_BYTES=5*1024**3      # and never more than 5 GB; the oldest go first
 REVIEW_AGE_SECONDS=7*24*3600
 WORK_AGE_SECONDS=6*3600
 MEDIA={'.mp4','.webm','.mkv','.mov','.png','.jpg','.jpeg','.ppm'}
@@ -32,6 +34,14 @@ def sweep(home,now=None,progress=lambda text:None,dry_run=False):
       for p in root.rglob('*'):
        if p.suffix.lower() in MEDIA or p.name.endswith(('.mp4.part','.webm.part','.mp4.ytdl')):discard(p,CACHE_AGE_SECONDS)
    except ValueError:report['skipped_active']+=1
+ shared=cache/'videos'
+ if shared.is_dir() and not shared.is_symlink():
+  files=[p for p in shared.iterdir() if p.is_file() and not p.is_symlink() and (p.suffix.lower() in MEDIA or p.name.endswith(('.mp4.part','.webm.part','.mp4.ytdl')))]
+  for p in files:discard(p,VIDEO_AGE_SECONDS if p.suffix.lower() in MEDIA else CACHE_AGE_SECONDS)
+  kept=sorted([p for p in files if p.exists()],key=lambda p:p.stat().st_mtime,reverse=True);total=0
+  for p in kept:
+   total+=p.stat().st_size
+   if total>VIDEO_CAP_BYTES:discard(p,0)
  reviews=home/'identity-reviews'
  if reviews.is_dir() and not reviews.is_symlink():
   for review in reviews.iterdir():

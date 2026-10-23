@@ -21,8 +21,9 @@ class DisposableMedia(unittest.TestCase):
             for name in ('result.json','model.json','report.json','labels.ndjson','features.json'):(work/name).write_text('saved')
             training.write(root/'prepared/example.json',{'features':[1,2,3]})
             report=cache.cleanup(root,'AAAAAAAAAAA',sha,work)
-            self.assertEqual(report['removed_files'],6)
-            self.assertFalse(video.exists());self.assertFalse((work/'facts.json').exists())
+            self.assertEqual(report['removed_files'],5)
+            # keep-match-videos-14d-v1: the match video stays for reuse; generated media and evidence go
+            self.assertTrue(video.exists());self.assertFalse((work/'facts.json').exists())
             self.assertTrue((root/'prepared/example.json').exists())
             self.assertTrue(all((work/name).read_text()=='saved' for name in ('result.json','model.json','report.json','labels.ndjson','features.json')))
 
@@ -53,7 +54,7 @@ class DisposableMedia(unittest.TestCase):
             def download(match,path,stage):path.write_bytes(b'video');downloaded.append(path)
             with patch('neptune_helper.download_video',side_effect=download),patch('neptune_video_labels.sha256_file',return_value='a'*64),patch('neptune_video_labels.probe_duration_ms',return_value=200000),patch('neptune_facts.analyze_video',return_value=fixtures.facts()),patch('neptune_training.features',side_effect=fixtures.feature):
                 worker.execute({'site':'https://example.org'},job,{'device':'cpu'},lambda s:None,transport=lambda *args:{'state':'test_complete'})
-            self.assertFalse(downloaded[0].exists());self.assertTrue((root/'trials'/job['id']/'result.json').exists())
+            self.assertTrue(downloaded[0].exists());self.assertTrue((root/'trials'/job['id']/'result.json').exists())   # video kept for reuse
 
     def test_completed_training_reuses_features_after_video_removal(self):
         import neptune_video_labels as labels
@@ -83,14 +84,14 @@ class DisposableMedia(unittest.TestCase):
             second=copy.deepcopy(job['request']['matches'][0]);second.update(match_key='2026otherheldout_qm1',source_url='https://www.youtube.com/watch?v=BBBBBBBBBBB',source_sha256='b'*64);job['request']['matches'].append(second)
             downloaded=[]
             def download(match,path,stage):
-                if downloaded:self.assertFalse(downloaded[-1].exists())
+                if downloaded:self.assertTrue(downloaded[-1].exists())   # kept for reuse
                 path.write_bytes(b'video');downloaded.append(path)
             def sha(path):return 'b'*64 if Path(path).name.startswith('BBBB') else 'a'*64
             def facts(video,*args,**kwargs):
                 result=fixtures.facts();result['source']['sha256']=kwargs['source_sha256'];return result
             with patch('neptune_helper.download_video',side_effect=download),patch('neptune_video_labels.sha256_file',side_effect=sha),patch('neptune_video_labels.probe_duration_ms',return_value=200000),patch('neptune_facts.analyze_video',side_effect=facts),patch('neptune_training.features',side_effect=fixtures.feature):
                 worker.evaluate({'site':'https://example.org'},job,lambda s:None,lambda *args:{'state':'evaluation_complete'},root)
-            self.assertEqual(len(downloaded),2);self.assertTrue(all(not p.exists() for p in downloaded))
+            self.assertEqual(len(downloaded),2);self.assertTrue(all(p.exists() for p in downloaded))   # kept for reuse
             saved=root/'evaluations'/job['id'];self.assertTrue((saved/'result.json').exists());self.assertTrue((saved/'evaluation-match-results.json').exists())
 
 
