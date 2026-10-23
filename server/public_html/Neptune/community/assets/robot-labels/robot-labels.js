@@ -6,6 +6,16 @@
  const video=app.dataset.youtube,matchKey=app.dataset.matchKey,v=window.NeptuneVideo;
  let playing=false,times=[],idx=-1,boxes=[],sel=-1,color='red',saved={},drag=null,zoom=1,pan=[0,0],space=false,dirty=false,busy=false;
  const say=t=>$('status').textContent=t;
+ // Detector requests (prepare frames / train) run on the connected helper; this shows their state.
+ async function detectorStatus(){try{const r=await fetch('robot-labels.php?detector_status=1');const d=await r.json();
+  const names={prepare:'Prepare frames',train:'Train robot detector'};
+  $('requests').innerHTML='';for(const q of d.requests||[]){const row=document.createElement('div');row.className='rl-request '+q.state;
+   row.textContent=`${names[q.kind]||q.kind}${q.match_key?' · '+q.match_key.replace(/^\d{4}[a-z0-9]+_/,''):''} — ${q.state==='queued'?'waiting for a helper':q.state==='claimed'?'running':q.state}${q.message?': '+q.message:''}`;$('requests').append(row)}
+  const c=d.current;const rep=c&&c.report;$('current').textContent=c?`Current detector adopted ${new Date(c.adopted_at*1000).toLocaleDateString()}${rep&&rep.new?` · held-out ${rep.holdout_match||''}: found ${Math.round(rep.new.recall*100)}%, right ${Math.round(rep.new.precision*100)}%`:''}`:'Using the detector shipped with the helper.'}catch(e){}}
+ async function queue(action){try{const r=await fetch('robot-labels.php',{method:'POST',headers:{'Content-Type':'application/json','X-Robot-Labels-CSRF':app.dataset.csrf},body:JSON.stringify({action,video_id:app.dataset.youtube,match_key:app.dataset.matchKey})});
+  const d=await r.json();if(!r.ok)throw Error(d.error||'Could not queue');say(action==='queue_train'?'Detector training queued for your helper.':'Frame preparation queued for your helper.');detectorStatus()}catch(e){say(e.message)}}
+ $('prepare').onclick=()=>queue('queue_prepare');$('train').onclick=()=>queue('queue_train');
+ detectorStatus();setInterval(detectorStatus,15000);
  const stamp=s=>{const m=Math.floor(s/60),r=(s%60).toFixed(2).padStart(5,'0');return String(m).padStart(2,'0')+':'+r};
  function setColor(c){color=c;$('red').classList.toggle('active',c==='red');$('blue').classList.toggle('active',c==='blue');$('red').setAttribute('aria-pressed',c==='red');$('blue').setAttribute('aria-pressed',c==='blue')}
  function place(){zoomer.style.transform=`translate(${pan[0]}px,${pan[1]}px) scale(${zoom})`;draw()}
@@ -41,7 +51,7 @@
   if(extra.delete)delete saved[t];else saved[t]={boxes:boxes.map(b=>({...b})),complete:!!extra.complete,skipped:!!extra.skipped};dirty=false;counts()}
  function counts(){const done=Object.values(saved).filter(f=>f.complete).length;$('donecount').textContent=done;$('framecount').textContent=times.length?`frame ${idx+1} of ${times.length}`:''}
  async function open(i){if(busy||i<0||i>=times.length)return;busy=true;try{
-  if(idx>=0&&dirty&&saved[times[idx]])await save({complete:saved[times[idx]].complete});
+  if(idx>=0&&dirty)await save({complete:!!(saved[times[idx]]&&saved[times[idx]].complete)});
   idx=i;const t=times[i];v.pause();v.currentTime=t/1000;sel=-1;
   // Seeking an unstarted YouTube player starts playback; hold it on the frame being labelled.
   for(const ms of [250,700,1500])setTimeout(()=>{if(idx===i&&!v.paused){v.pause();v.currentTime=t/1000}},ms);
@@ -61,6 +71,8 @@
   if((e.key==='x'||e.key==='X')&&sel>=0){boxes[sel].alliance=boxes[sel].alliance==='red'?'blue':'red';boxes[sel].source='person';dirty=true;draw()}
   if(e.key==='Enter'){e.preventDefault();complete()}if(e.key==='ArrowRight')open(idx+1);if(e.key==='ArrowLeft')open(idx-1)});
  window.addEventListener('keyup',e=>{if(e.code==='Space')space=false});
+ let autosave=null;setInterval(()=>{if(dirty&&idx>=0&&!busy&&!drag){clearTimeout(autosave);autosave=setTimeout(()=>{if(dirty)save({complete:!!(saved[times[idx]]&&saved[times[idx]].complete)}).then(()=>say('Draft saved.')).catch(e=>say(e.message))},1500)}},1000);
+ window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue=''}});
  new ResizeObserver(draw).observe(stage);
  if(!video||!v){say('Choose a match.');return}
  $('empty').hidden=true;$('framebadge').textContent=(matchKey||video)+' · YOUTUBE';

@@ -10,3 +10,9 @@
 .robot-labels .rl-stats div{border:1px solid var(--fr-line);border-radius:10px;padding:10px}
 .robot-labels .rl-stats span{display:block;font-size:22px;font-weight:800;color:var(--fr-accent)}
 .robot-labels .rl-secondary{background:transparent}
+.robot-labels .rl-detector button{margin-top:8px}
+.robot-labels .rl-requests{margin-top:10px;display:grid;gap:5px}
+.robot-labels .rl-request{font-size:11px;color:var(--fr-muted);border-left:3px solid var(--fr-line);padding-left:7px}
+.robot-labels .rl-request.claimed{border-color:var(--fr-accent);color:var(--fr-text)}
+.robot-labels .rl-request.done{border-color:#4fd18b}.robot-labels .rl-request.failed{border-color:#ff6b6b}
+.robot-labels .rl-current{margin-top:10px;font-size:11px;color:var(--fr-muted)}

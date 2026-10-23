@@ -111,7 +111,9 @@ def plan(facts, sight):
     points = [s for s in candidates if s['track_id'] == anchor['track_id'] and s['scene'] == anchor['scene'] and s.get('camera')==anchor.get('camera')
               and (anchor.get('identity_segment') is None or s.get('identity_segment')==anchor['identity_segment']
                    # same track and team: an OCR-verified stretch may continue as a solver-inferred one
-                   or 'roster_inferred' in (s.get('identity_method'),anchor.get('identity_method')))]
+                   or 'roster_inferred' in (s.get('identity_method'),anchor.get('identity_method'))
+                   # a robot confirmed after brief contact continues its segment from before the contact
+                   or s.get('carried_from')==anchor.get('identity_segment') or anchor.get('carried_from')==s.get('identity_segment'))]
     cuts=track.get('camera_cuts',{}).get(anchor.get('camera'),track.get('scene_cuts', []))
     if anchor.get('identity_method')=='human_reviewed_track' or track.get('continuity_revision') in ('segment-verified-v3','bidirectional-roster-review-v4','reviewed-flow-continuity-v5','wide-tile-and-gap-continuity-v6','robot26-reacquisition-ocr3-v2',_current_revision()):
         # A clip can start at a track's visible boundary rather than insist on

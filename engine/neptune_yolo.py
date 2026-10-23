@@ -48,8 +48,17 @@ def bundle(root=None, season=2026):
 
 
 def bundled_detectors():
-    """Per-camera detectors shipped with the engine itself (our own models, not the private download)."""
-    root = Path(__file__).with_name('robot-detector')
+    """Our own per-camera detectors: the one adopted on Neptune (downloaded by the helper) if present, else the
+    one shipped with the engine. Never the private downloaded bundle."""
+    shared = Path(os.environ.get('NEPTUNE_ROBOT_DETECTOR', Path.home()/'.neptune-trainer'/'robot-detector'))
+    for root in (shared, Path(__file__).with_name('robot-detector')):
+        found = _detectors_in(root)
+        if found:
+            return found
+    return {}
+
+
+def _detectors_in(root):
     path = root/'manifest.json'
     if not path.is_file():
         return {}
@@ -171,7 +180,8 @@ class Identities:
             if state.get('contact'):
                 carried = state.get('team') or state.get('carried')
                 self.serial += 1
-                state.update(segment=self.serial, team=None, candidate=carried, carried=carried, moments=[], contact=False)
+                state.update(segment=self.serial, team=None, candidate=carried, carried=carried, moments=[], contact=False,
+                             carried_from=state['segment'])
             state['last'] = t
             state['box'] = det['box']
             mine = [r for r in reads if r.get('track') == tid and r.get('kind') in ('exact', 'corrected', 'partial') and self.alliance.get(r.get('team')) == det['alliance']]
@@ -186,7 +196,7 @@ class Identities:
                     if state['candidate'] is not None:
                         self.invalid_segments.add(state['segment'])
                         self.serial += 1;state['segment']=self.serial
-                    state.update(team=None, candidate=team, moments=[], carried=None, exact_reads=0)
+                    state.update(team=None, candidate=team, moments=[], carried=None, carried_from=None, exact_reads=0)
                 if not state['moments'] or t-state['moments'][-1] >= .5:
                     state['moments'].append(t)
                     state['exact_reads'] = state.get('exact_reads', 0)+exact
@@ -321,6 +331,7 @@ def _track_camera(video, facts, profile, backend, work, fps=6., width=960, read_
     from ultralytics import YOLO
     from neptune_tracking import wide_band, decode, read_position, coverage, FRAME_DECODER_REVISION
     from neptune_facts import roster_match
+    from neptune_ocr import OcrUnavailable
     meta = bundle(season=int(profile['season']))
     root = bundle_path()
     view = camera['name'] if camera else 'wide'
@@ -390,6 +401,7 @@ def _track_camera(video, facts, profile, backend, work, fps=6., width=960, read_
     tile_model=YOLO(str(bumper_path)) if hires is not None and (camera is None or camera['name']=='wide') else None
     tile_counts={'frames':0,'candidates':0,'added':0}
     people = []; ocr_folder = work/'yolo-ocr'; ocr_folder.mkdir(exist_ok=True)
+    ocr_failures=[0,0]  # failed text-reader calls, all calls
     try:
         for t, w, h, y, u, v in decode(video, *band, start, end, fps, width, left=left, right=right):
             frame_count += 1
@@ -456,7 +468,13 @@ def _track_camera(video, facts, profile, backend, work, fps=6., width=960, read_
                     path = ocr_folder/('bumper-%d.png' % d['id'])
                     cv2.imwrite(str(path), cv2.resize(ocr_image[b:e, a:c], None, fx=3, fy=3))
                     paths.append((d, path))
-                texts = backend.recognize([p for d, p in paths]) if paths else {}
+                try:
+                    texts = backend.recognize([p for d, p in paths]) if paths else {}
+                except OcrUnavailable:
+                    # One failed text-reader call skips this frame's reads instead of losing the match.
+                    texts = {}; ocr_failures[0] += 1
+                    if ocr_failures[0] > max(5, .2*ocr_failures[1]):raise
+                ocr_failures[1] += 1
                 for d, path in paths:
                     for token in texts.get(str(path), []):
                         for word in re.findall(r'\S+', token['t']):
@@ -491,7 +509,7 @@ def _track_camera(video, facts, profile, backend, work, fps=6., width=960, read_
                 if not state or abs(state['last']-t)>.001:continue
                 a,b,c,e=crop_box(d['box'],w,h,box_kind)
                 segment_points.append({'t':round(t,4),'box':[left+a/w*(right-left),band[0]+b/h*(band[1]-band[0]),(c-a)/w*(right-left),(e-b)/h*(band[1]-band[0])],
-                    'bumper_box':d['box'],'identity_segment':state['segment'],'track_id':d['id'],'scene':(camera['name']+':'+str(scene)) if camera else scene,
+                    'bumper_box':d['box'],'identity_segment':state['segment'],'carried_from':state.get('carried_from'),'track_id':d['id'],'scene':(camera['name']+':'+str(scene)) if camera else scene,
                     'camera':camera['name'] if camera else 'wide','camera_bounds':list(bounds),'detection_confidence':round(d['confidence'],4)})
             anchors.extend(dict(r, t=round(t, 4), scene=scene) for r in reads)
     finally:
@@ -505,7 +523,7 @@ def _track_camera(video, facts, profile, backend, work, fps=6., width=960, read_
     return {'status': 'measured', 'version': VERSION, 'model_fingerprint': fingerprint(), 'model_source': meta['source'],
             'box_following':follower.diagnostics,'wide_tile_detection':tile_counts,'ocr_width':ocr_width or width,'observations':observations,'decoder_revision':FRAME_DECODER_REVISION,'duplicate_bumper_boxes_removed':duplicate_counts['removed'],'anchors':anchors,'continuity_revision':CONTINUITY_REVISION,'fps': fps, 'band': list(band), 'start': start, 'end': end, 'scene_cuts': cuts, 'localizations': localizations,
             'coverage': {str(k): v for k, v in coverage(points, start, end).items()}, 'tracks': len({(s['scene'], s['track_id']) for s in localizations}),
-            'frames_processed': frame_count, 'visual_tracks': len(visual_tracks), 'bumper_anchors': len(anchors), 'device': device, 'ocr_every_processed_frames':sample_step, 'reacquisition_proposals':reacquisition_rows, 'detector_box_kind':box_kind,'bumper_detector_file':bumper_file, 'appearance_reid':not motion_only,
+            'frames_processed': frame_count, 'visual_tracks': len(visual_tracks), 'bumper_anchors': len(anchors), 'device': device, 'ocr_every_processed_frames':sample_step, 'reacquisition_proposals':reacquisition_rows, 'detector_box_kind':box_kind,'ocr_failed_calls':ocr_failures[0],'bumper_detector_file':bumper_file, 'appearance_reid':not motion_only,
             'limitations': [('Whole-robot detector trial uses motion association without appearance ReID.' if motion_only else 'Bumper detections provide expanded chassis crops, not robot segmentation.'), 'Identity is cleared on ambiguous overlap, camera cuts and long detection gaps.',
                             'Tracks alone do not establish successful scoring, climb outcomes or points.']}
 

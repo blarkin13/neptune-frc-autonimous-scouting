@@ -5,6 +5,7 @@ require_once dirname(__DIR__,3).'/neptune_secure/google-auth.php';
 require_once dirname(__DIR__,3).'/neptune_secure/platform-security.php';
 require_once dirname(__DIR__,3).'/neptune_secure/community-analysis-install.php';
 require_once dirname(__DIR__,3).'/neptune_secure/community-video-tags.php';
+require_once dirname(__DIR__,3).'/neptune_secure/robot-detector-jobs.php';
 $u=require_role(['owner']);
 if((int)$u['organization_id']!==(int)($config['app']['platform_organization_id']??1))access_denied('Platform owner access required.');
 neptune_require_platform_owner_google($u);
@@ -15,12 +16,24 @@ $csrf=$_SESSION['robot_labels_csrf'];
 $store=dirname(__DIR__,3).'/neptune_secure/robot-labels/'.(int)$u['organization_id'];
 function robot_reply(int $code,array $data):never{http_response_code($code);header('Content-Type: application/json');echo json_encode($data,JSON_THROW_ON_ERROR);exit;}
 function robot_video(string $v):string{if(!preg_match('/^[A-Za-z0-9_-]{11}$/D',$v))robot_reply(422,['error'=>'Invalid video.']);return $v;}
-function robot_doc(string $store,string $video):array{$f=$store.'/'.$video.'.json';return is_file($f)?json_decode((string)file_get_contents($f),true,32,JSON_THROW_ON_ERROR):['schema_version'=>1,'video_id'=>$video,'frames'=>[]];}
+function robot_doc(string $store,string $video):array{
+ $f=$store.'/'.$video.'.json';$d=is_file($f)?json_decode((string)file_get_contents($f),true,32,JSON_THROW_ON_ERROR):['schema_version'=>1,'video_id'=>$video,'frames'=>[]];
+ // Frames labelled before this page existed (local labeller) are seeds; anything saved here takes precedence.
+ $seed=dirname($store).'/seed/'.$video.'.json';
+ if(is_file($seed)){$s=json_decode((string)file_get_contents($seed),true,32,JSON_THROW_ON_ERROR);$d['frames']=($d['frames']??[])+($s['frames']??[]);$d['match_key']??=$s['match_key']??null;}
+ return $d;
+}
 // Boxes the detector found at this moment, from the helper's tracking review backed up for this video.
 function robot_prefill(PDO $pdo,int $org,string $video,int $tms):array{
  try{$q=$pdo->prepare('SELECT review_gzip FROM community_identity_reviews WHERE organization_id=? AND video_id=? ORDER BY updated_at DESC LIMIT 1');$q->execute([$org,$video]);$gz=$q->fetchColumn();}
  catch(Throwable $e){return ['boxes'=>[],'times'=>[],'source'=>'none'];}
- if(!$gz)return ['boxes'=>[],'times'=>[],'source'=>'none'];
+ if(!$gz){
+  // No tracking review: use frames a helper prepared with the current detector, if any.
+  $pre=$GLOBALS['robotJobs']->prefill($video);if(!$pre)return ['boxes'=>[],'times'=>[],'source'=>'none'];
+  $times=array_map('intval',array_keys($pre['frames']??[]));sort($times);$out=[];
+  foreach($pre['frames'] as $t=>$boxes)if(abs((int)$t-$tms)<=90)foreach($boxes as $b)$out[]=$b+['source'=>'detector'];
+  return ['boxes'=>$out,'times'=>$times,'source'=>'prepared_frames'];
+ }
  $review=json_decode((string)gzdecode((string)$gz),true,64);$points=is_array($review['points']??null)?$review['points']:[];
  $times=[];$out=[];
  foreach($points as $p){
@@ -33,13 +46,19 @@ function robot_prefill(PDO $pdo,int $org,string $video,int $tms):array{
  $times=array_keys($times);sort($times);
  return ['boxes'=>$out,'times'=>$times,'source'=>'tracking_review'];
 }
+$robotJobs=new RobotDetectorJobs(dirname(__DIR__,3).'/neptune_secure',(int)$u['organization_id']);
+if($_SERVER['REQUEST_METHOD']==='GET'&&isset($_GET['detector_status'])){
+ $cur=$robotJobs->current('skip-weights');robot_reply(200,['requests'=>array_map(fn($r)=>array_diff_key($r,['lease'=>1]),array_slice($robotJobs->requests(),0,8)),'current'=>$cur['detector']]);
+}
 if($_SERVER['REQUEST_METHOD']==='GET'&&isset($_GET['labels'])){$v=robot_video((string)$_GET['labels']);robot_reply(200,robot_doc($store,$v));}
 if($_SERVER['REQUEST_METHOD']==='GET'&&isset($_GET['prefill'])){$v=robot_video((string)$_GET['prefill']);robot_reply(200,robot_prefill($pdo,(int)$u['organization_id'],$v,max(0,(int)($_GET['t_ms']??0))));}
 if($_SERVER['REQUEST_METHOD']==='POST'){
  if(!hash_equals($csrf,(string)($_SERVER['HTTP_X_ROBOT_LABELS_CSRF']??'')))robot_reply(403,['error'=>'Refresh this page before saving']);
  $raw=file_get_contents('php://input',false,null,0,262145);if(strlen($raw)>262144)robot_reply(413,['error'=>'Too large']);
  try{
-  $p=json_decode($raw,true,16,JSON_THROW_ON_ERROR);$v=robot_video((string)($p['video_id']??''));$tms=$p['t_ms']??null;
+  $p=json_decode($raw,true,16,JSON_THROW_ON_ERROR);
+  if(in_array($p['action']??'',['queue_prepare','queue_train'],true))robot_reply(200,['request'=>$robotJobs->queue($p['action']==='queue_prepare'?'prepare':'train',$p,(int)$u['id'])]);
+  $v=robot_video((string)($p['video_id']??''));$tms=$p['t_ms']??null;
   if(!is_int($tms)||$tms<0||$tms>36000000)throw new RuntimeException('Invalid video time');
   $match=(string)($p['match_key']??'');if(!preg_match('/^\d{4}[A-Za-z0-9_-]{1,95}$/D',$match))throw new RuntimeException('Invalid match');
   $boxes=[];
@@ -95,6 +114,6 @@ require_once dirname(__DIR__).'/community/layout.php';community_page_start('Robo
 <div class="rl-stats"><div><span id="boxcount">0</span><small>boxes in this frame</small></div><div><span id="donecount">0</span><small>frames complete in this match</small></div></div>
 <button id="complete" class="primary save">All bumpers boxed ↵</button><button id="skip" class="save rl-secondary">Skip frame (replay, graphic, blurry)</button>
 <div id="status" role="status" aria-live="polite">Choose a match.</div>
-<div class="note"><b>What makes good labels</b><p>Every bumper you can see, red or blue, even partly hidden or far away. Box just the bumper, not the whole robot. Skip frames that aren't live match footage.</p></div></aside></div></div>
+<div class="note rl-detector"><b>Robot detector</b><p>Your connected helper does this work while it is idle.</p><button id="prepare" class="save rl-secondary"<?=$selected?'':' disabled'?>>Prepare frames for this match</button><button id="train" class="save rl-secondary">Train robot detector</button><div id="requests" class="rl-requests"></div><div id="current" class="rl-current"></div></div><div class="note"><b>What makes good labels</b><p>Every bumper you can see, red or blue, even partly hidden or far away. Box just the bumper, not the whole robot. Skip frames that aren't live match footage.</p></div></aside></div></div>
 <script src="../community/assets/match-picker/match-picker.js?v=1"></script><script src="../community/assets/field-regions/youtube-source.js?v=3-generic"></script><script src="../community/assets/robot-labels/robot-labels.js?v=1"></script>
 <?php community_page_end(); ?>

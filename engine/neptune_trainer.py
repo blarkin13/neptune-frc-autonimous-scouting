@@ -163,6 +163,19 @@ def watch_jobs(config,hardware,execute,progress,closing,pause,busy=lambda value:
         except (OSError,ValueError):pass
         last_cleanup=time.monotonic()
     housekeeping(force=True)
+    last_detector=[0.,0.]
+    def detector_work():
+        # Robot-detector requests from Auto Scout -> Robot labels, and the shared detector, while idle.
+        import neptune_robot_jobs as robot_jobs
+        now=time.monotonic()
+        if now-last_detector[0]>3600:
+            try:robot_jobs.sync_detector(config)
+            except Exception:pass
+            last_detector[0]=now
+        if now-last_detector[1]>30:
+            last_detector[1]=now
+            try:robot_jobs.run_pending(config,progress,busy)
+            except Exception:pass
     while not closing.is_set():
         if not pending and device_changed():return
         try:
@@ -175,6 +188,7 @@ def watch_jobs(config,hardware,execute,progress,closing,pause,busy=lambda value:
             if not connected:connection(True);connected=True
             if not job:
                 housekeeping()
+                detector_work()
                 busy(False);progress('Ready. Choose training or a match test on Neptune.')
                 closing.wait(5);continue
             busy(True);pending=job
