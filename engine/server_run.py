@@ -87,7 +87,7 @@ def main():
             return {'ok':True,'stop_requested':bool(commands.get('stop_requested'))}
         training.write(a.output,{'action':action,'payload':payload})
         if action=='pause':return {'ok':True,'state':'server_paused'}
-        if action=='trial_finish':return {'ok':True,'state':'test_complete','report_url':'/admin/community-learning.php#scoring-trials'}
+        if action=='trial_finish':return {'ok':True,'state':'test_complete','report_url':'/autoscout/train.php#scoring-trials'}
         if action=='page_evaluation_finish':return {'ok':True,'state':'evaluation_complete'}
         return {'ok':True,'state':'candidate'}
     try:

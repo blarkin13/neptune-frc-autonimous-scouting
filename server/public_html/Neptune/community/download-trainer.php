@@ -76,6 +76,6 @@ try {
 }catch(Throwable $error){
  error_log('Trainer download: '.get_class($error).': '.$error->getMessage());
  http_response_code(503);header('Content-Type: text/html; charset=utf-8');
- echo '<!doctype html><title>Trainer download unavailable</title><h1>Trainer download could not be prepared</h1><p>Please return to Training &amp; Models and try again. The server log contains the cause.</p><p><a href="../admin/community-learning.php#training-computers">Return to Training &amp; Models</a></p>';
+ echo '<!doctype html><title>Trainer download unavailable</title><h1>Trainer download could not be prepared</h1><p>Please return to Training &amp; Models and try again. The server log contains the cause.</p><p><a href="../autoscout/train.php#training-computers">Return to Training &amp; Models</a></p>';
 }finally{if(is_string($temp)&&is_file($temp))@unlink($temp);}
 

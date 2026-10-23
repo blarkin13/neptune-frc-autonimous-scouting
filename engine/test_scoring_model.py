@@ -111,7 +111,7 @@ class Scoring(unittest.TestCase):
             job={'id':'trial','lease':'local-fixture','game_pack':pack,'model':model,'request':{'title':'Example Qualification 1','match_key':'2026same_qm1','roster':{'red':[1,2,3],'blue':[4,5,6]},'source_url':'https://www.youtube.com/watch?v=AAAAAAAAAAA','alliance_scores':{'red':400,'blue':300}}}
             sent=[]
             def api(config,action,payload):
-                sent.append((action,payload));return job if action=='trial_start' else {'ok':True,'report_url':'/admin/community-learning.php#scoring-trials'}
+                sent.append((action,payload));return job if action=='trial_start' else {'ok':True,'report_url':'/autoscout/train.php#scoring-trials'}
             def download(match,path,stage):path.write_bytes(b'fixture-only')
             with patch.object(trainer,'HOME',root/'home'),patch.object(trainer,'api',side_effect=api),patch('neptune_helper.download_video',side_effect=download),patch('neptune_video_labels.probe_duration_ms',return_value=200000),patch('neptune_video_labels.sha256_file',return_value='a'*64),patch('neptune_facts.analyze_video',return_value=facts()),patch('neptune_training.features',side_effect=feature):
                 scoring.run_trial({'site':'https://example.org'},2026,1,lambda s:None)

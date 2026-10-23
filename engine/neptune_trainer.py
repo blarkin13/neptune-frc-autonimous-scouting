@@ -236,7 +236,7 @@ def main():
     status=tk.StringVar(value='Connecting to Neptune…')
     ui.status(frame,status,detail='Choose matches and review results on Neptune. Keep this window open while it works.')
     controls=ttk.Frame(frame,style='Neptune.TFrame');controls.pack(fill='x',pady=(0,13))
-    ttk.Button(controls,text='Open Neptune',style='Neptune.TButton',command=lambda:webbrowser.open(config['site'].rstrip('/')+'/admin/community-learning.php?connect=1')).pack(side='left',padx=(0,8))
+    ttk.Button(controls,text='Open Neptune',style='Neptune.TButton',command=lambda:webbrowser.open(config['site'].rstrip('/')+'/autoscout/train.php?connect=1')).pack(side='left',padx=(0,8))
     choice=tk.StringVar(value='Automatic');settings=ttk.Frame(frame,style='Neptune.TFrame');settings.pack(fill='x',pady=(0,14))
     ttk.Label(settings,text='Training device',style='Muted.TLabel').pack(side='left',padx=(0,12))
     devices=['Automatic','NVIDIA GPU','CPU'] if sys.platform in ('win32','linux') else ['Automatic','Mac GPU','CPU']

@@ -1,8 +1,11 @@
 <?php
 declare(strict_types=1);
 function community_page_start(string $title,string $subtitle,string $active='public',string $eyebrow='AUTO SCOUT'):void {
- global $pdo,$config,$u,$pageTitle,$moduleName,$hideChrome,$isPublicHome;
+ global $pdo,$config,$u,$pageTitle,$moduleName,$hideChrome,$isPublicHome,$navigationSection;
  $pageTitle=$title;$moduleName='AUTO SCOUT';$hideChrome=false;
+ $viewer=function_exists('current_user')?current_user():null;
+ // Auto Scout pages sit under the Auto Scout menu section for the platform owner who has it.
+ if(($viewer['role']??'')==='owner'&&(int)($viewer['organization_id']??0)===(int)($config['app']['platform_organization_id']??1))$navigationSection='autoscout';
  include dirname(__DIR__).'/partials_header.php';
  ?>
 <link rel="stylesheet" href="/community/assets/community.css?v=9-mission-pages">
@@ -25,7 +28,7 @@ function community_page_start(string $title,string $subtitle,string $active='pub
       <?php endforeach; ?>
     </div>
   </div>
-<nav class="community-nav" aria-label="Auto Scout"><?php foreach(['catalog'=>['Watch & tag','/community/?view=catalog'],'scoring'=>['Scoring areas','/admin/scoring-areas.php'],'robots'=>['Robot labels','/admin/robot-labels.php'],'results'=>['Saved tags & scores','/community/?view=results'],'learning'=>['Train & test','/admin/community-learning.php']] as $key=>$link):?><a href="<?=e($link[1])?>" <?=$active===$key||($key==='catalog'&&$active==='contribute')?'aria-current="page"':''?>><?=e($link[0])?></a><?php endforeach ?><a href="/scouting.php">← Scouting</a></nav>
+<nav class="community-nav" aria-label="Auto Scout"><?php foreach(['catalog'=>['Watch & tag','/community/?view=catalog'],'scoring'=>['Scoring areas','/autoscout/scoring-areas.php'],'robots'=>['Robot labels','/autoscout/robot-labels.php'],'results'=>['Saved tags & scores','/community/?view=results'],'learning'=>['Train & test','/autoscout/train.php']] as $key=>$link):?><a href="<?=e($link[1])?>" <?=$active===$key||($key==='catalog'&&$active==='contribute')?'aria-current="page"':''?>><?=e($link[0])?></a><?php endforeach ?><?php if($active!=='hub'):?><a href="/autoscout/index.php">← Auto Scout</a><?php endif?></nav>
 <?php }
 function community_page_end():void {
  global $pdo,$config,$u,$pageTitle,$moduleName,$hideChrome,$isPublicHome;

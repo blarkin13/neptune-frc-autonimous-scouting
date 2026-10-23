@@ -14,7 +14,7 @@ Unzip and keep the folder together. On Mac, open Start Neptune Helper.command. O
 
 ## Learning and publication
 
-Neptune stores public human labels, corrections and match summaries. The owner page /admin/community-learning.php runs the current experimental baseline and retains reports. Continuous tracking, a stronger video action model, automatic scoring prediction and a remote GPU training-PC connection remain development work. A candidate must be trained and independently evaluated before release. Saving labels does not automatically retrain a model.
+Neptune stores public human labels, corrections and match summaries. The owner page /autoscout/train.php runs the current experimental baseline and retains reports. Continuous tracking, a stronger video action model, automatic scoring prediction and a remote GPU training-PC connection remain development work. A candidate must be trained and independently evaluated before release. Saving labels does not automatically retrain a model.
 
 Public video labels need no approval. Helper-generated summaries have a separate independent publication review at /community/?view=review. Unpublished drafts remain restricted to designated reviewers.
 

@@ -1,5 +1,16 @@
 # Work log (newest first)
 
+## 2026-10-22 — Claude: Auto Scout section (engine 2.5.3-autoscout-section-preview1)
+- New `public_html/Neptune/autoscout/`: `index.php` (hub with the six Auto Scout cards), `train.php` (was
+  `admin/community-learning.php`), `scoring-areas.php`, `robot-labels.php`.
+- `admin/community-learning.php` and `admin/scoring-areas.php` are now 308 redirects that keep the query
+  (e.g. the helper's `?connect=1`). `community/` stays: public Watch & tag pages and helper endpoints.
+- Site menu (`partials_header.php`, refreshed from live): "Auto Scout" entry for the platform owner, its own
+  breadcrumb parent; community pages show it as the active section for that owner.
+- Scouting page keeps one "Auto Scout" card; the Command Center "Train & Test" card opens `autoscout/train.php`.
+- Helper engine and server links now use `/autoscout/train.php` (Open Neptune button, match-test report link).
+- Checked in a local site copy: hub, menu entry, Scouting cards, redirect with `?connect=1`.
+
 ## 2026-10-22 — Claude: online Robot labels page (engine 2.5.2-robot-labels-preview1)
 - `admin/robot-labels.php`: Auto Scout page in the site layout. Pick a catalog match; it plays from YouTube; box
   every bumper on frames about 4 s apart; Enter saves and moves on; Skip for replays and graphics. Frames come

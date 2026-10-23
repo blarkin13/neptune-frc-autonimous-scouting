@@ -1,6 +1,6 @@
 # Shared game models
 
-Community tags are stored in Neptune’s database. Training, evaluation and release management run on the server at admin/community-learning.php, protected by platform owner access. Contributors do not train local models.
+Community tags are stored in Neptune’s database. Training, evaluation and release management run on the server at autoscout/train.php, protected by platform owner access. Contributors do not train local models.
 
 The helper loads seasons and events without a connection. Sign in when starting a match. Use Reload events to retry or change seasons. Shared models shows release status; each match run checks Neptune again, so a retired release or withdrawn training label cannot silently stay active. When there is no evaluated model, supported scoreboard/bumper reading still works.
 
