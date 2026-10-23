@@ -32,8 +32,11 @@ def bundle(root=None, season=2026):
     # Robots, bumpers and broadcasts look alike every year: a game-independent detector serves any season.
     if data.get('schema_version') != 1 or not (data.get('game_independent') is True or season in data.get('seasons', [])):
         raise ValueError('The robot detector has not been configured for this season.')
-    for key in ('bumper', 'context'):
-        row = data.get(key)
+    # Optional per-camera bumper detectors, e.g. one trained for the wide shot's small, distant bumpers.
+    cameras = data.get('by_camera') or {}
+    if not isinstance(cameras, dict) or any(k not in ('wide', 'closeup-left', 'closeup-right') for k in cameras):
+        raise ValueError('Invalid per-camera detector list.')
+    for key, row in [('bumper', data.get('bumper')), ('context', data.get('context'))]+[('by_camera.'+k, v) for k, v in sorted(cameras.items())]:
         if not row or not re.fullmatch(r'[A-Za-z0-9_-]+\.pt', row.get('file', '')):
             raise ValueError('Invalid private detector manifest.')
         p = root/row['file']
@@ -282,7 +285,9 @@ def _track_camera(video, facts, profile, backend, work, fps=6., width=960, read_
     from neptune_facts import roster_match
     meta = bundle(season=int(profile['season']))
     root = bundle_path()
-    model = YOLO(str(root/meta['bumper']['file']))
+    view = camera['name'] if camera else 'wide'
+    bumper_file = (meta.get('by_camera', {}).get(view) or meta['bumper'])['file']
+    model = YOLO(str(root/bumper_file))
     colours = bumper_classes(model.names)
     box_kind = meta['bumper'].get('box_kind', 'bumper')
     motion_only = meta['bumper'].get('tracking_mode') == 'motion-only'
@@ -343,7 +348,7 @@ def _track_camera(video, facts, profile, backend, work, fps=6., width=960, read_
     probe=subprocess.check_output(['ffprobe','-v','error','-select_streams','v:0','-show_entries','stream=width','-of','csv=p=0',str(video)],text=True,timeout=30)
     ocr_width=native_ocr_width(int(probe.strip().splitlines()[0]),bounds,width)
     hires=decode(video,*band,start,end,fps/sample_step,ocr_width,left=left,right=right) if ocr_width else None
-    tile_model=YOLO(str(root/meta['bumper']['file'])) if hires is not None and (camera is None or camera['name']=='wide') else None
+    tile_model=YOLO(str(root/bumper_file)) if hires is not None and (camera is None or camera['name']=='wide') else None
     tile_counts={'frames':0,'candidates':0,'added':0}
     people = []; ocr_folder = work/'yolo-ocr'; ocr_folder.mkdir(exist_ok=True)
     try:
@@ -456,7 +461,7 @@ def _track_camera(video, facts, profile, backend, work, fps=6., width=960, read_
     return {'status': 'measured', 'version': VERSION, 'model_fingerprint': fingerprint(), 'model_source': meta['source'],
             'box_following':follower.diagnostics,'wide_tile_detection':tile_counts,'ocr_width':ocr_width or width,'observations':observations,'decoder_revision':FRAME_DECODER_REVISION,'duplicate_bumper_boxes_removed':duplicate_counts['removed'],'anchors':anchors,'continuity_revision':CONTINUITY_REVISION,'fps': fps, 'band': list(band), 'start': start, 'end': end, 'scene_cuts': cuts, 'localizations': localizations,
             'coverage': {str(k): v for k, v in coverage(points, start, end).items()}, 'tracks': len({(s['scene'], s['track_id']) for s in localizations}),
-            'frames_processed': frame_count, 'visual_tracks': len(visual_tracks), 'bumper_anchors': len(anchors), 'device': device, 'ocr_every_processed_frames':sample_step, 'reacquisition_proposals':reacquisition_rows, 'detector_box_kind':box_kind, 'appearance_reid':not motion_only,
+            'frames_processed': frame_count, 'visual_tracks': len(visual_tracks), 'bumper_anchors': len(anchors), 'device': device, 'ocr_every_processed_frames':sample_step, 'reacquisition_proposals':reacquisition_rows, 'detector_box_kind':box_kind,'bumper_detector_file':bumper_file, 'appearance_reid':not motion_only,
             'limitations': [('Whole-robot detector trial uses motion association without appearance ReID.' if motion_only else 'Bumper detections provide expanded chassis crops, not robot segmentation.'), 'Identity is cleared on ambiguous overlap, camera cuts and long detection gaps.',
                             'Tracks alone do not establish successful scoring, climb outcomes or points.']}
 
