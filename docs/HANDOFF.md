@@ -59,6 +59,7 @@ The old Codex folder `~/Documents/ChatGPT/Neptune` is **no longer the code locat
 - 2025 REEFSCAPE broadcast layouts added (standard FIRST, FIRST in Michigan). Other district overlays may
   need their own profile. 2026 profiles unchanged.
 - **Built locally, not yet packaged:** the pillar layout (commit `b9d6539`). Owner wanted to see it first.
+- Open (owner said not now, 2026-10-23): jobs run on Neptune's own server ("Run on Neptune") use the detectors shipped in the engine, not the adopted ones in `neptune_secure/robot-detector/<org>/current` and `field-current/<game_key>/`. Helpers are unaffected.
 - Open: "Unknown instead of zero" when a robot is barely tracked (proposed, not built); 2025 tracking not run
   end to end; 2027 game is `configured: false` until released.
 
