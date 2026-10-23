@@ -23,7 +23,12 @@ def sync(config):
         raw = response.read(67108865)
     if len(raw) > 67108864:
         raise ValueError('Robot labels too large')
-    return json.loads(raw).get('documents', [])
+    docs = json.loads(raw).get('documents', [])
+    for d in docs:
+        # PHP sends {"0": …} as a list when the only frame is at 0 ms.
+        if isinstance(d.get('frames'), list):
+            d['frames'] = {str(i): f for i, f in enumerate(d['frames'])}
+    return docs
 
 
 def local_video(video_id):

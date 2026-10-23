@@ -50,3 +50,18 @@ class DetectorWorkCleanupTest(unittest.TestCase):
         self.assertEqual(sweep(home, now=time.time()+3600)['removed_files'], 0)
         self.assertEqual(sweep(home, now=time.time()+7*3600)['removed_files'], 1)
         self.assertFalse((home/'robot-detector-work'/'a').exists())
+
+
+class LabelSyncTest(unittest.TestCase):
+    def test_frames_sent_as_list_become_dict(self):
+        import io, json, sys, types
+        from unittest import mock
+        import neptune_robot_labels
+        body = json.dumps({'documents': [{'video_id': 'abcdefghijk', 'frames': [{'complete': True, 'boxes': []}]}]}).encode()
+        class Opener:
+            def open(self, request, timeout):
+                return io.BytesIO(body)
+        helper = types.SimpleNamespace(public_https=lambda u: u, NoRedirect=object)
+        with mock.patch.dict(sys.modules, {'neptune_helper': helper}), mock.patch('urllib.request.build_opener', return_value=Opener()):
+            docs = neptune_robot_labels.sync({'site': 'https://x', 'token': 't'})
+        self.assertEqual(docs[0]['frames'], {'0': {'complete': True, 'boxes': []}})

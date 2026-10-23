@@ -21,7 +21,7 @@ try {
    $d['frames']=($x['frames']??[])+$d['frames'];$d['match_key']=$x['match_key']??($d['match_key']??null);
   }
   $frames=array_filter($d['frames'],fn($f)=>!empty($f['complete']));
-  if($frames)$docs[]=['video_id'=>$v,'match_key'=>$d['match_key']??null,'frames'=>$frames];
+  if($frames)$docs[]=['video_id'=>$v,'match_key'=>$d['match_key']??null,'frames'=>(object)$frames];
  }
  community_training_json_response(['documents'=>$docs]);
 }catch(CommunityAnalysisError $e){community_training_json_response(['error'=>$e->getMessage()],$e->httpStatus);}catch(Throwable $e){error_log('Robot labels API: '.$e->getMessage());community_training_json_response(['error'=>'Robot labels unavailable.'],503);}
