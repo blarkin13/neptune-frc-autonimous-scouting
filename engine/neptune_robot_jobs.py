@@ -457,5 +457,9 @@ def run_pending(config, progress, busy=lambda value: None):
             pass
         progress('Robot detector request failed: '+str(error)[:200])
     finally:
+        # Frames, datasets and downloaded videos for this run; the result is already on Neptune.
+        import shutil
+        for name in ('robot-detector-work', 'field-detector-work'):
+            shutil.rmtree(HOME/name/req['id'], ignore_errors=True)
         busy(False)
     return True

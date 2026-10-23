@@ -53,4 +53,6 @@ gh release create "helper-$NEW" --repo blarkin13/neptune-frc-autonimous-scouting
 for d in "$N"/Mac-Helper-*-ready; do v=${d##*/Mac-Helper-}; v=${v%-ready}
   case "$v" in "$NEW"|"$PREV") ;; 3.2.7) rm -rf "${d:?}/build" ;; *) rm -rf "${d:?}" ;; esac
 done
+# generate_appcast keeps an unpacked copy of every release it has signed (gigabytes each time).
+rm -rf "${HOME:?}/Library/Caches/Sparkle_generate_appcast"
 echo "Released $NEW (engine $ENGINE). Build folders kept: $NEW, $PREV."
