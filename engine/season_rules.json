@@ -274,14 +274,155 @@
       "game": "REEFSCAPE",
       "game_key": "2025-reefscape",
       "configured": true,
-      "revision": 1,
+      "revision": 2,
       "auto_seconds": 15,
       "teleop_seconds": 135,
       "teleop_shifts_seconds": [],
       "endgame": null,
       "max_auto_to_teleop_gap_seconds": 15,
       "results_screen_components": {},
-      "layout_profiles": {},
+      "layout_profiles": {
+        "frc-2025-standard-blue-left-v1": {
+          "season": 2025,
+          "band": 0.3,
+          "camera_top": 0.12,
+          "closeup_top": 0.625,
+          "marker": "REEFSCAPE",
+          "label_mode": "roster-and-title",
+          "regions": {
+            "clock": [
+              0.47,
+              0.53,
+              0.2,
+              0.42
+            ],
+            "blue_score": [
+              0.4,
+              0.47,
+              0.2,
+              0.42
+            ],
+            "red_score": [
+              0.53,
+              0.6,
+              0.2,
+              0.42
+            ],
+            "title": [
+              0.4,
+              0.65,
+              0.03,
+              0.18
+            ],
+            "blue_roster": [
+              0.24,
+              0.415,
+              0.25,
+              0.4
+            ],
+            "red_roster": [
+              0.585,
+              0.76,
+              0.25,
+              0.4
+            ],
+            "blue_label": [
+              0.4,
+              0.47,
+              0.2,
+              0.42
+            ],
+            "red_label": [
+              0.53,
+              0.6,
+              0.2,
+              0.42
+            ],
+            "shift": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "marker": [
+              0.66,
+              0.8,
+              0.03,
+              0.19
+            ]
+          },
+          "calibration": "FIRST 2025 broadcast overlay: Championship Newton qm20 (fLIrK94uSIQ), Sacramento Regional qm15 (01foJdfnvd8)."
+        },
+        "frc-2025-fim-red-left-v1": {
+          "season": 2025,
+          "band": 0.3,
+          "camera_top": 0.24,
+          "marker": "REEFSCAPE",
+          "regions": {
+            "clock": [
+              0.44,
+              0.56,
+              0.48,
+              0.8
+            ],
+            "red_score": [
+              0.32,
+              0.44,
+              0.48,
+              0.8
+            ],
+            "blue_score": [
+              0.56,
+              0.68,
+              0.48,
+              0.8
+            ],
+            "title": [
+              0.3,
+              0.7,
+              0.0,
+              0.25
+            ],
+            "red_roster": [
+              0.0,
+              0.33,
+              0.27,
+              0.47
+            ],
+            "blue_roster": [
+              0.68,
+              1.0,
+              0.27,
+              0.47
+            ],
+            "red_label": [
+              0.33,
+              0.43,
+              0.28,
+              0.46
+            ],
+            "blue_label": [
+              0.57,
+              0.68,
+              0.28,
+              0.46
+            ],
+            "shift": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "marker": [
+              0.82,
+              1.0,
+              0.0,
+              0.25
+            ]
+          },
+          "calibration": "FIRST in Michigan 2025 overlay: State Championship Aptiv qm30 (BQGI7-ylw98)."
+        }
+      },
       "tags": {
         "scoring": "Visible start of a scoring sequence in REEFSCAPE; not a game-piece count or points.",
         "attempted_defense": "Visible attempt to restrict an opponent; proximity alone is insufficient.",
@@ -289,7 +430,7 @@
         "end_completed": "Visible completed endgame action under REEFSCAPE rules; approaching the structure is insufficient."
       },
       "source": "FIRST 2025 REEFSCAPE game manual, section 6.1: https://firstfrc.blob.core.windows.net/frc2025/Manual/2025GameManual.pdf",
-      "status_note": "Timing verified from the manual. A broadcast layout must be calibrated on representative video before scoreboard OCR is enabled. No artificial endgame phase is imposed."
+      "status_note": "Timing verified from the manual. Broadcast layouts calibrated on the standard FIRST 2025 overlay and the FIRST in Michigan overlay; other district overlays may need their own profile."
     },
     "2027": {
       "game": "2027 game \u2014 configure after release",
