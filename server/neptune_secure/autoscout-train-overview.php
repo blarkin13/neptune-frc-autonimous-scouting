@@ -2,10 +2,23 @@
 declare(strict_types=1);
 require_once __DIR__.'/robot-detector-jobs.php';
 
+/** The held-out match for the next detector run. Never one the detector in use trained on (its score would not be
+ *  a fair comparison); among the rest, the previous one while still eligible (comparable run to run), else the last by
+ *  name. The helper uses the choice stored on the request, so the page and the helper always name the same match. */
+function autoscout_holdout(array $keys,?string $previous,array $trainedOn):?string {
+ sort($keys);$fair=array_values(array_diff($keys,$trainedOn));if(!$fair)$fair=$keys;
+ return in_array($previous,$fair,true)?$previous:($fair?end($fair):null);
+}
+/** Matches a detector learned from: its report, else (for the detector shipped with the engine) its manifest. */
+function autoscout_trained_on(?array $current,array $shipped):array {
+ if(!$current)return $shipped;$r=$current['report']??[];
+ return $r['trained_on']??array_values(array_diff($r['matches']??[],[$r['holdout_match']??'']));
+}
+
 /** One status read for the Train page: helpers, what is running and waiting, and each trainable part's model and data. */
 function autoscout_train_overview(PDO $pdo,array $panel,int $org,int $user,string $game):array {
  $secure=__DIR__;$jobs=new RobotDetectorJobs($secure,$org);
- $requests=array_map(fn($r)=>array_intersect_key($r,array_flip(['id','kind','state','computer_id','created_at','claimed_at','heartbeat_at','finished_at','message','report','review','video_id','match_key'])),$jobs->requests());
+ $requests=array_map(fn($r)=>array_intersect_key($r,array_flip(['id','kind','state','computer_id','holdout','created_at','claimed_at','heartbeat_at','finished_at','message','report','review','video_id','match_key'])),$jobs->requests());
  // Robot labels: complete frames per match (site saves take precedence over the local seed frames).
  $videos=[];
  foreach(array_merge(glob($secure.'/robot-labels/seed/*.json')?:[],glob($secure.'/robot-labels/'.$org.'/*.json')?:[]) as $f){
@@ -29,20 +42,21 @@ function autoscout_train_overview(PDO $pdo,array $panel,int $org,int $user,strin
  $latest=null;foreach($panel['jobs'] as $j)if($j['state']==='candidate'){$latest=$j;break;}
  $active=['remote_queued','remote_running','queued','running','test_queued','test_running','evaluation_queued','evaluation_running'];
  $queue=[];
- foreach(array_reverse($requests) as $r)if(in_array($r['state'],['queued','claimed'],true))$queue[]=['part'=>$r['kind']==='train_field'?'field':($r['kind']==='train'?'robot':'prepare'),'state'=>$r['state']==='claimed'?'running':'waiting','title'=>['train'=>'Train robot detector','train_field'=>'Train field detector · '.($r['game_key']??''),'prepare'=>'Prepare frames · '.($r['match_key']??'')][$r['kind']]??$r['kind'],'message'=>$r['message']??'','since'=>$r['created_at']];
+ foreach(array_reverse($requests) as $r)if(in_array($r['state'],['queued','claimed'],true))$queue[]=['part'=>$r['kind']==='train_field'?'field':($r['kind']==='train'?'robot':'prepare'),'holdout'=>$r['holdout']??null,'state'=>$r['state']==='claimed'?'running':'waiting','title'=>['train'=>'Train robot detector','train_field'=>'Train field detector · '.($r['game_key']??''),'prepare'=>'Prepare frames · '.($r['match_key']??'')][$r['kind']]??$r['kind'],'message'=>$r['message']??'','since'=>$r['created_at']];
  foreach(array_reverse($panel['jobs']) as $j)if(in_array($j['state'],$active,true))$queue[]=['part'=>str_starts_with($j['state'],'test_')||str_starts_with($j['state'],'evaluation_')?'test':'actions','state'=>str_ends_with($j['state'],'_queued')||$j['state']==='queued'?'waiting':'running','title'=>str_starts_with($j['state'],'test_')?'Test a match':(str_starts_with($j['state'],'evaluation_')?'Independent evaluation':'Train action models & scoring'),'message'=>$j['message']??'','since'=>$j['created_at']];
  // Say which pillar each job belongs to and what it is learning from (the same matches the helper picks).
- // The held-out match stays fixed: the one the adopted detector was checked on, else the last by name (as the helper picks).
  $usable=array_keys(array_filter($robotMatches,fn($n)=>$n>=8));sort($usable);
  $marked=array_keys(array_filter($fieldMatches,fn($v)=>$v['targets']&&$v['corners']));sort($marked);
- $heldRobot=in_array($robot['report']['holdout_match']??null,$usable,true)?$robot['report']['holdout_match']:($usable?end($usable):null);
- $prevField=$field['report']['holdout_match']??null;$prevField=$fieldVideo[$prevField]??$prevField;
- $heldField=in_array($prevField,$marked,true)?$prevField:($marked?end($marked):null);
+ $engine=$secure.'/community-learning';$name=fn($k)=>$fieldVideo[$k]??$k;   // older field reports name the video
+ $shippedRobot=json_decode((string)@file_get_contents($engine.'/robot-detector/manifest.json'),true)['trained_on']??[];
+ $shippedField=json_decode((string)@file_get_contents($engine.'/field-detector/trained_on.json'),true)[$game]??[];
+ $heldRobot=autoscout_holdout($usable,$robot['report']['holdout_match']??null,autoscout_trained_on($robot,$shippedRobot));
+ $heldField=autoscout_holdout($marked,$name($field['report']['holdout_match']??''),array_map($name,autoscout_trained_on($field,$shippedField)));
  $about=['robot'=>['1 · Robots — robot detector',sprintf('Learning from %d labelled frames in %d matches%s',array_sum(array_intersect_key($robotMatches,array_flip($usable))),count($usable),$heldRobot?' · checking on '.$heldRobot.' (held out, same every run)':'')],
   'field'=>['2 · Field — field detector',sprintf('Learning from %d marked matches%s',count($marked),$heldField?' · checking on '.$heldField.' (held out, same every run)':'')],
   'actions'=>['3 · Actions — action & scoring models',sprintf('Learning from %d tagged matches (%d tags, %d imported actions)',$panel['counts']['matches']??0,$panel['counts']['tags']??0,$panel['counts']['external']??0)],
   'test'=>['Test & release','']];
- foreach($queue as &$q){[$q['label'],$q['about']]=$about[$q['part']]??['1 · Robots — '.$q['title'],''];}unset($q);
+ foreach($queue as &$q){[$q['label'],$q['about']]=$about[$q['part']]??['1 · Robots — '.$q['title'],''];if(!empty($q['holdout']))$q['about']=preg_replace('/checking on \S+/','checking on '.$q['holdout'],$q['about']);}unset($q);
  usort($queue,fn($a,$b)=>[$a['state']!=='running',$a['since']]<=>[$b['state']!=='running',$b['since']]);
  return [
   // A helper on a detector job reports to that queue, not the action-training one, so its last_seen goes stale.
@@ -51,8 +65,8 @@ function autoscout_train_overview(PDO $pdo,array $panel,int $org,int $user,strin
    return $job?['name'=>$c['name'],'status'=>'working','online'=>true,'ready'=>false,'working'=>true]:['name'=>$c['name'],'status'=>$c['status'],'online'=>$c['online'],'ready'=>$c['ready']];
   },array_values(array_filter($panel['computers'],fn($c)=>!$c['revoked']))),
   'queue'=>$queue,
-  'robot'=>['current'=>$robot,'history'=>count($jobs->history('robot')),'matches'=>$robotMatches,'events'=>array_values(array_unique(array_filter(array_map($event,array_keys($robotMatches))))),'min_frames'=>8,'runs'=>array_values(array_filter($requests,fn($r)=>$r['kind']==='train'))],
-  'field'=>['game_key'=>$game,'current'=>$field,'history'=>count($jobs->history('field',$game)),'matches'=>$fieldMatches,'events'=>array_values(array_unique(array_filter(array_map($event,array_keys($fieldMatches))))),'runs'=>array_values(array_filter($requests,fn($r)=>$r['kind']==='train_field'&&($r['game_key']??RobotDetectorJobs::defaultGame())===$game))],
+  'robot'=>['holdout'=>$heldRobot,'current'=>$robot,'history'=>count($jobs->history('robot')),'matches'=>$robotMatches,'events'=>array_values(array_unique(array_filter(array_map($event,array_keys($robotMatches))))),'min_frames'=>8,'runs'=>array_values(array_filter($requests,fn($r)=>$r['kind']==='train'))],
+  'field'=>['holdout'=>$heldField,'game_key'=>$game,'current'=>$field,'history'=>count($jobs->history('field',$game)),'matches'=>$fieldMatches,'events'=>array_values(array_unique(array_filter(array_map($event,array_keys($fieldMatches))))),'runs'=>array_values(array_filter($requests,fn($r)=>$r['kind']==='train_field'&&($r['game_key']??RobotDetectorJobs::defaultGame())===$game))],
   'actions'=>['latest'=>$latest?['id'=>$latest['id'],'created_at'=>$latest['created_at']]:null,'released'=>$panel['released'],'counts'=>$panel['counts']],
  ];
 }

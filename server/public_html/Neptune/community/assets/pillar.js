@@ -55,7 +55,8 @@
   const m=Object.entries(d.matches),ready=m.filter(([,n])=>n>=d.min_frames),frames=m.reduce((a,[,n])=>a+n,0);
   fill('robot','data',`<dl><dt>Labelled frames</dt><dd>${frames}</dd><dt>Matches</dt><dd>${m.length} (${ready.length} with ${d.min_frames}+ frames)</dd><dt>Events</dt><dd>${d.events.length?d.events.map(esc).join(', '):'—'}</dd></dl>`);
   fill('robot','next',next([
-   [ready.length>=2,`Label ${d.min_frames}+ frames in at least 2 matches (${ready.length} so far). One of them is held back for checking and stays the same every run.`],
+   [ready.length>=2,`Label ${d.min_frames}+ frames in at least 2 matches (${ready.length} so far). One is held back for checking: never one the detector in use learned from.`],
+   ...(d.holdout?[[true,`Next run is checked on <strong>${esc(d.holdout)}</strong>.`]]:[]),
    [d.events.length>=2,`Label matches from a second event so the detector works beyond one venue (${d.events.length} so far).`],
    [!!c,c?'A trained detector is in use. Label more frames and retrain whenever tracking misses robots.':'Train the first detector.'],
   ]));
@@ -71,6 +72,7 @@
   fill('field','data',`<dl><dt>Marked matches</dt><dd>${m.length}</dd><dt>With targets + corners</dt><dd>${ready.length}</dd><dt>Events</dt><dd>${d.events.length?d.events.map(esc).join(', '):'—'}</dd></dl>`);
   fill('field','next',next([
    [ready.length>=2,`Mark scoring targets and all four field corners on at least 2 ${esc(d.game_key)} matches (${ready.length} so far).`],
+   ...(d.holdout?[[true,`Next run is checked on <strong>${esc(d.holdout)}</strong>, a match the detector in use never learned from.`]]:[]),
    [d.events.length>=2,`Mark a match from a second event; camera angles differ between venues (${d.events.length} so far).`],
    [!!c,c?'A trained detector is in use. New events get scoring areas without marking.':'Train the first field detector.'],
   ]));

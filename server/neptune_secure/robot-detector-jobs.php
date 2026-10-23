@@ -36,6 +36,7 @@ final class RobotDetectorJobs {
  public function queue(string $kind,array $p,int $user):array{
   if(!in_array($kind,['prepare','train','train_field'],true))throw new InvalidArgumentException('Unknown request');
   $body=['kind'=>$kind];if($kind==='train_field')$body['game_key']=self::game((string)($p['game_key']??''));
+  if(in_array($kind,['train','train_field'],true)&&preg_match('/^[A-Za-z0-9_-]{1,100}$/D',(string)($p['holdout']??'')))$body['holdout']=$p['holdout'];   // chosen by autoscout_holdout()
   if($kind==='prepare'){$body['video_id']=self::video((string)($p['video_id']??''));$body['match_key']=(string)($p['match_key']??'');if(!preg_match('/^\d{4}[A-Za-z0-9_-]{1,95}$/D',$body['match_key']))throw new InvalidArgumentException('Invalid match');}
   foreach($this->requests() as $r)if(in_array($r['state'],['queued','claimed'],true)&&$r['kind']===$kind&&($r['video_id']??null)===($body['video_id']??null)&&($r['game_key']??null)===($body['game_key']??null))return $r;
   $r=$body+['id'=>bin2hex(random_bytes(12)),'state'=>'queued','created_at'=>time(),'created_by'=>$user,'message'=>'Waiting for a connected helper'];

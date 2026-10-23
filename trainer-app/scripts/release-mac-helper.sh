@@ -19,6 +19,8 @@ find "${E:?}" -maxdepth 1 -type f \( -name 'neptune_*.py' -o -name 'requirements
 for s in "$R"/engine/*; do n=$(basename "$s")
   if [ -f "$s" ] && { { [ "${n##*.}" = py ] && [ "${n#test_}" = "$n" ]; } || [ "$n" = requirements.json ] || [ "$n" = requirements-yolo.txt ] || [ "$n" = requirements-videomae.txt ] || [ "$n" = season_rules.json ]; }; then cp -p "$s" "$E/$n"; fi
 done
+# Shipped detectors and region data live in folders next to the engine files.
+for d in field-regions field-detector robot-detector; do rm -rf "${E:?}/$d"; cp -R "$R/engine/$d" "$E/$d"; done
 rm -f "${E:?}/server_run.py"; find "$A" -name __pycache__ -prune -exec rm -rf {} +
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $NEW" -c "Set :CFBundleVersion $BUILD" "$A/Contents/Info.plist"
 (cd "$R/engine" && python3 -c "import json,neptune_engine;print(json.dumps(neptune_engine.identity()))") > "$A/Contents/Resources/engine-identity.json"
@@ -35,7 +37,7 @@ find "$A" -name __pycache__ -prune -exec rm -rf {} +; codesign --verify --deep -
 /usr/bin/ditto -c -k --sequesterRsrc --keepParent "$A" "$O/Neptune-Training-Helper-$NEW.zip"
 "$SPARKLE" --account neptune-training-helper --download-url-prefix https://neptunefrc.com/community/downloads/mac/ --maximum-deltas 0 "$O" | tail -1
 python3 "$R/trainer-app/scripts/build-native-dmg.py" "$A" "$O/Neptune-Training-Helper.dmg" > "$B/dmg.log" 2>&1
-(cd "$R/engine" && COPYFILE_DISABLE=1 tar --no-xattrs --no-mac-metadata -czf "$O/server-engine-$ENGINE.tar.gz" $(cat SERVER_FILES.txt) neptune_robot_jobs.py neptune_robot_labels.py neptune_steps.py field-regions/*.json field-detector/reference.json field-detector/model.pt robot-detector/manifest.json robot-detector/bumper_wide.pt)
+(cd "$R/engine" && COPYFILE_DISABLE=1 tar --no-xattrs --no-mac-metadata -czf "$O/server-engine-$ENGINE.tar.gz" $(cat SERVER_FILES.txt) neptune_robot_jobs.py neptune_robot_labels.py neptune_steps.py field-regions/*.json field-detector/reference.json field-detector/model.pt field-detector/trained_on.json robot-detector/manifest.json robot-detector/bumper_wide.pt)
 python3 - "$O" "$NEW" "$PUB" <<'EOF'
 import base64,re,subprocess,sys,tempfile
 o,new,pub=sys.argv[1:]

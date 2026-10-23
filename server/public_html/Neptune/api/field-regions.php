@@ -13,7 +13,10 @@ try {
  $p=json_decode($raw,true,16,JSON_THROW_ON_ERROR);
  $base=dirname(__DIR__,3).'/neptune_secure/field-regions';
  if(!empty($p['all'])){
-  $docs=[];foreach(array_merge(glob($base.'/seed-documents/*.json')?:[],glob($base.'/'.(int)$computer['user_id'].'/*.json')?:[]) as $file){if(filesize($file)>2097152)continue;$d=json_decode((string)file_get_contents($file),true,64,JSON_THROW_ON_ERROR);if(is_array($d))$docs[]=$d;}
+  // Each document gets its match name, so Neptune and the helper name the held-out match the same way.
+  $videos=[];foreach($pdo->query('SELECT match_key,source_url FROM community_matches')->fetchAll(PDO::FETCH_ASSOC) as $m){parse_str((string)parse_url((string)$m['source_url'],PHP_URL_QUERY),$q);if(is_string($q['v']??null))$videos[$q['v']]=(string)$m['match_key'];}
+  $docs=[];foreach(array_merge(glob($base.'/seed-documents/*.json')?:[],glob($base.'/'.(int)$computer['user_id'].'/*.json')?:[]) as $file){if(filesize($file)>2097152)continue;$d=json_decode((string)file_get_contents($file),true,64,JSON_THROW_ON_ERROR);if(!is_array($d))continue;
+   $vid=(string)($d['source']['video_id']??preg_replace('/\.[a-z0-9]+$/i','',(string)($d['source']['name']??'')));if(empty($d['source']['match_key'])&&isset($videos[$vid]))$d['source']['match_key']=$videos[$vid];$docs[]=$d;}
   community_training_json_response(['documents'=>$docs]);
  }
  if(isset($p['event'])){

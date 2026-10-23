@@ -6,5 +6,8 @@
    "sha256": "b6a9ea9698ac3e13a59f31e62b7a436f89a397d25a75f9eea6cb65305ec2ac5c",
    "source": "Owner-labelled 2026txcmp1 QM3 (41 frames, 747 bumpers across QM3/QM4); scored on held-out QM4: wide 80% found / 72% right vs 46% / 96% before"
   }
- }
+ },
+ "trained_on": [
+  "2026txcmp1_qm3"
+ ]
 }

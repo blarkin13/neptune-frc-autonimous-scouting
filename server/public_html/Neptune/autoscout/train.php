@@ -49,7 +49,7 @@ try {
     if(!hash_equals($parsed['file_sha256'],(string)($_POST['preview_sha256']??'')))throw new CommunityAnalysisError(422,'The file changed. Preview it again before importing.');$reply=(new CommunityExternalScouting($pdo))->save($parsed,$uid,trim((string)($_POST['source']??'')));
    }
   }
-  elseif($action==='queue_detector'){$kind=(string)($_POST['kind']??'');if(!in_array($kind,['train','train_field'],true))throw new CommunityAnalysisError(422,'Choose a detector.');$reply=['request'=>(new RobotDetectorJobs(dirname(__DIR__,3).'/neptune_secure',(int)$u['organization_id']))->queue($kind,['game_key'=>(string)($games[(string)$season]['game_key']??'')],$uid)];}
+  elseif($action==='queue_detector'){$kind=(string)($_POST['kind']??'');if(!in_array($kind,['train','train_field'],true))throw new CommunityAnalysisError(422,'Choose a detector.');$reply=['request'=>(new RobotDetectorJobs(dirname(__DIR__,3).'/neptune_secure',(int)$u['organization_id']))->queue($kind,['game_key'=>(string)($games[(string)$season]['game_key']??''),'holdout'=>autoscout_train_overview($pdo,$control->panel($season,$uid),(int)$u['organization_id'],$uid,(string)($games[(string)$season]['game_key']??''))[$kind==='train'?'robot':'field']['holdout']],$uid)];}
   elseif($action==='cancel_detector'){try{$reply=(new RobotDetectorJobs(dirname(__DIR__,3).'/neptune_secure',(int)$u['organization_id']))->cancel((string)($_POST['request']??''));}catch(InvalidArgumentException $e){throw new CommunityAnalysisError(422,$e->getMessage());}}
   elseif($action==='rollback_detector'){try{$reply=(new RobotDetectorJobs(dirname(__DIR__,3).'/neptune_secure',(int)$u['organization_id']))->rollback((string)($_POST['which']??''),(string)($games[(string)$season]['game_key']??''));}catch(InvalidArgumentException $e){throw new CommunityAnalysisError(422,$e->getMessage());}}
   elseif($action==='delete_model'){$reply=(new CommunityModelManagement($pdo))->delete($season,(string)($_POST['job']??''),(string)($_POST['confirmation']??''),(string)($_POST['withdraw']??'')==='1');}
@@ -146,5 +146,5 @@ community_page_start($title,$sub,$view,$kick);
 </div>
 <script type="application/json" id="training-initial"><?=json_encode($panel,JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_THROW_ON_ERROR)?></script>
 <script src="../community/assets/training-control.js?v=helper-connection-cleanup-20261022" defer></script>
-<script src="/community/assets/pillar.js?v=3" defer></script>
+<script src="/community/assets/pillar.js?v=4" defer></script>
 <?php community_page_end(); ?>

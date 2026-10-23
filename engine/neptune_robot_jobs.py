@@ -101,10 +101,24 @@ def adopted_holdout(manifest):
         return None
 
 
-def pick_holdout(keys, previous):
-    """The held-out match stays the same run to run, so new and old scores are comparable: the one the adopted
-    detector was checked on while it is still labelled; the first time (or if it was removed), the last by name."""
-    return previous if previous in keys else sorted(keys)[-1]
+def pick_holdout(keys, previous, trained_on=()):
+    """The held-out match: never one the detector in use trained on (else its score is not a fair comparison).
+    Among the rest, the previous one while still eligible (scores stay comparable run to run), else the last by name.
+    Neptune makes this choice when Train is pressed (request 'holdout'); this is the fallback for older requests."""
+    fair = sorted(k for k in keys if k not in set(trained_on)) or sorted(keys)
+    return previous if previous in fair else fair[-1]
+
+
+def adopted_trained_on(manifest):
+    """Matches the adopted (or shipped) detector learned from."""
+    try:
+        doc = json.loads(Path(manifest).read_text())
+    except (OSError, ValueError):
+        return []
+    report = doc.get('report') or {}
+    if doc.get('trained_on') or report.get('trained_on'):
+        return list(doc.get('trained_on') or report['trained_on'])
+    return [m for m in report.get('matches') or [] if m != report.get('holdout_match')]
 
 
 def current_wide_weights():
@@ -234,7 +248,8 @@ def train(config, req, progress):
     usable = sorted(k for k, n in counts.items() if k and n >= MIN_FRAMES_PER_MATCH)
     if len(usable) < 2:
         raise ValueError('Label at least %d frames in two different matches first.' % MIN_FRAMES_PER_MATCH)
-    holdout = pick_holdout(usable, adopted_holdout(SHARED/'manifest.json'))   # checked, never trained on
+    in_use = SHARED/'manifest.json' if (SHARED/'manifest.json').is_file() else Path(__file__).with_name('robot-detector')/'manifest.json'
+    holdout = req.get('holdout') if req.get('holdout') in usable else pick_holdout(usable, adopted_holdout(SHARED/'manifest.json'), adopted_trained_on(in_use))
     work = HOME/'robot-detector-work'/req['id']; work.mkdir(parents=True, exist_ok=True)
     built = labels.build(docs, work/'frames', holdout={holdout}, download=labels.youtube_download, progress=progress)
     config_yaml = prepare_dataset(Path(built['manifest']), work/'dataset')
@@ -257,7 +272,7 @@ def train(config, req, progress):
     new = evaluate(best, check)
     current = current_wide_weights(); old = evaluate(current, check) if current else None
     adopt = old is None or new['f1'] >= old['f1']+ADOPT_MARGIN
-    report = {'engine': VERSION, 'holdout_match': holdout, 'frames': built['frames'], 'train_frames': built['train'], 'check_frames': built['val'],
+    report = {'engine': VERSION, 'holdout_match': holdout, 'trained_on': [m for m in usable if m != holdout], 'frames': built['frames'], 'train_frames': built['train'], 'check_frames': built['val'],
               'bumpers': built['boxes'], 'matches': usable, 'new': new, 'current': old, 'adopted': adopt, 'margin': ADOPT_MARGIN, 'skipped': built['skipped']}
     progress('Making the review video')
     report['review'] = send_review(config, req, report, lambda out: __import__('neptune_review_video').robot_video(out, check, best, current, report))
@@ -376,8 +391,11 @@ def train_field(config, req, progress):
     if len(docs) < 2:
         raise ValueError('Mark scoring targets and the four field corners on at least two %s matches first.' % game)
     docs.sort(key=lambda d: ((d.get('source') or {}).get('match_key') or '', doc_video(d)))
-    doc_key = lambda d: (d.get('source') or {}).get('match_key') or doc_video(d)
-    held_key = pick_holdout([doc_key(d) for d in docs], adopted_holdout(fd.shared_dir(game)/'manifest.json'))
+    doc_key = lambda d: (d.get('source') or {}).get('match_key') or doc_video(d)   # Neptune adds match_key
+    keys = [doc_key(d) for d in docs]
+    shipped = json.loads((fd.model_dir()/'trained_on.json').read_text()).get(game, []) if (fd.model_dir()/'trained_on.json').is_file() else []
+    in_use = adopted_trained_on(fd.shared_dir(game)/'manifest.json') if (fd.shared_dir(game)/'manifest.json').is_file() else shipped
+    held_key = req.get('holdout') if req.get('holdout') in keys else pick_holdout(keys, adopted_holdout(fd.shared_dir(game)/'manifest.json'), in_use)
     holdout = next(d for d in docs if doc_key(d) == held_key)   # checked, never trained on
     work = HOME/'field-detector-work'/req['id']; data = work/'dataset'; held = []
     for split in ('train', 'val'):
@@ -407,7 +425,7 @@ def train_field(config, req, progress):
     new = placement(best, held, holdout)
     current = fd.model_path(game); old = placement(current, held, holdout) if current else None
     adopt = better_placement(new, old)
-    report = {'engine': VERSION, 'game_key': game, 'holdout_match': key, 'matches': len(docs), 'new': new, 'current': old, 'adopted': adopt, 'margin': FIELD_ADOPT_MARGIN}
+    report = {'engine': VERSION, 'game_key': game, 'holdout_match': key, 'trained_on': [k for k in keys if k != key], 'matches': len(docs), 'new': new, 'current': old, 'adopted': adopt, 'margin': FIELD_ADOPT_MARGIN}
     progress('Making the review video')
     report['review'] = send_review(config, req, report, lambda out: __import__('neptune_review_video').field_video(out, held, best, holdout, report))
     if adopt:
