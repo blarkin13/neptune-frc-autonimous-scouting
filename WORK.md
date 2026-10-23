@@ -1,5 +1,18 @@
 # Work log (newest first)
 
+## 2026-10-23 — Claude: helper 3.2.13 (engine 2.7.0-identity-coverage) + robot-detector jobs
+- Measured with full re-tracks vs the hybrid detector alone (same clip-planner fix in both):
+  QM3 named 1,860 -> 2,887, median coverage 0.22 -> 0.38, usable label clips 191 -> 209 of 379;
+  QM4 named 2,501 -> 3,094, coverage 0.34 -> 0.41, clips 128 -> 136 of 316 (87 with 3.2.11 as shipped).
+  Agreement with OCR-confirmed identities 99.9% on both.
+- Robot detector jobs (`neptune_robot_jobs`, `api/robot-detector.php`, `neptune_secure/robot-detector-jobs.php`):
+  the Robot labels page queues "Prepare frames" and "Train robot detector"; idle helpers claim them. Training
+  uses every completed label (site + seeds), holds out the newest match, adopts on Neptune only if held-out F1
+  beats the current detector by 0.02; helpers download the adopted detector hourly. Robot labels autosaves drafts.
+- One failed Apple Vision call no longer aborts a match's tracking (skips that frame; >20% failures still fail).
+- Clips continue across a confirmed contact (`carried_from`).
+- Built from the 3.2.12 app; 442 tests pass on the bundled Python; appcast signature verified; DMG valid.
+
 ## 2026-10-23 — Claude: identity coverage (engine 2.7.0-identity-coverage-preview1)
 1. Stopping a tracking review no longer saves "tracking unavailable" (InterruptedError is re-raised, so the
    match tracks next time). Training reports each match's tracking status/reason. Found and fixed: the clip
