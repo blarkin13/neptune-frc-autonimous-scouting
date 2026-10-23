@@ -58,17 +58,17 @@
  }
  function field(d,busy){
   const c=d.current,rep=c?.report||{};
-  slot('field','current').innerHTML=c?`<dl><dt>Adopted</dt><dd>${when(c.adopted_at)}</dd><dt>Held-out match</dt><dd>${esc(rep.holdout_match||'—')}</dd><dt>Hubs & corners</dt><dd>${placed(rep.new)}</dd><dt>Learned from</dt><dd>${rep.matches??'—'} matches</dd></dl>`:'<p>The built-in detector that came with the helper. It has not been retrained here yet.</p>';
+  slot('field','current').innerHTML=c?`<dl><dt>Adopted</dt><dd>${when(c.adopted_at)}</dd><dt>Held-out match</dt><dd>${esc(rep.holdout_match||'—')}</dd><dt>Targets & corners</dt><dd>${placed(rep.new)}</dd><dt>Learned from</dt><dd>${rep.matches??'—'} matches</dd></dl>`:`<p>No field detector has been trained for ${esc(d.game_key)} here yet.</p>`;
   part('field').querySelector('[data-rollback]').hidden=!d.history;
   const m=Object.entries(d.matches),ready=m.filter(([,v])=>v.targets&&v.corners);
-  slot('field','data').innerHTML=`<dl><dt>Marked matches</dt><dd>${m.length}</dd><dt>With hubs + corners</dt><dd>${ready.length}</dd><dt>Events</dt><dd>${d.events.length?d.events.map(esc).join(', '):'—'}</dd></dl>`;
+  slot('field','data').innerHTML=`<dl><dt>Marked matches</dt><dd>${m.length}</dd><dt>With targets + corners</dt><dd>${ready.length}</dd><dt>Events</dt><dd>${d.events.length?d.events.map(esc).join(', '):'—'}</dd></dl>`;
   slot('field','next').innerHTML=next([
-   [ready.length>=2,`Mark hubs and all four field corners on at least 2 matches (${ready.length} so far).`],
+   [ready.length>=2,`Mark scoring targets and all four field corners on at least 2 ${esc(d.game_key)} matches (${ready.length} so far).`],
    [d.events.length>=2,`Mark a match from a second event; camera angles differ between venues (${d.events.length} so far).`],
    [!!c,c?'A trained detector is in use. New events get scoring areas without marking.':'Train the first field detector.'],
   ]);
   const btn=part('field').querySelector('[data-train]');btn.disabled=busy||ready.length<2;
-  slot('field','train-note').textContent=busy?'A field detector run is already queued or running.':ready.length<2?'Needs hubs and corners on 2 matches first.':'Takes about 20–40 minutes on a helper. It only switches if hubs and corners land closer.';
+  slot('field','train-note').textContent=busy?'A field detector run is already queued or running.':ready.length<2?'Needs scoring targets and corners on 2 matches of this game first.':'Takes about 20–40 minutes on a helper. It only switches if targets and corners land closer.';
   slot('field','runs').innerHTML=runs(d.runs,r=>`${placed(r.new)} vs ${r.current?placed(r.current):'none'}`);
   return {needs:!c||ready.length<2};
  }

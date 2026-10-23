@@ -22,7 +22,7 @@ try {
   'prefill_put'=>$jobs->putPrefill($computer,$p),
   'current'=>$jobs->current(isset($p['have'])?(string)$p['have']:null),
   'adopt'=>$jobs->adopt($computer,$p),
-  'current_field'=>$jobs->currentField(isset($p['have'])?(string)$p['have']:null),
+  'current_field'=>$jobs->currentField(isset($p['have'])?(string)$p['have']:null,isset($p['game_key'])?(string)$p['game_key']:null),
   'adopt_field'=>$jobs->adoptField($computer,$p),
   default=>throw new CommunityAnalysisError(422,'Unknown action.'),
  };

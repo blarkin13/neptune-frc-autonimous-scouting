@@ -3,8 +3,8 @@
   prepare  run the current detector on a match's labelling frames and upload its boxes as pre-fill
   train    train a wide-shot bumper detector from every completed robot label, score it against the current
            detector on a held-out match, and adopt it on Neptune only if it is better
-  train_field  the same for the field detector (hubs + field corners for the top-down map), from every match
-           marked on Scoring areas; adopted only if it places hubs and corners better on a held-out match
+  train_field  the same for the field detector (scoring targets + field corners for the top-down map), one per game, from every match
+           marked on Scoring areas; adopted only if it places targets and corners better on a held-out match
 Adopted detectors are shared through Neptune; every helper keeps a copy in ~/.neptune-trainer/robot-detector.
 """
 import base64
@@ -18,7 +18,6 @@ from pathlib import Path
 VERSION = 'robot-detector-jobs-v1'
 HOME = Path.home()/'.neptune-trainer'
 SHARED = HOME/'robot-detector'
-SHARED_FIELD = HOME/'field-detector'
 FIELD_ADOPT_MARGIN = .002         # mean placement error must improve by this much (fraction of frame width)
 FRAME_STEP_S = 4.0
 WIDE_BAND = (.24, .6506)          # 2026 broadcast wide-camera band (normalized y)
@@ -220,19 +219,25 @@ def train(config, req, progress):
 
 # ---------- field detector ----------
 
-def sync_field_detector(config):
-    """Download Neptune's adopted field detector when it differs from this computer's copy."""
-    manifest = SHARED_FIELD/'manifest.json'
+def sync_field_detector(config, game_key=None):
+    """Download Neptune's adopted field detector for one game (or every configured game) when it differs."""
+    import neptune_field_detector as fd
+    if game_key is None:
+        seasons = json.loads(Path(__file__).with_name('season_rules.json').read_text())['seasons'].values()
+        return {s['game_key']: sync_field_detector(config, s['game_key']) for s in seasons if s.get('configured') and s.get('game_key')}
+    folder = fd.shared_dir(game_key); manifest = folder/'manifest.json'
     have = json.loads(manifest.read_text()).get('sha256') if manifest.is_file() else None
-    reply = api(config, 'current_field', {'have': have})
+    reply = api(config, 'current_field', {'have': have, 'game_key': game_key})
     current = reply.get('detector')
     if not current or not reply.get('weights_b64'):
         return {'status': 'unchanged' if current else 'none_adopted'}
     raw = base64.b64decode(reply['weights_b64'])
     if hashlib.sha256(raw).hexdigest() != current['sha256']:
         raise ValueError('Shared field detector failed verification')
-    SHARED_FIELD.mkdir(parents=True, exist_ok=True)
-    tmp = SHARED_FIELD/'model.pending'; tmp.write_bytes(raw); tmp.replace(SHARED_FIELD/'model.pt')
+    folder.mkdir(parents=True, exist_ok=True)
+    tmp = folder/'model.pending'; tmp.write_bytes(raw); tmp.replace(folder/'model.pt')
+    if isinstance(reply.get('reference'), dict):
+        tmp = folder/'reference.pending'; tmp.write_text(json.dumps(reply['reference'])); tmp.replace(folder/'reference.json')
     tmp = manifest.with_suffix('.pending'); tmp.write_text(json.dumps(current)); tmp.replace(manifest)
     return {'status': 'updated', 'sha256': current['sha256']}
 
@@ -272,7 +277,7 @@ def sample_frames(video, step=2.0):
 
 
 def placement(weights, frames, doc):
-    """How close a field detector puts hubs and corners to where they were marked on a held-out match."""
+    """How close a field detector puts scoring targets and corners to where they were marked on a held-out match."""
     import neptune_field_detector as fd
     from ultralytics import YOLO
     model = YOLO(str(weights)); per = []
@@ -305,17 +310,20 @@ def better_placement(new, old):
 
 
 def train_field(config, req, progress):
-    """Train the field detector from every marked match; adopt only if it places hubs/corners better."""
+    """Train one game's field detector from every match marked for that game; adopt only if it places scoring
+    targets and field corners better on a held-out match."""
     import os
     os.environ.setdefault('YOLO_OFFLINE', '1')
     import cv2
     from ultralytics import YOLO
     import neptune_field_detector as fd
     from neptune_yolo import bundle, bundle_path
+    game = req.get('game_key') or fd.shipped_game()
     progress('Downloading scoring areas')
-    docs = [d for d in region_documents(config) if doc_video(d) and fd.yolo_labels(d)]
+    docs = [dict(d, regions=[r for r in d.get('regions', []) if r.get('game_key') == game]) for d in region_documents(config)]
+    docs = [d for d in docs if doc_video(d) and fd.yolo_labels(d)]
     if len(docs) < 2:
-        raise ValueError('Mark scoring areas (hubs and the field outline) on at least two matches first.')
+        raise ValueError('Mark scoring targets and the four field corners on at least two %s matches first.' % game)
     docs.sort(key=lambda d: ((d.get('source') or {}).get('match_key') or '', doc_video(d)))
     holdout = docs[-1]                 # the most recent match is checked, never trained on
     work = HOME/'field-detector-work'/req['id']; data = work/'dataset'; held = []
@@ -342,13 +350,15 @@ def train_field(config, req, progress):
     key = (holdout.get('source') or {}).get('match_key') or doc_video(holdout)
     progress('Comparing new and current field detector on '+key)
     new = placement(best, held, holdout)
-    current = fd.model_path(); old = placement(current, held, holdout) if current else None
+    current = fd.model_path(game); old = placement(current, held, holdout) if current else None
     adopt = better_placement(new, old)
-    report = {'engine': VERSION, 'holdout_match': key, 'matches': len(docs), 'new': new, 'current': old, 'adopted': adopt, 'margin': FIELD_ADOPT_MARGIN}
+    report = {'engine': VERSION, 'game_key': game, 'holdout_match': key, 'matches': len(docs), 'new': new, 'current': old, 'adopted': adopt, 'margin': FIELD_ADOPT_MARGIN}
     if adopt:
         progress('Sharing the new field detector with Neptune')
-        api(config, 'adopt_field', {'request_id': req['id'], 'lease': req['lease'], 'weights_b64': base64.b64encode(best.read_bytes()).decode(), 'report': report}, timeout=600)
-        sync_field_detector(config)
+        # The held-out match's marks travel with the detector: unmarked events of this game are matched against them.
+        api(config, 'adopt_field', {'request_id': req['id'], 'lease': req['lease'], 'weights_b64': base64.b64encode(best.read_bytes()).decode(),
+                                    'reference': holdout, 'report': report}, timeout=600)
+        sync_field_detector(config, game)
     return report
 
 
@@ -374,7 +384,7 @@ def run_pending(config, progress, busy=lambda value: None):
         result = prepare(config, req, report) if req['kind'] == 'prepare' else train_field(config, req, report) if req['kind'] == 'train_field' else train(config, req, report)
         fmt = lambda p: 'none found' if not p or not p['found'] else '%d/%d within %.1f%%' % (p['found'], p['expected'], p['mean_error']*100)
         message = ('Prepared %d frames' % result['frames']) if req['kind'] == 'prepare' else \
-            (('Adopted: hubs/corners %s vs %s' if result['adopted'] else 'Kept the current field detector: new %s vs %s') % (fmt(result['new']), fmt(result['current']))) if req['kind'] == 'train_field' else \
+            (('Adopted: targets/corners %s vs %s' if result['adopted'] else 'Kept the current field detector: new %s vs %s') % (fmt(result['new']), fmt(result['current']))) if req['kind'] == 'train_field' else \
             ('Adopted: held-out F1 %.2f vs %s' % (result['new']['f1'], '%.2f' % result['current']['f1'] if result['current'] else 'none')) if result['adopted'] else \
             ('Kept the current detector: new held-out F1 %.2f vs %.2f' % (result['new']['f1'], result['current']['f1']))
         api(config, 'finish', {'request_id': req['id'], 'lease': req['lease'], 'ok': True, 'message': message, 'report': result})

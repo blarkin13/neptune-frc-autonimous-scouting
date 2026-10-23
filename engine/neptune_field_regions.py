@@ -115,11 +115,11 @@ def load(facts,game_key,root=None,allow_detected=True):
 def detect_if_unmarked(video,facts,game_key,progress=lambda s:None):
     """Run the learned field detector for a video with no marked regions; cache its result for this video."""
     if load(facts,game_key,allow_detected=False):return {'status':'marked_regions_available'}
-    from neptune_field_detector import detect,model_dir
-    reference=model_dir()/'reference.json'
-    if not reference.is_file():return {'status':'no_field_detector'}
+    from neptune_field_detector import detect,reference
+    ref=reference(game_key)
+    if not ref:return {'status':'no_field_detector'}
     progress('Finding scoring areas and field corners')
-    try:result=detect(video,facts,json.loads(reference.read_text()))
+    try:result=detect(video,facts,ref,game_key=game_key)
     except Exception as error:return {'status':'detector_failed','error_type':type(error).__name__}
     if result.get('document'):
         folder=Path.home()/'.neptune-trainer/field-regions/detected';folder.mkdir(parents=True,exist_ok=True)

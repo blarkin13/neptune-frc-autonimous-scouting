@@ -18,7 +18,7 @@ $control=new CommunityTrainingControl($pdo);$games=community_learning_games();$s
 if(!isset($games[(string)$season]))$season=(int)gmdate('Y');
 try {
  if($_SERVER['REQUEST_METHOD']==='GET'&&isset($_GET['panel'])){json_response($control->panel($season,$uid,(string)($_GET['job']??'')));exit;}
- if($_SERVER['REQUEST_METHOD']==='GET'&&isset($_GET['overview'])){session_write_close();json_response(autoscout_train_overview($pdo,$control->panel($season,$uid),(int)$u['organization_id'],$uid));exit;}
+ if($_SERVER['REQUEST_METHOD']==='GET'&&isset($_GET['overview'])){session_write_close();json_response(autoscout_train_overview($pdo,$control->panel($season,$uid),(int)$u['organization_id'],$uid,(string)($games[(string)$season]['game_key']??'')));exit;}
  if($_SERVER['REQUEST_METHOD']==='GET'&&isset($_GET['server_check'])){json_response(community_training_server_health($_GET['server_check']!=='poll'));exit;}
  if($_SERVER['REQUEST_METHOD']==='GET'&&isset($_GET['cleanup_preview'])){json_response(community_storage_cleanup(['action'=>'preview']));exit;}
  if($_SERVER['REQUEST_METHOD']==='GET'&&isset($_GET['events'])){session_write_close();json_response(['events'=>(new CommunityCatalog($pdo))->events($season)]);exit;}
@@ -48,8 +48,8 @@ try {
     if(!hash_equals($parsed['file_sha256'],(string)($_POST['preview_sha256']??'')))throw new CommunityAnalysisError(422,'The file changed. Preview it again before importing.');$reply=(new CommunityExternalScouting($pdo))->save($parsed,$uid,trim((string)($_POST['source']??'')));
    }
   }
-  elseif($action==='queue_detector'){$kind=(string)($_POST['kind']??'');if(!in_array($kind,['train','train_field'],true))throw new CommunityAnalysisError(422,'Choose a detector.');$reply=['request'=>(new RobotDetectorJobs(dirname(__DIR__,3).'/neptune_secure',(int)$u['organization_id']))->queue($kind,[],$uid)];}
-  elseif($action==='rollback_detector'){try{$reply=(new RobotDetectorJobs(dirname(__DIR__,3).'/neptune_secure',(int)$u['organization_id']))->rollback((string)($_POST['which']??''));}catch(InvalidArgumentException $e){throw new CommunityAnalysisError(422,$e->getMessage());}}
+  elseif($action==='queue_detector'){$kind=(string)($_POST['kind']??'');if(!in_array($kind,['train','train_field'],true))throw new CommunityAnalysisError(422,'Choose a detector.');$reply=['request'=>(new RobotDetectorJobs(dirname(__DIR__,3).'/neptune_secure',(int)$u['organization_id']))->queue($kind,['game_key'=>(string)($games[(string)$season]['game_key']??'')],$uid)];}
+  elseif($action==='rollback_detector'){try{$reply=(new RobotDetectorJobs(dirname(__DIR__,3).'/neptune_secure',(int)$u['organization_id']))->rollback((string)($_POST['which']??''),(string)($games[(string)$season]['game_key']??''));}catch(InvalidArgumentException $e){throw new CommunityAnalysisError(422,$e->getMessage());}}
   elseif($action==='delete_model'){$reply=(new CommunityModelManagement($pdo))->delete($season,(string)($_POST['job']??''),(string)($_POST['confirmation']??''),(string)($_POST['withdraw']??'')==='1');}
   elseif($action==='reset_machine_data'){$reply=community_reset_machine_data($pdo,(string)($_POST['confirmation']??''));}
   elseif($action==='cleanup_downloads'){$reply=community_storage_cleanup(['action'=>'delete','fingerprint'=>(string)($_POST['fingerprint']??'')]);}
@@ -93,10 +93,10 @@ require_once dirname(__DIR__).'/community/layout.php';community_page_start('Trai
   <div class="tt-card"><span class="stage-label">PAST RUNS</span><div data-slot="runs"></div></div>
  </section>
  <section class="tt-part" data-part="field">
-  <p class="tt-how">Finds the hubs and the four field corners, so every event gets scoring areas and the top-down map without marking. Mark hubs and corners on <strong>Scoring areas</strong> for a few matches, then press Train. Your helper checks the new detector on the newest marked match and only switches if it places hubs and corners better.</p>
+  <p class="tt-how">Finds this game’s scoring targets and the four field corners, so every event gets scoring areas and the top-down map without marking. Each game has its own field detector: choose the game at the top. Mark scoring targets and corners on <strong>Scoring areas</strong> for a few matches, then press Train. Your helper checks the new detector on the newest marked match and only switches if it places targets and corners better.</p>
   <div class="tt-grid">
    <div class="tt-card"><span class="stage-label">MODEL IN USE</span><div data-slot="current">Loading…</div><button type="button" class="button-secondary tt-undo" data-rollback="field" hidden>Go back to the previous model</button></div>
-   <div class="tt-card"><span class="stage-label">YOUR DATA</span><div data-slot="data">Loading…</div><a href="scoring-areas.php">Mark hubs and corners on Scoring areas →</a></div>
+   <div class="tt-card"><span class="stage-label">YOUR DATA</span><div data-slot="data">Loading…</div><a href="scoring-areas.php">Mark scoring targets and corners on Scoring areas →</a></div>
   </div>
   <div class="tt-card tt-next"><span class="stage-label">WHAT’S NEEDED NEXT</span><ul data-slot="next"><li>Loading…</li></ul><button type="button" data-train="field">Train field detector</button><p class="training-note" data-slot="train-note"></p></div>
   <div class="tt-card"><span class="stage-label">PAST RUNS</span><div data-slot="runs"></div></div>
@@ -112,7 +112,7 @@ require_once dirname(__DIR__).'/community/layout.php';community_page_start('Trai
  <section id="training-reports"><span class="stage-label">YOUR TRAINING RESULTS</span><div class="training-section-head"><h2>What happened to the data?</h2><label>Run <select id="run-history" aria-label="Choose a saved run"></select></label></div><p>Human observations stay in Neptune’s database. The selected computer reads the videos and prepares examples. It sends the model and report back here; your human tags are kept separate.</p><div id="training-result" aria-live="polite"></div><a id="download-report" hidden>Download this report</a><details class="training-more"><summary>Where things are saved</summary><ul><li><strong>Neptune:</strong> human tags, scoring estimates, training reports, model files, prediction results and release status.</li><li><strong>Training computer:</strong> downloaded videos, text readings and extracted video examples, reused for later runs.</li><li><strong>A prediction:</strong> an experimental model result. It does not replace a person’s scouting or become training truth automatically.</li></ul></details></section>
  <section id="saved-models"><span class="stage-label">MANAGE MODELS</span><h2>Saved models</h2><p>Review models for this game and delete ones you no longer want. Training reports, prediction results, human tags and imported scouting are kept.</p><div id="saved-model-list"></div><p class="training-note">Sizes show the saved model payload, not total training storage. Deleting a model lets MySQL reuse its space; it may not immediately reduce the database file on disk. Helper caches and shared tracking models are separate.</p><p id="saved-model-message" role="status"></p></section>
  <section id="outside-scouting"><span class="stage-label">MORE DATA · OPTIONAL</span><h2>Bring your scouting data.</h2><p>Drop an export, check its columns and match videos, then import it. Saved imports appear in your next training batch alongside human tags.</p>
- <div class="source-links"><a href="https://public.viperscout.com/export.html" target="_blank" rel="noopener"><strong>ViperScout ↗</strong><span>Ready-made adapter · 2026 CSV / event JSON</span></a><a href="https://github.com/PWNAGERobotics/ScoutingPASS" target="_blank" rel="noopener"><strong>ScoutingPASS ↗</strong><span>Team exports · map action columns when available</span></a><a href="https://www.thebluealliance.com/apidocs/v3" target="_blank" rel="noopener"><strong>The Blue Alliance ↗</strong><span>Match videos, rosters and alliance results</span></a></div>
+ <div class="source-links"><a href="https://public.viperscout.com/export.html" target="_blank" rel="noopener"><strong>ViperScout ↗</strong><span>Ready-made adapter · season CSV / event JSON</span></a><a href="https://github.com/PWNAGERobotics/ScoutingPASS" target="_blank" rel="noopener"><strong>ScoutingPASS ↗</strong><span>Team exports · map action columns when available</span></a><a href="https://www.thebluealliance.com/apidocs/v3" target="_blank" rel="noopener"><strong>The Blue Alliance ↗</strong><span>Match videos, rosters and alliance results</span></a></div>
  <p class="training-note">Potential sources have different formats and availability. Match totals and alliance results do not identify a robot’s timed actions. Other team exports need one action per row with a robot, match, phase and timestamp; use the mapping option below. Nested or aggregate-only exports need their own adapter.</p>
  <div class="import-steps"><span>1. Choose a file</span><span>2. Preview &amp; check videos</span><span>3. Import into training</span></div>
  <div class="training-field-grid import-grid">
@@ -153,5 +153,5 @@ require_once dirname(__DIR__).'/community/layout.php';community_page_start('Trai
 </div>
 <script type="application/json" id="training-initial"><?=json_encode($panel,JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_THROW_ON_ERROR)?></script>
 <script src="../community/assets/training-control.js?v=helper-connection-cleanup-20261022" defer></script>
-<script src="../community/assets/train-tabs.js?v=2" defer></script>
+<script src="../community/assets/train-tabs.js?v=3" defer></script>
 <?php community_page_end(); ?>

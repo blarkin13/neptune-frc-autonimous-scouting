@@ -6,7 +6,7 @@ declare(strict_types=1);
  * Kept apart from the action-model job tables on purpose. Files live under neptune_secure/robot-detector/<org>/:
  *   requests/<id>.json   queued / claimed / done requests
  *   current/             the adopted wide-shot bumper detector (manifest.json + weights) every helper downloads
- *   field-current/       the adopted field detector (hubs + field corners for the top-down map)
+ *   field-current/<game>/ each game's adopted field detector (scoring targets + field corners) and its reference marks
  *   prefill/<video>.json detector boxes for Robot labels frames
  */
 final class RobotDetectorJobs {
@@ -17,14 +17,27 @@ final class RobotDetectorJobs {
   $tmp=tempnam(dirname($file),'pending-');if($tmp===false||file_put_contents($tmp,json_encode($data,JSON_THROW_ON_ERROR),LOCK_EX)===false)throw new RuntimeException('Could not save');
   chmod($tmp,0600);if(!rename($tmp,$file))throw new RuntimeException('Could not commit save');
  }
+ private static function game(string $g):string{if(!preg_match('/^\d{4}-[a-z0-9-]{1,40}$/D',$g))throw new InvalidArgumentException('Invalid game');return $g;}
+ /** The newest configured game: what helpers that predate per-game field detectors get. */
+ public static function defaultGame():string{
+  $f=__DIR__.'/community-learning/season_rules.json';$s=is_file($f)?(json_decode((string)file_get_contents($f),true)['seasons']??[]):[];krsort($s);
+  foreach($s as $x)if(!empty($x['configured'])&&!empty($x['game_key']))return $x['game_key'];return '2026-rebuilt';
+ }
+ /** One folder per game. The single pre-season-split detector moves into its game's folder on first use. */
+ private function fieldDir(string $game,bool $history=false):string{
+  $root=$this->root.'/'.($history?'field-history':'field-current');$legacy=$root.'/manifest.json';
+  if(!$history&&is_file($legacy)){$m=json_decode((string)file_get_contents($legacy),true);$to=$this->dir('field-current/'.self::game((string)($m['report']['game_key']??self::defaultGame())));foreach(glob($root.'/*',GLOB_NOSORT)?:[] as $f)if(is_file($f))rename($f,$to.'/'.basename($f));}
+  if($history&&is_dir($root)){foreach(glob($root.'/*/manifest.json')?:[] as $f){$d=dirname($f);if(preg_match('/^\d{8}-\d{6}$/',basename($d)))rename($d,$this->dir('field-history/'.self::defaultGame()).'/'.basename($d));}}
+  return $this->dir(($history?'field-history/':'field-current/').self::game($game));
+ }
  private static function video(string $v):string{if(!preg_match('/^[A-Za-z0-9_-]{11}$/D',$v))throw new InvalidArgumentException('Invalid video');return $v;}
 
  /** Queue a request from the website. Re-queuing the same open request returns the existing one. */
  public function queue(string $kind,array $p,int $user):array{
   if(!in_array($kind,['prepare','train','train_field'],true))throw new InvalidArgumentException('Unknown request');
-  $body=['kind'=>$kind];
+  $body=['kind'=>$kind];if($kind==='train_field')$body['game_key']=self::game((string)($p['game_key']??''));
   if($kind==='prepare'){$body['video_id']=self::video((string)($p['video_id']??''));$body['match_key']=(string)($p['match_key']??'');if(!preg_match('/^\d{4}[A-Za-z0-9_-]{1,95}$/D',$body['match_key']))throw new InvalidArgumentException('Invalid match');}
-  foreach($this->requests() as $r)if(in_array($r['state'],['queued','claimed'],true)&&$r['kind']===$kind&&($r['video_id']??null)===($body['video_id']??null))return $r;
+  foreach($this->requests() as $r)if(in_array($r['state'],['queued','claimed'],true)&&$r['kind']===$kind&&($r['video_id']??null)===($body['video_id']??null)&&($r['game_key']??null)===($body['game_key']??null))return $r;
   $r=$body+['id'=>bin2hex(random_bytes(12)),'state'=>'queued','created_at'=>time(),'created_by'=>$user,'message'=>'Waiting for a connected helper'];
   self::write($this->dir('requests').'/'.$r['id'].'.json',$r);return $r;
  }
@@ -77,37 +90,40 @@ final class RobotDetectorJobs {
   if($have!==($manifest['by_camera']['wide']['sha256']??null)){$w=$this->root.'/current/'.($manifest['by_camera']['wide']['file']??'');if(is_file($w))$out['weights_b64']=base64_encode((string)file_get_contents($w));}
   return $out;
  }
- /** The adopted field detector (hubs + corners); weights only when the helper's copy differs. */
- public function currentField(?string $have=null):array{
-  $m=$this->root.'/field-current/manifest.json';if(!is_file($m))return ['detector'=>null];
+ /** A game's adopted field detector and reference marks; weights only when the helper's copy differs. */
+ public function currentField(?string $have=null,?string $game=null):array{
+  $dir=$this->fieldDir($game??self::defaultGame());$m=$dir.'/manifest.json';if(!is_file($m))return ['detector'=>null];
   $manifest=json_decode((string)file_get_contents($m),true);$out=['detector'=>$manifest];
-  if($have!==($manifest['sha256']??null)){$w=$this->root.'/field-current/'.($manifest['file']??'');if(is_file($w))$out['weights_b64']=base64_encode((string)file_get_contents($w));}
+  if($have!==($manifest['sha256']??null)){$w=$dir.'/'.($manifest['file']??'');if(is_file($w))$out['weights_b64']=base64_encode((string)file_get_contents($w));$r=$dir.'/reference.json';if(is_file($r))$out['reference']=json_decode((string)file_get_contents($r),true);}
   return $out;
  }
- /** Adopt a field detector that placed hubs and corners better on a held-out match. Previous one is kept. */
+ /** Adopt a field detector that placed targets and corners better on a held-out match of its game. Previous one is kept. */
  public function adoptField(array $computer,array $p):array{
   $r=$this->owned($computer,$p);if($r['kind']!=='train_field')throw new InvalidArgumentException('Only a field training request can adopt a field detector');
   $raw=base64_decode((string)($p['weights_b64']??''),true);if($raw===false||strlen($raw)<1000||strlen($raw)>60*1024*1024)throw new InvalidArgumentException('Invalid detector weights');
-  $sha=hash('sha256',$raw);$cur=$this->dir('field-current');$old=$cur.'/manifest.json';
-  if(is_file($old)){$hist=$this->dir('field-history/'.date('Ymd-His'));foreach(glob($cur.'/*')?:[] as $f)copy($f,$hist.'/'.basename($f));}
+  $game=self::game((string)($r['game_key']??self::defaultGame()));$sha=hash('sha256',$raw);$cur=$this->fieldDir($game);$old=$cur.'/manifest.json';
+  if(is_file($old)){$hist=$this->dir('field-history/'.$game.'/'.date('Ymd-His'));foreach(glob($cur.'/*')?:[] as $f)copy($f,$hist.'/'.basename($f));}
   $file='field_'.substr($sha,0,12).'.pt';file_put_contents($cur.'/'.$file,$raw,LOCK_EX);chmod($cur.'/'.$file,0600);
   foreach(glob($cur.'/field_*.pt')?:[] as $f)if(basename($f)!==$file)unlink($f);
-  self::write($old,['schema_version'=>1,'file'=>$file,'sha256'=>$sha,'adopted_at'=>time(),'request_id'=>$r['id'],'report'=>is_array($p['report']??null)?$p['report']:[]]);
+  if(is_array($p['reference']??null))self::write($cur.'/reference.json',$p['reference']);
+  self::write($old,['schema_version'=>2,'game_key'=>$game,'file'=>$file,'sha256'=>$sha,'adopted_at'=>time(),'request_id'=>$r['id'],'report'=>is_array($p['report']??null)?$p['report']:[]]);
   return ['ok'=>true,'sha256'=>$sha];
  }
- /** Earlier adopted detectors, newest first: ['robot'|'field'] -> [{stamp, manifest}]. */
- public function history(string $which):array{
-  $out=[];foreach(array_reverse(glob($this->root.'/'.($which==='field'?'field-history':'history').'/*/manifest.json')?:[]) as $m){$d=json_decode((string)file_get_contents($m),true);if(is_array($d))$out[]=['stamp'=>basename(dirname($m)),'manifest'=>$d];}
+ /** Earlier adopted detectors, newest first. The field detector's history is per game. */
+ public function history(string $which,?string $game=null):array{
+  $dir=$which==='field'?$this->fieldDir($game??self::defaultGame(),true):$this->root.'/history';
+  $out=[];foreach(array_reverse(glob($dir.'/*/manifest.json')?:[]) as $m){$d=json_decode((string)file_get_contents($m),true);if(is_array($d))$out[]=['stamp'=>basename(dirname($m)),'manifest'=>$d];}
   return $out;
  }
  /** Go back to the previous adopted detector. The one replaced is set aside, not deleted. Helpers pick it up on their next hourly sync. */
- public function rollback(string $which):array{
+ public function rollback(string $which,?string $game=null):array{
   if(!in_array($which,['robot','field'],true))throw new InvalidArgumentException('Unknown detector');
-  $hist=$this->root.'/'.($which==='field'?'field-history':'history');$cur=$this->root.'/'.($which==='field'?'field-current':'current');
+  $game=$which==='field'?self::game($game??self::defaultGame()):null;
+  $hist=$which==='field'?$this->fieldDir($game,true):$this->root.'/history';$cur=$which==='field'?$this->fieldDir($game):$this->dir('current');
   $dirs=glob($hist.'/*',GLOB_ONLYDIR)?:[];if(!$dirs)throw new InvalidArgumentException('There is no earlier detector to go back to.');
-  $prev=end($dirs);$aside=$this->dir(($which==='field'?'field-':'').'undone/'.date('Ymd-His'));
+  $prev=end($dirs);$aside=$this->dir(($which==='field'?'field-undone/'.$game.'/':'undone/').date('Ymd-His'));
   foreach(glob($cur.'/*')?:[] as $f)rename($f,$aside.'/'.basename($f));
-  foreach(glob($prev.'/*')?:[] as $f)rename($f,$this->dir($which==='field'?'field-current':'current').'/'.basename($f));
+  foreach(glob($prev.'/*')?:[] as $f)rename($f,$cur.'/'.basename($f));
   rmdir($prev);return ['ok'=>true,'restored'=>basename($prev)];
  }
  /** Adopt a detector the helper trained and showed better on a held-out match. Previous one is kept. */

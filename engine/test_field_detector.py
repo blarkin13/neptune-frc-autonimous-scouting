@@ -1,5 +1,6 @@
 import json
 import unittest
+from unittest import mock
 from pathlib import Path
 
 import neptune_field_detector as fd
@@ -43,7 +44,30 @@ class FieldDetector(unittest.TestCase):
         wide = sorted([r for r in REF['regions'] if r['kind'] == 'scoring_target' and r['camera_view'] == 'wide'], key=lambda r: fd.centre(fd.box_of(r['points']))[0])
         targets = [{'view': 'wide', 'box': fd.box_of([moved(p) for p in r['points']])} for r in wide]
         regions, method = fd.transfer(REF, targets, [])
-        self.assertEqual(method, 'two_targets'); self.assertTrue(regions)
+        self.assertEqual(method, 'outer_targets'); self.assertTrue(regions)
+
+    def test_three_targets_use_the_outer_pair(self):
+        # Another game may have more than two scoring targets in the wide shot.
+        ref = dict(REF, regions=REF['regions']+[dict(r, id='extra', points=[[x+.1, y] for x, y in r['points']]) for r in REF['regions']
+                                                 if r['kind'] == 'scoring_target' and r['camera_view'] == 'wide'][:1])
+        wide = [r for r in ref['regions'] if r['kind'] == 'scoring_target' and r['camera_view'] == 'wide']
+        targets = [{'view': 'wide', 'box': fd.box_of([moved(p) for p in r['points']])} for r in wide]
+        self.assertEqual(len(targets), 3)
+        regions, method = fd.transfer(ref, targets, [])
+        self.assertEqual(method, 'outer_targets'); self.assertTrue(regions)
+
+    def test_detector_never_crosses_games(self):
+        import os, tempfile
+        game = fd.shipped_game()
+        self.assertTrue(game)
+        with tempfile.TemporaryDirectory() as home, mock.patch.dict(os.environ, {'NEPTUNE_FIELD_DETECTOR': home}):
+            self.assertIsNone(fd.model_path('2027-newgame'))
+            self.assertIsNone(fd.reference('2027-newgame'))
+            self.assertEqual(fd.reference(game)['video_id'], REF['video_id'])
+            folder = Path(home)/'2027-newgame'; folder.mkdir(); (folder/'model.pt').write_bytes(b'x')
+            (folder/'reference.json').write_text('{"regions": []}')
+            self.assertEqual(fd.model_path('2027-newgame'), folder/'model.pt')
+            self.assertEqual(fd.reference('2027-newgame'), {'regions': []})
 
     def test_nothing_found_places_nothing(self):
         self.assertEqual(fd.transfer(REF, [], []), ([], None))

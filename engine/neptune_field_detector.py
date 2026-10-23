@@ -23,13 +23,38 @@ def model_dir():
     return Path(__file__).with_name('field-detector')
 
 
-def model_path():
-    """The field detector to use: the one adopted on Neptune (downloaded by the helper), else the shipped one."""
+def shared_dir(game_key):
+    """This game's field detector adopted on Neptune (downloaded by the helper)."""
     import os
-    shared = Path(os.environ.get('NEPTUNE_FIELD_DETECTOR', Path.home()/'.neptune-trainer'/'field-detector'))/'model.pt'
-    for path in (shared, model_dir()/'model.pt'):
-        if path.is_file():
+    return Path(os.environ.get('NEPTUNE_FIELD_DETECTOR', Path.home()/'.neptune-trainer'/'field-detector'))/game_key
+
+
+def shipped_game():
+    """The game the engine's shipped field detector was trained for (from its reference regions)."""
+    try:
+        regions = json.loads((model_dir()/'reference.json').read_text()).get('regions') or []
+    except (OSError, ValueError):
+        return None
+    return regions[0].get('game_key') if regions else None
+
+
+def model_path(game_key=None):
+    """The field detector for this game: the one adopted on Neptune, else the shipped one if it is for this game.
+    Field elements change every season, so a detector never crosses games."""
+    game_key = game_key or shipped_game()
+    if not game_key:
+        return None
+    for path in (shared_dir(game_key)/'model.pt', model_dir()/'model.pt' if game_key == shipped_game() else None):
+        if path and path.is_file():
             return path
+    return None
+
+
+def reference(game_key):
+    """Marked regions the detector's finds are matched against: the adopted one's, else the shipped one's."""
+    for path in (shared_dir(game_key)/'reference.json', model_dir()/'reference.json' if game_key == shipped_game() else None):
+        if path and path.is_file():
+            return json.loads(path.read_text())
     return None
 
 
@@ -195,9 +220,10 @@ def transfer(reference, targets, corners):
     if ref_corners and quad:
         to_field = homography(ref_corners, [[0, 0], [1, 0], [1, 1], [0, 1]]); from_field = homography([[0, 0], [1, 0], [1, 1], [0, 1]], quad)
         mapper = lambda p: apply(from_field, apply(to_field, p) or p); method = 'field_plane'
-    elif len(wide_ref) == 2 and len(wide_now) == 2:
-        mapper = similarity(centre(box_of(wide_ref[0]['points'])), centre(box_of(wide_ref[1]['points'])), centre(wide_now[0]['box']), centre(wide_now[1]['box']))
-        method = 'two_targets'
+    elif len(wide_ref) >= 2 and len(wide_now) == len(wide_ref):
+        # Same number of wide targets in both views: the outermost pair fixes position, scale and rotation.
+        mapper = similarity(centre(box_of(wide_ref[0]['points'])), centre(box_of(wide_ref[-1]['points'])), centre(wide_now[0]['box']), centre(wide_now[-1]['box']))
+        method = 'outer_targets'
     out = []
     for r in reference['regions']:
         if r['camera_view'] == 'wide':
@@ -248,14 +274,14 @@ def aggregate(detections, reference, min_frames=.3):
     return out
 
 
-def detect(video, facts, reference, weights=None, step=2.0, device=None, progress=lambda s: None):
+def detect(video, facts, reference, weights=None, step=2.0, device=None, progress=lambda s: None, game_key=None):
     """Find targets/corners across a match and return a field-regions document for it, or a status."""
     import cv2
     import numpy as np
     import os
     import subprocess
     os.environ.setdefault('YOLO_OFFLINE', '1')
-    weights = Path(weights) if weights else model_path()
+    weights = Path(weights) if weights else model_path(game_key)
     if not weights or not weights.is_file():
         return {'status': 'no_field_detector', 'version': VERSION, 'regions': []}
     from ultralytics import YOLO
