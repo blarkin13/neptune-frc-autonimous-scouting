@@ -30,6 +30,14 @@ function autoscout_train_overview(PDO $pdo,array $panel,int $org,int $user,strin
  $queue=[];
  foreach(array_reverse($requests) as $r)if(in_array($r['state'],['queued','claimed'],true))$queue[]=['part'=>$r['kind']==='train_field'?'field':($r['kind']==='train'?'robot':'prepare'),'state'=>$r['state']==='claimed'?'running':'waiting','title'=>['train'=>'Train robot detector','train_field'=>'Train field detector · '.($r['game_key']??''),'prepare'=>'Prepare frames · '.($r['match_key']??'')][$r['kind']]??$r['kind'],'message'=>$r['message']??'','since'=>$r['created_at']];
  foreach(array_reverse($panel['jobs']) as $j)if(in_array($j['state'],$active,true))$queue[]=['part'=>str_starts_with($j['state'],'test_')||str_starts_with($j['state'],'evaluation_')?'test':'actions','state'=>str_ends_with($j['state'],'_queued')||$j['state']==='queued'?'waiting':'running','title'=>str_starts_with($j['state'],'test_')?'Test a match':(str_starts_with($j['state'],'evaluation_')?'Independent evaluation':'Train action models & scoring'),'message'=>$j['message']??'','since'=>$j['created_at']];
+ // Say which pillar each job belongs to and what it is learning from (the same matches the helper picks).
+ $usable=array_keys(array_filter($robotMatches,fn($n)=>$n>=8));sort($usable);
+ $marked=array_keys(array_filter($fieldMatches,fn($v)=>$v['targets']&&$v['corners']));sort($marked);
+ $about=['robot'=>['1 · Robots — robot detector',sprintf('Learning from %d labelled frames in %d matches%s',array_sum(array_intersect_key($robotMatches,array_flip($usable))),count($usable),$usable?' · checking on '.end($usable).' (held out)':'')],
+  'field'=>['2 · Field — field detector',sprintf('Learning from %d marked matches%s',count($marked),$marked?' · checking on '.end($marked).' (held out)':'')],
+  'actions'=>['3 · Actions — action & scoring models',sprintf('Learning from %d tagged matches (%d tags, %d imported actions)',$panel['counts']['matches']??0,$panel['counts']['tags']??0,$panel['counts']['external']??0)],
+  'test'=>['Test & release','']];
+ foreach($queue as &$q){[$q['label'],$q['about']]=$about[$q['part']]??['1 · Robots — '.$q['title'],''];}unset($q);
  usort($queue,fn($a,$b)=>[$a['state']!=='running',$a['since']]<=>[$b['state']!=='running',$b['since']]);
  return [
   // A helper on a detector job reports to that queue, not the action-training one, so its last_seen goes stale.

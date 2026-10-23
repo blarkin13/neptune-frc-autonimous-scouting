@@ -118,4 +118,4 @@ pillar_summary('robot','Finds every robot’s bumpers in a frame, in wide and cl
 <div id="status" role="status" aria-live="polite">Choose a match.</div>
 <div class="note rl-detector"><b>Robot detector</b><p>Prepare frames: your helper finds bumpers in this match so you only fix its boxes.</p><button id="prepare" class="save rl-secondary"<?=$selected?'':' disabled'?>>Prepare frames for this match</button><div id="requests" class="rl-requests"></div><div id="current" class="rl-current"></div></div><div class="note"><b>What makes good labels</b><p>Every bumper you can see, red or blue, even partly hidden or far away. Box just the bumper, not the whole robot. Skip frames that aren't live match footage.</p></div></aside></div></div>
 <script src="../community/assets/match-picker/match-picker.js?v=1"></script><script src="../community/assets/field-regions/youtube-source.js?v=3-generic"></script><script src="../community/assets/robot-labels/robot-labels.js?v=1"></script>
-<?php pillar_trained('robot');pillar_close();community_page_end(); ?>
+<?php pillar_close();community_page_end(); ?>

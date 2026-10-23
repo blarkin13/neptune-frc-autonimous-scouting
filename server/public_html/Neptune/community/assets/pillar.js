@@ -8,13 +8,13 @@
  const esc=t=>String(t??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
  const when=t=>t?new Date(t*1000).toLocaleString(undefined,{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'—';
  const pct=v=>v==null?'—':Math.round(v*100)+'%';
- const slot=(name,key)=>document.querySelector(`[data-part="${name}"] [data-slot="${key}"]`);
+ const slot=(name,key)=>document.querySelector(`[data-part="${name}"] [data-slot="${key}"], [data-part="${name}"][data-slot="${key}"]`);
  const fill=(name,key,html)=>{const s=slot(name,key);if(s)s.innerHTML=html};
 
  // In-page tabs: [data-tabs] holds buttons [data-tab]; panels are [data-panel] in the same pillar. Remembered in the address.
  const tabs=$$('[data-tabs] [data-tab]'),panels=$$('[data-panel]');
  function show(name){
-  if(!tabs.length)return;
+  if(!tabs.length||!tabs[0].closest('[data-tabs]').offsetParent)return;   // no tabs, or on another view of the page
   if(!tabs.some(t=>t.dataset.tab===name))name=tabs[0].dataset.tab;
   for(const t of tabs)t.setAttribute('aria-selected',String(t.dataset.tab===name));
   for(const p of panels)p.hidden=p.dataset.panel!==name;
@@ -87,6 +87,7 @@
    [!changed.length,changed.length?`The ${changed.join(' and ')} changed after this model was trained — retrain so it learns from the better tracking.`:'Model is up to date with the detectors.'],
    [!!l,l?'Try it on a match, then evaluate it on Test & release.':'Train the first model below.'],
   ]));
+  fill('actions','runs','<p class="training-note">Every run with its report is on the <a href="#train">Train</a> tab, under “Your training results”.</p>');
   return !l||changed.length>0;
  }
 
@@ -96,10 +97,16 @@
   const on=o.helpers.filter(h=>h.online);
   if(status('helpers'))status('helpers').textContent=on.length?on.map(h=>`${h.name} · ${h.working?'working':h.ready?'ready':h.status}`).join('\n'):(o.helpers.length?'No helper open. Open the helper app on your computer.':'No helper connected — see Helpers & settings.');
   const running=o.queue.filter(q=>q.state==='running'),waiting=o.queue.filter(q=>q.state==='waiting');
-  if(status('now'))status('now').textContent=running.length?running.map(q=>q.message&&q.message.includes(' · step ')?q.message:q.title+(q.message?'\n'+q.message:'')).join('\n\n'):'Nothing';
-  if(status('waiting'))status('waiting').textContent=waiting.length?waiting.map((q,i)=>`${i+1}. ${q.title}`).join('\n'):'Nothing';
+  // "Pillar — part", then the helper's step lines (minus its own job title), then what it learns from.
+  const line=q=>[q.label||q.title,(q.message||'').replace(/^[^\n]*? · (step \d+ of \d+)/,'$1'),q.about].filter(Boolean).join('\n');
+  if(status('now'))status('now').textContent=running.length?running.map(line).join('\n\n'):'Nothing';
+  if(status('waiting'))status('waiting').textContent=waiting.length?waiting.map((q,i)=>`${i+1}. ${q.label||q.title}`).join('\n'):'Nothing';
   const busy=k=>o.queue.some(q=>q.part===k);
   const needs={robot:robot(o.robot,busy('robot')),field:field(o.field,busy('field')),actions:actions(o.actions,o)};
+  // Test & release: the detectors a test uses are always the ones in use; only the Actions model is chosen.
+  fill('test','detectors',`Uses the robot detector ${o.robot.current?'adopted '+when(o.robot.current.adopted_at):'that came with the helper'} and the field detector for ${esc(o.field.game_key)} ${o.field.current?'adopted '+when(o.field.current.adopted_at):'(none trained yet; marked scoring areas are used where they exist)'}.`);
+  const menu=document.getElementById('trial-model'),empty=slot('test','no-model');
+  if(menu&&empty){const has=[...menu.options].some(x=>x.value);empty.hidden=has;menu.hidden=!has}
   // A dot on each pillar in the Auto Scout menu that needs something.
   for(const a of $$('.community-nav [data-pillar]')){a.querySelector('.tt-flag')?.remove();if(needs[a.dataset.pillar]){const f=document.createElement('span');f.className='tt-flag';f.title='Needs attention';a.append(f)}}
  }
