@@ -49,6 +49,7 @@ try {
    }
   }
   elseif($action==='queue_detector'){$kind=(string)($_POST['kind']??'');if(!in_array($kind,['train','train_field'],true))throw new CommunityAnalysisError(422,'Choose a detector.');$reply=['request'=>(new RobotDetectorJobs(dirname(__DIR__,3).'/neptune_secure',(int)$u['organization_id']))->queue($kind,['game_key'=>(string)($games[(string)$season]['game_key']??'')],$uid)];}
+  elseif($action==='cancel_detector'){try{$reply=(new RobotDetectorJobs(dirname(__DIR__,3).'/neptune_secure',(int)$u['organization_id']))->cancel((string)($_POST['request']??''));}catch(InvalidArgumentException $e){throw new CommunityAnalysisError(422,$e->getMessage());}}
   elseif($action==='rollback_detector'){try{$reply=(new RobotDetectorJobs(dirname(__DIR__,3).'/neptune_secure',(int)$u['organization_id']))->rollback((string)($_POST['which']??''),(string)($games[(string)$season]['game_key']??''));}catch(InvalidArgumentException $e){throw new CommunityAnalysisError(422,$e->getMessage());}}
   elseif($action==='delete_model'){$reply=(new CommunityModelManagement($pdo))->delete($season,(string)($_POST['job']??''),(string)($_POST['confirmation']??''),(string)($_POST['withdraw']??'')==='1');}
   elseif($action==='reset_machine_data'){$reply=community_reset_machine_data($pdo,(string)($_POST['confirmation']??''));}

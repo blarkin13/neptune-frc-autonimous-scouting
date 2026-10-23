@@ -33,10 +33,10 @@
   if(!r.ok)throw Error(d.error||'Could not save');return d;
  }
 
- const runState=r=>r.state==='done'?(r.report?.adopted?'<span class="tt-badge ok">Switched to it</span>':'<span class="tt-badge">Kept the one in use</span>'):r.state==='failed'?'<span class="tt-badge warn">Failed</span>':r.state==='claimed'?'<span class="tt-badge ok">Running</span>':'<span class="tt-badge">Waiting</span>';
+ const runState=r=>r.state==='done'?(r.report?.adopted?'<span class="tt-badge ok">Switched to it</span>':'<span class="tt-badge">Kept the one in use</span>'):r.state==='failed'?'<span class="tt-badge warn">Failed</span>':r.state==='cancelled'?'<span class="tt-badge">Cancelled</span>':r.state==='claimed'?'<span class="tt-badge ok">Running</span>':'<span class="tt-badge">Waiting</span>';
  function runs(list,score){
   if(!list.length)return '<p class="training-note">No runs yet.</p>';
-  return '<table class="tt-runs"><tr><th>Started</th><th>Result</th><th>New vs in use</th><th>Review video</th><th>Details</th></tr>'+list.slice(0,8).map(r=>`<tr><td>${when(r.created_at)}</td><td>${runState(r)}</td><td>${r.report?score(r.report):'—'}</td><td>${video(r.review)}</td><td class="tt-msg">${esc(r.message)}</td></tr>`).join('')+'</table>';
+  return '<table class="tt-runs"><tr><th>Started</th><th>Result</th><th>New vs in use</th><th>Review video</th><th>Details</th></tr>'+list.slice(0,8).map(r=>`<tr><td>${when(r.created_at)}</td><td>${runState(r)}${['queued','claimed'].includes(r.state)?` <button type="button" class="button-secondary tt-cancel" data-cancel="${esc(r.id)}">Cancel</button>`:''}</td><td>${r.report?score(r.report):'—'}</td><td>${video(r.review)}</td><td class="tt-msg">${esc(r.message)}</td></tr>`).join('')+'</table>';
  }
  // Review video on YouTube (private until the API project passes YouTube's audit).
  const video=v=>!v?'—':v.youtube_id?`<a href="https://youtu.be/${esc(v.youtube_id)}" target="_blank" rel="noopener">▶ Watch</a>${v.privacy==='private'?' <small>(private)</small>':''}`:v.status==='youtube_not_connected'?'<a href="/autoscout/youtube.php">Connect YouTube</a>':v.status==='upload_failed'?`<span title="${esc(v.error)}">Upload failed</span>`:'—';
@@ -113,6 +113,7 @@
   for(const a of $$('.community-nav [data-pillar]')){a.querySelector('.tt-flag')?.remove();if(needs[a.dataset.pillar]){const f=document.createElement('span');f.className='tt-flag';f.title='Needs attention';a.append(f)}}
  }
  for(const b of $$('[data-train]'))b.addEventListener('click',async()=>{b.disabled=true;try{await send({action:'queue_detector',kind:b.dataset.train==='field'?'train_field':'train'});await refresh()}catch(e){alert(e.message);b.disabled=false}});
+ document.addEventListener('click',async e=>{const b=e.target.closest('[data-cancel]');if(!b)return;if(!confirm('Cancel this run? The helper stops at its next progress report.'))return;b.disabled=true;try{await send({action:'cancel_detector',request:b.dataset.cancel});await refresh()}catch(err){alert(err.message);b.disabled=false}});
  for(const b of $$('[data-rollback]'))b.addEventListener('click',async()=>{if(!confirm('Go back to the previous model? The current one is set aside, and helpers switch within an hour.'))return;try{await send({action:'rollback_detector',which:b.dataset.rollback});await refresh()}catch(e){alert(e.message)}});
  refresh();setInterval(()=>{if(!document.hidden)refresh()},10000);
 })();

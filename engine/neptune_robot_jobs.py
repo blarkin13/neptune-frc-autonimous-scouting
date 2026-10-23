@@ -60,6 +60,24 @@ def sync_detector(config):
     return {'status': 'updated', 'sha256': row['sha256']}
 
 
+def all_cores():
+    """Train on every CPU core. Tracking pins torch to one thread for the rest of the helper's session, which made
+    detector training run on 1 of N cores; restore that setting afterwards."""
+    import contextlib
+    import os
+    import torch
+
+    @contextlib.contextmanager
+    def scope():
+        before = torch.get_num_threads()
+        torch.set_num_threads(max(1, os.cpu_count() or 1))
+        try:
+            yield
+        finally:
+            torch.set_num_threads(before)
+    return scope()
+
+
 def adopted_holdout(manifest):
     """The match the adopted detector was checked on (None before the first adoption)."""
     try:
@@ -211,7 +229,8 @@ def train(config, req, progress):
         progress('Training robot detector: pass %d of up to %d' % (trainer.epoch+1, epochs))
     model.add_callback('on_fit_epoch_end', epoch_end)
     # CPU: Apple GPU training hangs with this PyTorch build.
-    result = model.train(data=str(config_yaml), epochs=epochs, imgsz=1280, batch=4, device='cpu', workers=0, patience=20, seed=2026,
+    with all_cores():
+        result = model.train(data=str(config_yaml), epochs=epochs, imgsz=1280, batch=4, device='cpu', workers=0, patience=20, seed=2026,
                          deterministic=True, plots=False, project=str(work/'runs'), name='bumper', exist_ok=True, verbose=False,
                          translate=.2, scale=.5, fliplr=.5, mosaic=1.0, close_mosaic=10)
     best = Path(result.save_dir)/'weights'/'best.pt'
@@ -350,7 +369,7 @@ def train_field(config, req, progress):
     for d in docs:
         vid = doc_video(d); split = 'val' if d is holdout else 'train'
         progress('Preparing field frames from '+((d.get('source') or {}).get('match_key') or vid))
-        frames = sample_frames(match_video(vid, work))
+        frames = sample_frames(match_video(vid, work), step=2.0 if split == 'val' else 4.0)
         labels = fd.yolo_labels(d)
         for t, image in frames:
             name = '%s_%07d' % (vid, round(t*1000))
@@ -361,7 +380,8 @@ def train_field(config, req, progress):
     (data/'data.yaml').write_text('path: %s\ntrain: images/train\nval: images/val\nnames:\n  0: scoring_target\n  1: field_corner\n' % data)
     model = YOLO(str(bundle_path()/bundle()['context']['file'])); epochs = int(req.get('epochs') or 60)
     model.add_callback('on_fit_epoch_end', lambda trainer: progress('Training field detector: pass %d of up to %d' % (trainer.epoch+1, epochs)))
-    result = model.train(data=str(data/'data.yaml'), epochs=epochs, imgsz=fd.FRAME_WIDTH, batch=8, device='cpu', workers=0, patience=15, seed=7,
+    with all_cores():
+        result = model.train(data=str(data/'data.yaml'), epochs=epochs, imgsz=fd.FRAME_WIDTH, batch=8, device='cpu', workers=0, patience=15, seed=7,
                          deterministic=True, plots=False, project=str(work/'runs'), name='field', exist_ok=True, verbose=False,
                          translate=.3, scale=.6, degrees=3, perspective=.0005, fliplr=.5, mosaic=1.0, hsv_v=.4, hsv_s=.6)
     best = Path(result.save_dir)/'weights'/'best.pt'
@@ -416,9 +436,11 @@ def run_pending(config, progress, busy=lambda value: None):
         if time.monotonic()-last[0] > 20:
             last[0] = time.monotonic()
             try:
-                api(config, 'progress', {'request_id': req['id'], 'lease': req['lease'], 'message': str(message)[:300]})
+                reply = api(config, 'progress', {'request_id': req['id'], 'lease': req['lease'], 'message': str(message)[:300]})
             except Exception:
-                pass
+                reply = {}
+            if reply.get('cancelled'):
+                raise InterruptedError('Cancelled on Neptune')
     try:
         result = prepare(config, req, report) if req['kind'] == 'prepare' else train_field(config, req, report) if req['kind'] == 'train_field' else train(config, req, report)
         fmt = lambda p: 'none found' if not p or not p['found'] else '%d/%d within %.1f%%' % (p['found'], p['expected'], p['mean_error']*100)

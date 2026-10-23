@@ -62,18 +62,25 @@ final class RobotDetectorJobs {
   if(!$r||($r['computer_id']??null)!==$computer['id']||!hash_equals((string)($r['lease']??''),(string)($p['lease']??'')))throw new InvalidArgumentException('This request belongs to another helper');
   return $r;
  }
+ /** Cancel from the website. A running helper is told on its next progress report and stops. */
+ public function cancel(string $id):array{
+  if(!preg_match('/^[a-f0-9]{24}$/D',$id))throw new InvalidArgumentException('Invalid request');
+  $f=$this->root.'/requests/'.$id.'.json';$r=is_file($f)?json_decode((string)file_get_contents($f),true):null;
+  if(!$r||!in_array($r['state'],['queued','claimed'],true))throw new InvalidArgumentException('This run is not waiting or running.');
+  $r=array_replace($r,['state'=>'cancelled','finished_at'=>time(),'message'=>'Cancelled on Neptune']);self::write($f,$r);return ['ok'=>true];
+ }
  public function progress(array $computer,array $p):array{
-  $r=$this->owned($computer,$p);$r['heartbeat_at']=time();$r['message']=mb_substr((string)($p['message']??''),0,300);
+  $r=$this->owned($computer,$p);if($r['state']==='cancelled')return ['ok'=>true,'cancelled'=>true];$r['heartbeat_at']=time();$r['message']=mb_substr((string)($p['message']??''),0,300);
   self::write($this->root.'/requests/'.$r['id'].'.json',$r);return ['ok'=>true];
  }
  public function finish(array $computer,array $p):array{
-  $r=$this->owned($computer,$p);$ok=!empty($p['ok']);
+  $r=$this->owned($computer,$p);if($r['state']==='cancelled')return ['ok'=>true,'cancelled'=>true];$ok=!empty($p['ok']);
   $r=array_replace($r,['state'=>$ok?'done':'failed','finished_at'=>time(),'message'=>mb_substr((string)($p['message']??''),0,500),'report'=>is_array($p['report']??null)?$p['report']:null]);
   unset($r['lease']);self::write($this->root.'/requests/'.$r['id'].'.json',$r);return ['ok'=>true];
  }
  /** A run's review video: kept on Neptune (last 10), uploaded to YouTube when connected; the result goes on the request. */
  public function putReview(array $computer,array $p,?YouTubeUploader $youtube):array{
-  $r=$this->owned($computer,$p);if(!in_array($r['kind'],['train','train_field'],true))throw new InvalidArgumentException('Only training runs have review videos');
+  $r=$this->owned($computer,$p);if($r['state']==='cancelled')throw new InvalidArgumentException('This run was cancelled');if(!in_array($r['kind'],['train','train_field'],true))throw new InvalidArgumentException('Only training runs have review videos');
   $raw=base64_decode((string)($p['video_b64']??''),true);if($raw===false||strlen($raw)<1000||strlen($raw)>48*1024*1024)throw new InvalidArgumentException('Invalid review video');
   $dir=$this->dir('review');$file=$dir.'/'.$r['id'].'.mp4';file_put_contents($file,$raw,LOCK_EX);chmod($file,0600);
   $old=glob($dir.'/*.mp4')?:[];usort($old,fn($a,$b)=>filemtime($b)<=>filemtime($a));foreach(array_slice($old,10) as $f)unlink($f);
@@ -115,7 +122,7 @@ final class RobotDetectorJobs {
  }
  /** Adopt a field detector that placed targets and corners better on a held-out match of its game. Previous one is kept. */
  public function adoptField(array $computer,array $p):array{
-  $r=$this->owned($computer,$p);if($r['kind']!=='train_field')throw new InvalidArgumentException('Only a field training request can adopt a field detector');
+  $r=$this->owned($computer,$p);if($r['state']==='cancelled')throw new InvalidArgumentException('This run was cancelled');if($r['kind']!=='train_field')throw new InvalidArgumentException('Only a field training request can adopt a field detector');
   $raw=base64_decode((string)($p['weights_b64']??''),true);if($raw===false||strlen($raw)<1000||strlen($raw)>60*1024*1024)throw new InvalidArgumentException('Invalid detector weights');
   $game=self::game((string)($r['game_key']??self::defaultGame()));$sha=hash('sha256',$raw);$cur=$this->fieldDir($game);$old=$cur.'/manifest.json';
   if(is_file($old)){$hist=$this->dir('field-history/'.$game.'/'.date('Ymd-His'));foreach(glob($cur.'/*')?:[] as $f)copy($f,$hist.'/'.basename($f));}
@@ -144,7 +151,7 @@ final class RobotDetectorJobs {
  }
  /** Adopt a detector the helper trained and showed better on a held-out match. Previous one is kept. */
  public function adopt(array $computer,array $p):array{
-  $r=$this->owned($computer,$p);if($r['kind']!=='train')throw new InvalidArgumentException('Only a training request can adopt a detector');
+  $r=$this->owned($computer,$p);if($r['state']==='cancelled')throw new InvalidArgumentException('This run was cancelled');if($r['kind']!=='train')throw new InvalidArgumentException('Only a training request can adopt a detector');
   $raw=base64_decode((string)($p['weights_b64']??''),true);if($raw===false||strlen($raw)<1000||strlen($raw)>60*1024*1024)throw new InvalidArgumentException('Invalid detector weights');
   $sha=hash('sha256',$raw);$report=is_array($p['report']??null)?$p['report']:[];
   $cur=$this->dir('current');$old=$cur.'/manifest.json';
