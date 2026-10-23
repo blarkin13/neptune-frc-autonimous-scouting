@@ -65,3 +65,11 @@ class LabelSyncTest(unittest.TestCase):
         with mock.patch.dict(sys.modules, {'neptune_helper': helper}), mock.patch('urllib.request.build_opener', return_value=Opener()):
             docs = neptune_robot_labels.sync({'site': 'https://x', 'token': 't'})
         self.assertEqual(docs[0]['frames'], {'0': {'complete': True, 'boxes': []}})
+
+
+class HoldoutTest(unittest.TestCase):
+    def test_held_out_match_stays_fixed(self):
+        from neptune_robot_jobs import pick_holdout
+        self.assertEqual(pick_holdout(['2026a_qm1', '2026b_qm2'], None), '2026b_qm2')            # first run
+        self.assertEqual(pick_holdout(['2026a_qm1', '2026b_qm2', '2026z_qm9'], '2026b_qm2'), '2026b_qm2')  # new labels don't move it
+        self.assertEqual(pick_holdout(['2026a_qm1', '2026z_qm9'], '2026b_qm2'), '2026z_qm9')      # removed: pick again

@@ -53,7 +53,7 @@
   const m=Object.entries(d.matches),ready=m.filter(([,n])=>n>=d.min_frames),frames=m.reduce((a,[,n])=>a+n,0);
   fill('robot','data',`<dl><dt>Labelled frames</dt><dd>${frames}</dd><dt>Matches</dt><dd>${m.length} (${ready.length} with ${d.min_frames}+ frames)</dd><dt>Events</dt><dd>${d.events.length?d.events.map(esc).join(', '):'—'}</dd></dl>`);
   fill('robot','next',next([
-   [ready.length>=2,`Label ${d.min_frames}+ frames in at least 2 matches (${ready.length} so far). The newest match is held back for checking.`],
+   [ready.length>=2,`Label ${d.min_frames}+ frames in at least 2 matches (${ready.length} so far). One of them is held back for checking and stays the same every run.`],
    [d.events.length>=2,`Label matches from a second event so the detector works beyond one venue (${d.events.length} so far).`],
    [!!c,c?'A trained detector is in use. Label more frames and retrain whenever tracking misses robots.':'Train the first detector.'],
   ]));

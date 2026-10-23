@@ -100,7 +100,7 @@ $counts=[];foreach(glob($store.'/*.json')?:[] as $f){$d=json_decode((string)file
 $total=array_sum($counts);
 require_once dirname(__DIR__).'/community/layout.php';require_once dirname(__DIR__).'/community/pillar.php';community_page_start('1 · Robots','Teach Auto Scout what a robot is: box bumpers, train the robot detector, and see what it learned.','robots','AUTO SCOUT · PILLAR 1');
 pillar_open((int)gmdate('Y'));
-pillar_summary('robot','Finds every robot’s bumpers in a frame, in wide and close-up shots. Tracking and number reading depend on it, so this comes first. Box bumpers below, then press Train: your helper trains a new detector, checks it on the newest labelled match (never trained on), and only switches if it finds bumpers more accurately. Bumpers look alike every season, so one robot detector serves all games.','Train robot detector');
+pillar_summary('robot','Finds every robot’s bumpers in a frame, in wide and close-up shots. Tracking and number reading depend on it, so this comes first. Box bumpers below, then press Train: your helper trains a new detector, checks both the new and the current detector on one held-out match it never trains on (the same match every run, so scores compare), and only switches if the new one finds bumpers more accurately. Bumpers look alike every season, so one robot detector serves all games.','Train robot detector');
 ?>
 <link rel="stylesheet" href="../community/assets/match-picker/match-picker.css?v=1">
 <link rel="stylesheet" href="../community/assets/field-regions/style.css?v=4-site-layout">

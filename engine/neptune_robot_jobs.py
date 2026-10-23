@@ -60,6 +60,20 @@ def sync_detector(config):
     return {'status': 'updated', 'sha256': row['sha256']}
 
 
+def adopted_holdout(manifest):
+    """The match the adopted detector was checked on (None before the first adoption)."""
+    try:
+        return (json.loads(Path(manifest).read_text()).get('report') or {}).get('holdout_match')
+    except (OSError, ValueError):
+        return None
+
+
+def pick_holdout(keys, previous):
+    """The held-out match stays the same run to run, so new and old scores are comparable: the one the adopted
+    detector was checked on while it is still labelled; the first time (or if it was removed), the last by name."""
+    return previous if previous in keys else sorted(keys)[-1]
+
+
 def current_wide_weights():
     from neptune_yolo import bundled_detectors
     row = bundled_detectors().get('wide')
@@ -187,7 +201,7 @@ def train(config, req, progress):
     usable = sorted(k for k, n in counts.items() if k and n >= MIN_FRAMES_PER_MATCH)
     if len(usable) < 2:
         raise ValueError('Label at least %d frames in two different matches first.' % MIN_FRAMES_PER_MATCH)
-    holdout = usable[-1]               # the newest match key is checked, never trained on
+    holdout = pick_holdout(usable, adopted_holdout(SHARED/'manifest.json'))   # checked, never trained on
     work = HOME/'robot-detector-work'/req['id']; work.mkdir(parents=True, exist_ok=True)
     built = labels.build(docs, work/'frames', holdout={holdout}, download=labels.youtube_download, progress=progress)
     config_yaml = prepare_dataset(Path(built['manifest']), work/'dataset')
@@ -325,7 +339,9 @@ def train_field(config, req, progress):
     if len(docs) < 2:
         raise ValueError('Mark scoring targets and the four field corners on at least two %s matches first.' % game)
     docs.sort(key=lambda d: ((d.get('source') or {}).get('match_key') or '', doc_video(d)))
-    holdout = docs[-1]                 # the most recent match is checked, never trained on
+    doc_key = lambda d: (d.get('source') or {}).get('match_key') or doc_video(d)
+    held_key = pick_holdout([doc_key(d) for d in docs], adopted_holdout(fd.shared_dir(game)/'manifest.json'))
+    holdout = next(d for d in docs if doc_key(d) == held_key)   # checked, never trained on
     work = HOME/'field-detector-work'/req['id']; data = work/'dataset'; held = []
     for split in ('train', 'val'):
         (data/'images'/split).mkdir(parents=True, exist_ok=True); (data/'labels'/split).mkdir(parents=True, exist_ok=True)
@@ -347,7 +363,7 @@ def train_field(config, req, progress):
                          deterministic=True, plots=False, project=str(work/'runs'), name='field', exist_ok=True, verbose=False,
                          translate=.3, scale=.6, degrees=3, perspective=.0005, fliplr=.5, mosaic=1.0, hsv_v=.4, hsv_s=.6)
     best = Path(result.save_dir)/'weights'/'best.pt'
-    key = (holdout.get('source') or {}).get('match_key') or doc_video(holdout)
+    key = held_key
     progress('Comparing new and current field detector on '+key)
     new = placement(best, held, holdout)
     current = fd.model_path(game); old = placement(current, held, holdout) if current else None

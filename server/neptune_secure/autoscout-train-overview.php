@@ -14,13 +14,14 @@ function autoscout_train_overview(PDO $pdo,array $panel,int $org,int $user,strin
  }
  $robotMatches=[];foreach($videos as $v){$n=count(array_filter($v['frames'],fn($fr)=>!empty($fr['complete'])));if($n&&$v['match_key'])$robotMatches[$v['match_key']]=($robotMatches[$v['match_key']]??0)+$n;}
  // Scoring areas: this game's matches with scoring targets and the four field corners marked.
- $fieldMatches=[];
+ $fieldMatches=[];$fieldVideo=[];
  foreach(array_merge(glob($secure.'/field-regions/seed-documents/*.json')?:[],glob($secure.'/field-regions/'.$user.'/*.json')?:[]) as $f){
   if(filesize($f)>2097152)continue;$d=json_decode((string)file_get_contents($f),true);if(!is_array($d))continue;$kinds=array_column(array_filter($d['regions']??[],fn($r)=>($r['game_key']??'')===$game),'kind');if(!$kinds)continue;
   // Documents name their video (YouTube id or a cached file named after it); find its match.
   $src=$d['source']??[];$vid=(string)($src['video_id']??preg_replace('/\.[a-z0-9]+$/i','',(string)($src['name']??'')));$key=(string)($src['match_key']??'');
   if($key===''&&preg_match('/^[A-Za-z0-9_-]{11}$/D',$vid)){$q=$pdo->prepare('SELECT match_key FROM community_matches WHERE source_url LIKE ? LIMIT 1');$q->execute(['%'.$vid.'%']);$key=(string)($q->fetchColumn()?:'');}
   if($key==='')$key=$vid?:basename($f,'.json');
+  if($vid!=='')$fieldVideo[$vid]=$key;
   $fieldMatches[$key]=['targets'=>count(array_keys($kinds,'scoring_target')),'corners'=>in_array('field_calibration',$kinds,true)];
  }
  $event=fn($k)=>preg_match('/^(\d{4}[a-z0-9]+)_/',(string)$k,$m)?$m[1]:'';
@@ -31,10 +32,14 @@ function autoscout_train_overview(PDO $pdo,array $panel,int $org,int $user,strin
  foreach(array_reverse($requests) as $r)if(in_array($r['state'],['queued','claimed'],true))$queue[]=['part'=>$r['kind']==='train_field'?'field':($r['kind']==='train'?'robot':'prepare'),'state'=>$r['state']==='claimed'?'running':'waiting','title'=>['train'=>'Train robot detector','train_field'=>'Train field detector · '.($r['game_key']??''),'prepare'=>'Prepare frames · '.($r['match_key']??'')][$r['kind']]??$r['kind'],'message'=>$r['message']??'','since'=>$r['created_at']];
  foreach(array_reverse($panel['jobs']) as $j)if(in_array($j['state'],$active,true))$queue[]=['part'=>str_starts_with($j['state'],'test_')||str_starts_with($j['state'],'evaluation_')?'test':'actions','state'=>str_ends_with($j['state'],'_queued')||$j['state']==='queued'?'waiting':'running','title'=>str_starts_with($j['state'],'test_')?'Test a match':(str_starts_with($j['state'],'evaluation_')?'Independent evaluation':'Train action models & scoring'),'message'=>$j['message']??'','since'=>$j['created_at']];
  // Say which pillar each job belongs to and what it is learning from (the same matches the helper picks).
+ // The held-out match stays fixed: the one the adopted detector was checked on, else the last by name (as the helper picks).
  $usable=array_keys(array_filter($robotMatches,fn($n)=>$n>=8));sort($usable);
  $marked=array_keys(array_filter($fieldMatches,fn($v)=>$v['targets']&&$v['corners']));sort($marked);
- $about=['robot'=>['1 · Robots — robot detector',sprintf('Learning from %d labelled frames in %d matches%s',array_sum(array_intersect_key($robotMatches,array_flip($usable))),count($usable),$usable?' · checking on '.end($usable).' (held out)':'')],
-  'field'=>['2 · Field — field detector',sprintf('Learning from %d marked matches%s',count($marked),$marked?' · checking on '.end($marked).' (held out)':'')],
+ $heldRobot=in_array($robot['report']['holdout_match']??null,$usable,true)?$robot['report']['holdout_match']:($usable?end($usable):null);
+ $prevField=$field['report']['holdout_match']??null;$prevField=$fieldVideo[$prevField]??$prevField;
+ $heldField=in_array($prevField,$marked,true)?$prevField:($marked?end($marked):null);
+ $about=['robot'=>['1 · Robots — robot detector',sprintf('Learning from %d labelled frames in %d matches%s',array_sum(array_intersect_key($robotMatches,array_flip($usable))),count($usable),$heldRobot?' · checking on '.$heldRobot.' (held out, same every run)':'')],
+  'field'=>['2 · Field — field detector',sprintf('Learning from %d marked matches%s',count($marked),$heldField?' · checking on '.$heldField.' (held out, same every run)':'')],
   'actions'=>['3 · Actions — action & scoring models',sprintf('Learning from %d tagged matches (%d tags, %d imported actions)',$panel['counts']['matches']??0,$panel['counts']['tags']??0,$panel['counts']['external']??0)],
   'test'=>['Test & release','']];
  foreach($queue as &$q){[$q['label'],$q['about']]=$about[$q['part']]??['1 · Robots — '.$q['title'],''];}unset($q);
