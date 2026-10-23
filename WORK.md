@@ -1,5 +1,13 @@
 # Work log (newest first)
 
+## 2026-10-23 — Claude: helper 3.2.11 (engine 2.6.0-hybrid-detector-preview1)
+- Engine ships its own detectors: `robot-detector/` (owner-trained wide-shot bumper detector, merged into the
+  private bundle by `neptune_yolo.with_bundled_cameras`; close-ups keep the private Prosper detector) and
+  `field-detector/` (hubs + corners). Helpers' private-model download is unchanged.
+- Includes the Auto Scout addresses (Open Neptune -> /autoscout/train.php) and everything since 3.2.10.
+- Built from the 3.2.10 app runtime; 437 tests pass on the bundled Python; appcast signature verified against
+  the pinned key; DMG valid. GitHub release `helper-3.2.11` (helper, feed, DMG, server engine with detectors).
+
 ## 2026-10-22 — Claude: hybrid detector tracking result; site package fixed
 - Full tracking runs (`local/tracking-compare/`), current detector vs hybrid (owner-labelled wide detector +
   current close-up detector):

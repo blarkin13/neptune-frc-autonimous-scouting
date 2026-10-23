@@ -44,7 +44,28 @@ def bundle(root=None, season=2026):
             raise ValueError('Robot model file is missing or too large.')
         if hashlib.sha256(p.read_bytes()).hexdigest() != row.get('sha256'):
             raise ValueError('Robot model fingerprint mismatch; reinstall the private model bundle.')
-    return data
+    return with_bundled_cameras(data)
+
+
+def bundled_detectors():
+    """Per-camera detectors shipped with the engine itself (our own models, not the private download)."""
+    root = Path(__file__).with_name('robot-detector')
+    path = root/'manifest.json'
+    if not path.is_file():
+        return {}
+    out = {}
+    for view, row in (json.loads(path.read_text()).get('by_camera') or {}).items():
+        p = root/row.get('file', '')
+        if view in ('wide', 'closeup-left', 'closeup-right') and re.fullmatch(r'[A-Za-z0-9_-]+\.pt', row.get('file', '')) and p.is_file() \
+                and hashlib.sha256(p.read_bytes()).hexdigest() == row.get('sha256'):
+            out[view] = dict(row, path=str(p))
+    return out
+
+
+def with_bundled_cameras(data):
+    """Add engine-shipped per-camera detectors where the private bundle names none."""
+    extra = {k: v for k, v in bundled_detectors().items() if k not in (data.get('by_camera') or {})}
+    return dict(data, by_camera={**(data.get('by_camera') or {}), **extra}) if extra else data
 
 
 def fingerprint():
@@ -286,8 +307,9 @@ def _track_camera(video, facts, profile, backend, work, fps=6., width=960, read_
     meta = bundle(season=int(profile['season']))
     root = bundle_path()
     view = camera['name'] if camera else 'wide'
-    bumper_file = (meta.get('by_camera', {}).get(view) or meta['bumper'])['file']
-    model = YOLO(str(root/bumper_file))
+    chosen = meta.get('by_camera', {}).get(view) or meta['bumper']
+    bumper_file = chosen['file']; bumper_path = Path(chosen.get('path') or root/bumper_file)
+    model = YOLO(str(bumper_path))
     colours = bumper_classes(model.names)
     box_kind = meta['bumper'].get('box_kind', 'bumper')
     motion_only = meta['bumper'].get('tracking_mode') == 'motion-only'
@@ -348,7 +370,7 @@ def _track_camera(video, facts, profile, backend, work, fps=6., width=960, read_
     probe=subprocess.check_output(['ffprobe','-v','error','-select_streams','v:0','-show_entries','stream=width','-of','csv=p=0',str(video)],text=True,timeout=30)
     ocr_width=native_ocr_width(int(probe.strip().splitlines()[0]),bounds,width)
     hires=decode(video,*band,start,end,fps/sample_step,ocr_width,left=left,right=right) if ocr_width else None
-    tile_model=YOLO(str(root/bumper_file)) if hires is not None and (camera is None or camera['name']=='wide') else None
+    tile_model=YOLO(str(bumper_path)) if hires is not None and (camera is None or camera['name']=='wide') else None
     tile_counts={'frames':0,'candidates':0,'added':0}
     people = []; ocr_folder = work/'yolo-ocr'; ocr_folder.mkdir(exist_ok=True)
     try:
