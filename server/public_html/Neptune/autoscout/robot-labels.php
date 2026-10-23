@@ -98,7 +98,9 @@ if((int)($_GET['match_id']??0)>0){
 // Progress across all labelled videos.
 $counts=[];foreach(glob($store.'/*.json')?:[] as $f){$d=json_decode((string)file_get_contents($f),true);$counts[basename($f,'.json')]=count(array_filter($d['frames']??[],fn($x)=>!empty($x['complete'])));}
 $total=array_sum($counts);
-require_once dirname(__DIR__).'/community/layout.php';community_page_start('Robot Labels','Box every robot bumper on match frames so Auto Scout learns to find robots in any broadcast.','robots','PLATFORM OWNER · TRAINING DATA');
+require_once dirname(__DIR__).'/community/layout.php';require_once dirname(__DIR__).'/community/pillar.php';community_page_start('1 · Robots','Teach Auto Scout what a robot is: box bumpers, train the robot detector, and see what it learned.','robots','AUTO SCOUT · PILLAR 1');
+pillar_open((int)gmdate('Y'));
+pillar_summary('robot','Finds every robot’s bumpers in a frame, in wide and close-up shots. Tracking and number reading depend on it, so this comes first. Box bumpers below, then press Train: your helper trains a new detector, checks it on the newest labelled match (never trained on), and only switches if it finds bumpers more accurately. Bumpers look alike every season, so one robot detector serves all games.','Train robot detector');
 ?>
 <link rel="stylesheet" href="../community/assets/match-picker/match-picker.css?v=1">
 <link rel="stylesheet" href="../community/assets/field-regions/style.css?v=4-site-layout">
@@ -114,6 +116,6 @@ require_once dirname(__DIR__).'/community/layout.php';community_page_start('Robo
 <div class="rl-stats"><div><span id="boxcount">0</span><small>boxes in this frame</small></div><div><span id="donecount">0</span><small>frames complete in this match</small></div></div>
 <button id="complete" class="primary save">All bumpers boxed ↵</button><button id="skip" class="save rl-secondary">Skip frame (replay, graphic, blurry)</button>
 <div id="status" role="status" aria-live="polite">Choose a match.</div>
-<div class="note rl-detector"><b>Robot detector</b><p>Prepare frames: your helper finds bumpers in this match so you only fix its boxes. Training and the model in use are on <a href="train.php#robot">Train &amp; test → Robot detector</a>.</p><button id="prepare" class="save rl-secondary"<?=$selected?'':' disabled'?>>Prepare frames for this match</button><div id="requests" class="rl-requests"></div><div id="current" class="rl-current"></div></div><div class="note"><b>What makes good labels</b><p>Every bumper you can see, red or blue, even partly hidden or far away. Box just the bumper, not the whole robot. Skip frames that aren't live match footage.</p></div></aside></div></div>
+<div class="note rl-detector"><b>Robot detector</b><p>Prepare frames: your helper finds bumpers in this match so you only fix its boxes.</p><button id="prepare" class="save rl-secondary"<?=$selected?'':' disabled'?>>Prepare frames for this match</button><div id="requests" class="rl-requests"></div><div id="current" class="rl-current"></div></div><div class="note"><b>What makes good labels</b><p>Every bumper you can see, red or blue, even partly hidden or far away. Box just the bumper, not the whole robot. Skip frames that aren't live match footage.</p></div></aside></div></div>
 <script src="../community/assets/match-picker/match-picker.js?v=1"></script><script src="../community/assets/field-regions/youtube-source.js?v=3-generic"></script><script src="../community/assets/robot-labels/robot-labels.js?v=1"></script>
-<?php community_page_end(); ?>
+<?php pillar_trained('robot');pillar_close();community_page_end(); ?>

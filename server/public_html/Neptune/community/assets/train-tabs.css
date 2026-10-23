@@ -26,3 +26,11 @@
 .tt-badge.ok{border-color:var(--c1-green,#3cbf7a);color:var(--c1-green,#3cbf7a)}
 .tt-badge.warn{border-color:var(--c1-orange,#f0a03c);color:var(--c1-orange,#f0a03c)}
 @media(max-width:800px){.tt-status,.tt-grid{grid-template-columns:1fr}.tt-tabs .tt-tab-aside{margin-left:0}}
+/* Pillar pages (Robots, Field, Actions). */
+.tt-grid-3{grid-template-columns:1fr 1fr 1.2fr}
+.tt-trained{margin-top:22px}
+.tt-trained-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:8px}
+.tt-trained-head .stage-label{margin:0}
+.community-nav .tt-flag{margin-left:6px}
+.tt-tabs+[data-panel]{padding-top:6px}
+@media(max-width:1000px){.tt-grid-3{grid-template-columns:1fr}}

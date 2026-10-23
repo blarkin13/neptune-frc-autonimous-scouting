@@ -195,7 +195,11 @@ if (!function_exists('neptune_hero_buffer_start')) {
             ['~maintenance console~i', [['fa-file-zipper','Upload patch'],['fa-magnifying-glass','Inspect contents'],['fa-screwdriver-wrench','Install safely']]],
             ['~system check~i', [['fa-stethoscope','Run checks'],['fa-circle-exclamation','Review issues'],['fa-wrench','Fix configuration']]],
             ['~file manager~i', [['fa-folder-open','Browse files'],['fa-upload','Upload / organize'],['fa-shield-halved','Stay org scoped']]],
-            ['~train & test robot scouting~i', [['fa-robot','Robot detector'],['fa-border-all','Field detector'],['fa-brain','Actions & scoring'],['fa-circle-check','Test & release']]],
+            ['~^1 · robots$~i', [['fa-object-group','Box bumpers'],['fa-robot','Train robot detector'],['fa-clock-rotate-left','Check what it learned']]],
+            ['~^2 · field$~i', [['fa-draw-polygon','Mark targets & corners'],['fa-border-all','Train field detector'],['fa-clock-rotate-left','Check what it learned']]],
+            ['~^3 · actions$~i', [['fa-tags','Tag or import examples'],['fa-brain','Train actions & scoring'],['fa-clock-rotate-left','Check what it learned']]],
+            ['~^test & release$~i', [['fa-play','Try a match'],['fa-scale-balanced','Evaluate'],['fa-circle-check','Release']]],
+            ['~^helpers & settings$~i', [['fa-download','Install the helper'],['fa-link','Connect it'],['fa-gear','Manage data']]],
             ['~community scouting settings~i', [['fa-toggle-on','Enable tagging'],['fa-tags','Review contributions'],['fa-brain','Open training']]],
             ['~^auto scout$~i', [['fa-tags','Add examples'],['fa-robot','Train a model'],['fa-circle-check','Test what it learned']]],
             ['~scoring areas~i', [['fa-calendar-days','Choose a match'],['fa-draw-polygon','Mark targets & zones'],['fa-cloud-arrow-up','Save to Neptune']]],
@@ -221,6 +225,11 @@ if (!function_exists('neptune_hero_buffer_start')) {
     function neptune_hero_relief_icon(string $title, string $module): string
     {
         $rules = [
+            ['~^1 · robots$~i', 'fa-robot'],
+            ['~^2 · field$~i', 'fa-border-all'],
+            ['~^3 · actions$~i', 'fa-brain'],
+            ['~^test & release$~i', 'fa-circle-check'],
+            ['~^helpers & settings$~i', 'fa-laptop'],
             ['~train & test|machine learning|model training~i', 'fa-brain'],
             ['~^auto scout$~i', 'fa-robot'],
             ['~scoring areas~i', 'fa-draw-polygon'],

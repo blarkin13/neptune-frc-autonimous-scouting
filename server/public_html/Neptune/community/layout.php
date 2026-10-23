@@ -28,7 +28,11 @@ function community_page_start(string $title,string $subtitle,string $active='pub
       <?php endforeach; ?>
     </div>
   </div>
-<nav class="community-nav" aria-label="Auto Scout"><?php foreach(['catalog'=>['Watch & tag','/community/?view=catalog'],'scoring'=>['Scoring areas','/autoscout/scoring-areas.php'],'robots'=>['Robot labels','/autoscout/robot-labels.php'],'results'=>['Saved tags & scores','/community/?view=results'],'learning'=>['Train & test','/autoscout/train.php']] as $key=>$link):?><a href="<?=e($link[1])?>" <?=$active===$key||($key==='catalog'&&$active==='contribute')?'aria-current="page"':''?>><?=e($link[0])?></a><?php endforeach ?><?php if($active!=='hub'):?><a href="/autoscout/index.php">← Auto Scout</a><?php endif?></nav>
+<?php
+ // Three pillars in order, then testing. Watch & tag and saved tags belong to Actions.
+ $pillarOf=['catalog'=>'actions','contribute'=>'actions','results'=>'actions','learning'=>'actions','scoring'=>'field'];$current=$pillarOf[$active]??$active;
+ $links=['robots'=>['1 · Robots','/autoscout/robot-labels.php','robot'],'field'=>['2 · Field','/autoscout/scoring-areas.php','field'],'actions'=>['3 · Actions','/autoscout/train.php','actions'],'test'=>['Test & release','/autoscout/train.php?view=test',''],'helpers'=>['Helpers & settings','/autoscout/train.php?view=helpers','']];
+?><nav class="community-nav" aria-label="Auto Scout"><?php foreach($links as $key=>[$label,$href,$pillar]):?><a href="<?=e($href)?>"<?=$pillar?' data-pillar="'.$pillar.'"':''?> <?=$current===$key?'aria-current="page"':''?>><?=e($label)?></a><?php endforeach ?><?php if($active!=='hub'):?><a href="/autoscout/index.php">← Auto Scout</a><?php endif?></nav>
 <?php }
 function community_page_end():void {
  global $pdo,$config,$u,$pageTitle,$moduleName,$hideChrome,$isPublicHome;
