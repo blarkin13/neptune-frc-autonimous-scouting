@@ -60,6 +60,7 @@ The old Codex folder `~/Documents/ChatGPT/Neptune` is **no longer the code locat
   need their own profile. 2026 profiles unchanged.
 - **Built locally, not yet packaged:** the pillar layout (commit `b9d6539`). Owner wanted to see it first.
 - "Run on Neptune" (server-side training/tests) was removed 2026-10-23: everything runs on helpers. Auto Scout access is owner/admin of the owner organization, without the extra Google step.
+- Live `neptune_secure/community-trainers.php` (synced 2026-10-23) accepts only R3D-18 action features. The VideoMAE check (`robot-videomae-base-clip-v1`, 768-d) exists in git history (before commit 5caafa0) but was never deployed; add it back before setting `NEPTUNE_ACTION_BACKEND=videomae`.
 - Open: "Unknown instead of zero" when a robot is barely tracked (proposed, not built); 2025 tracking not run
   end to end; 2027 game is `configured: false` until released.
 
