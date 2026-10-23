@@ -49,9 +49,11 @@ final class RobotDetectorJobs {
  public function claim(array $computer):?array{
   $all=array_reverse($this->requests());
   foreach($all as $r){
-   $stale=$r['state']==='claimed'&&time()-(int)($r['heartbeat_at']??$r['claimed_at']??0)>4*3600;
+   $quiet=time()-(int)($r['heartbeat_at']??$r['claimed_at']??0);
+   // Another helper takes over after 4 h of silence; the same helper takes its own run back at once (it restarted).
+   $stale=$r['state']==='claimed'&&($quiet>4*3600||(($r['computer_id']??null)===$computer['id']&&$quiet>60));
    if($r['state']!=='queued'&&!$stale)continue;
-   $r=array_replace($r,['state'=>'claimed','claimed_at'=>time(),'heartbeat_at'=>time(),'computer_id'=>$computer['id'],'lease'=>bin2hex(random_bytes(16)),'message'=>'Started on a helper']);
+   $r=array_replace($r,['state'=>'claimed','claimed_at'=>time(),'heartbeat_at'=>time(),'computer_id'=>$computer['id'],'lease'=>bin2hex(random_bytes(16)),'message'=>($r['state']==='claimed'?'Restarted on the helper':'Started on a helper')]);
    self::write($this->dir('requests').'/'.$r['id'].'.json',$r);return $r;
   }
   return null;
