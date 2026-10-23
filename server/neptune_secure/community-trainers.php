@@ -24,11 +24,6 @@ function community_training_hardware(array $input):array {
 function community_action_feature_dimension(array $model):int {
  $version=$model['feature_version']??'';
  if($version==='robot-rgb-motion-v1')return 1296;
- if($version==='robot-videomae-base-clip-v1'){
-  $e=$model['action_encoder']??[];
-  if(($e['name']??'')!=='huggingface-videomae-base-kinetics400-v1'||($e['feature_version']??'')!==$version||($e['dimension']??0)!==768||($e['repository']??'')!=='MCG-NJU/videomae-base-finetuned-kinetics'||($e['revision']??'')!=='488eb9a0565f257b32866000305c8178965eb9f6'||($e['weights_sha256']??'')!=='065cfde56f97671da4d196e1a3a6d3cf9304dcad92eb671e3632a6c6cdd04f73'||($e['frames']??0)!==16||($e['fps']??0)!==4||($e['seconds']??0)!=4||($e['backbone_frozen']??false)!==true||($e['head_training']??'')!=='per-game-Neptune-action-labels'||($e['license']??'')!=='cc-by-nc-4.0')return 0;
-  return 768;
- }
  if($version!=='robot-r3d18-clip-v1')return 0;
  $e=$model['action_encoder']??[];
  if(($e['name']??'')!=='torchvision-r3d18-kinetics400-v1'||($e['feature_version']??'')!==$version||($e['dimension']??0)!==512||($e['weights_sha256']??'')!=='b3b3357ead25631ec9c57362ff2128a92d0427e01e2cd184951a44380c3f2e9d'||($e['frames']??0)!==16||($e['fps']??0)!==4||($e['seconds']??0)!=4||($e['backbone_frozen']??false)!==true||($e['head_training']??'')!=='per-game-Neptune-action-labels')return 0;
