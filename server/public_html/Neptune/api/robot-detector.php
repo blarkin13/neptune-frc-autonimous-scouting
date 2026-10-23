@@ -4,6 +4,7 @@ require_once dirname(__DIR__,3).'/neptune_secure/bootstrap.php';
 require_once dirname(__DIR__,3).'/neptune_secure/community-analysis-install.php';
 require_once dirname(__DIR__,3).'/neptune_secure/community-training-control.php';
 require_once dirname(__DIR__,3).'/neptune_secure/robot-detector-jobs.php';
+require_once dirname(__DIR__,3).'/neptune_secure/youtube-uploader.php';
 header('Cache-Control: private, no-store');
 // Connected helpers: claim detector requests, report progress, upload pre-fill boxes or an adopted detector,
 // and download the current shared detector.
@@ -22,6 +23,7 @@ try {
   'prefill_put'=>$jobs->putPrefill($computer,$p),
   'current'=>$jobs->current(isset($p['have'])?(string)$p['have']:null),
   'adopt'=>$jobs->adopt($computer,$p),
+  'review_put'=>$jobs->putReview($computer,$p,new YouTubeUploader(dirname(__DIR__,3).'/neptune_secure')),
   'current_field'=>$jobs->currentField(isset($p['have'])?(string)$p['have']:null,isset($p['game_key'])?(string)$p['game_key']:null),
   'adopt_field'=>$jobs->adoptField($computer,$p),
   default=>throw new CommunityAnalysisError(422,'Unknown action.'),

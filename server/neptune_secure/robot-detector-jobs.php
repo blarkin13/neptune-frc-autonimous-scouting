@@ -71,6 +71,22 @@ final class RobotDetectorJobs {
   $r=array_replace($r,['state'=>$ok?'done':'failed','finished_at'=>time(),'message'=>mb_substr((string)($p['message']??''),0,500),'report'=>is_array($p['report']??null)?$p['report']:null]);
   unset($r['lease']);self::write($this->root.'/requests/'.$r['id'].'.json',$r);return ['ok'=>true];
  }
+ /** A run's review video: kept on Neptune (last 10), uploaded to YouTube when connected; the result goes on the request. */
+ public function putReview(array $computer,array $p,?YouTubeUploader $youtube):array{
+  $r=$this->owned($computer,$p);if(!in_array($r['kind'],['train','train_field'],true))throw new InvalidArgumentException('Only training runs have review videos');
+  $raw=base64_decode((string)($p['video_b64']??''),true);if($raw===false||strlen($raw)<1000||strlen($raw)>48*1024*1024)throw new InvalidArgumentException('Invalid review video');
+  $dir=$this->dir('review');$file=$dir.'/'.$r['id'].'.mp4';file_put_contents($file,$raw,LOCK_EX);chmod($file,0600);
+  $old=glob($dir.'/*.mp4')?:[];usort($old,fn($a,$b)=>filemtime($b)<=>filemtime($a));foreach(array_slice($old,10) as $f)unlink($f);
+  $title=mb_substr(trim((string)($p['title']??'Auto Scout review')),0,100);$desc=mb_substr((string)($p['description']??''),0,4900);
+  $review=['status'=>'saved','title'=>$title,'saved_at'=>time()];
+  if($youtube&&$youtube->status()['connected']){
+   set_time_limit(900);   // the upload to YouTube runs inside this request
+   try{$review=$youtube->upload($file,$title,$desc)+$review;$review['status']='uploaded';}
+   catch(Throwable $e){$review['status']='upload_failed';$review['error']=mb_substr($e->getMessage(),0,200);}
+  }else $review['status']='youtube_not_connected';
+  $r['review']=$review;self::write($this->root.'/requests/'.$r['id'].'.json',$r);
+  return ['review'=>$review];
+ }
  /** Detector guesses for Robot labels frames: {t_ms: [{alliance,x,y,w,h}]} plus the frame times. */
  public function putPrefill(array $computer,array $p):array{
   $this->owned($computer,$p);$v=self::video((string)($p['video_id']??''));$frames=[];

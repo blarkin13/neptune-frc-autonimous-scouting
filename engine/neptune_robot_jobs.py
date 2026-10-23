@@ -224,6 +224,8 @@ def train(config, req, progress):
     adopt = old is None or new['f1'] >= old['f1']+ADOPT_MARGIN
     report = {'engine': VERSION, 'holdout_match': holdout, 'frames': built['frames'], 'train_frames': built['train'], 'check_frames': built['val'],
               'bumpers': built['boxes'], 'matches': usable, 'new': new, 'current': old, 'adopted': adopt, 'margin': ADOPT_MARGIN, 'skipped': built['skipped']}
+    progress('Making the review video')
+    report['review'] = send_review(config, req, report, lambda out: __import__('neptune_review_video').robot_video(out, check, best, current, report))
     if adopt:
         progress('Sharing the new detector with Neptune')
         api(config, 'adopt', {'request_id': req['id'], 'lease': req['lease'], 'weights_b64': base64.b64encode(best.read_bytes()).decode(), 'report': report}, timeout=600)
@@ -369,6 +371,8 @@ def train_field(config, req, progress):
     current = fd.model_path(game); old = placement(current, held, holdout) if current else None
     adopt = better_placement(new, old)
     report = {'engine': VERSION, 'game_key': game, 'holdout_match': key, 'matches': len(docs), 'new': new, 'current': old, 'adopted': adopt, 'margin': FIELD_ADOPT_MARGIN}
+    progress('Making the review video')
+    report['review'] = send_review(config, req, report, lambda out: __import__('neptune_review_video').field_video(out, held, best, holdout, report))
     if adopt:
         progress('Sharing the new field detector with Neptune')
         # The held-out match's marks travel with the detector: unmarked events of this game are matched against them.
@@ -376,6 +380,25 @@ def train_field(config, req, progress):
                                     'reference': holdout, 'report': report}, timeout=600)
         sync_field_detector(config, game)
     return report
+
+
+# ---------- review videos ----------
+
+def send_review(config, req, report, render):
+    """Render this run's review video and send it to Neptune, which uploads it to YouTube. Never fails the run."""
+    import neptune_review_video as rv
+    try:
+        out = HOME/'review-videos'/(req['id']+'.mp4'); out.parent.mkdir(parents=True, exist_ok=True)
+        render(out)
+        if out.stat().st_size > 45*1024*1024:
+            return {'status': 'too_large'}
+        title, description = rv.describe(req['kind'], report, VERSION)
+        reply = api(config, 'review_put', {'request_id': req['id'], 'lease': req['lease'], 'title': title, 'description': description,
+                                           'video_b64': base64.b64encode(out.read_bytes()).decode()}, timeout=900)
+        out.unlink()
+        return reply.get('review') or {'status': 'sent'}
+    except Exception as error:
+        return {'status': 'failed', 'error': str(error)[:200]}
 
 
 # ---------- polling ----------

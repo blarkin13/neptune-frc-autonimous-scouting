@@ -123,6 +123,7 @@ community_page_start($title,$sub,$view,$kick);
  <section id="testing-guide"><span class="stage-label">2 · SCORE AGAINST AN ANSWER KEY → RELEASE</span><h2>Score against an answer key</h2><p>The real check: run the models on matches where every action is already tagged by people (an answer key the models never trained on) and count their mistakes. Passing this is what unlocks Release.</p><div id="evaluation-status"></div><button type="button" id="open-evaluation">Score against an answer key</button><button type="button" id="release-model" class="button-secondary" disabled>Release evaluated model</button><p class="training-note">Finishing training or a prediction test does not release a model. Release stays locked until independent checks pass.</p><details class="training-more"><summary>What does an evaluation need?</summary><p>A prepared reference set must cover every trained action and all six robots. Scoring references must be independently counted, complete robot scores; ordinary estimated contributions cannot prove accuracy. Training examples must not overlap the evaluation videos or events.</p><p>The current release checks require ten separate matches from two events. Action checks require at least 90% precision and 80% recall, with ten reference actions for each trained tag. Scoring checks require at least 90% prediction coverage, mean point error at most 20 and mean share error at most ten percentage points. These checks do not establish six-scout accuracy.</p><p>Choose the reference JSON file in the evaluation window. The selected helper or Neptune retrieves and checks the linked footage; it does not need your local video file paths.</p></details></section>
  </div>
  <div data-view="helpers"<?=$view==='helpers'?'':' hidden'?>>
+  <section><span class="stage-label">REVIEW VIDEOS</span><h2>Watch what each detector run learned</h2><p>Each robot and field detector run makes a short video of the new model on its held-out match and uploads it to your YouTube channel.</p><a class="community-button" href="/autoscout/youtube.php">Set up YouTube uploads →</a></section>
  <section class="tt-view-body">
   <p class="tt-how">A helper is the app on your computer that does the training. It runs whatever this page queues, one job at a time, and shows the step it is on and what comes next. Install it once and leave it open.</p>
  <section id="training-computers" class="training-helper-install">
@@ -144,5 +145,5 @@ community_page_start($title,$sub,$view,$kick);
 </div>
 <script type="application/json" id="training-initial"><?=json_encode($panel,JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_THROW_ON_ERROR)?></script>
 <script src="../community/assets/training-control.js?v=helper-connection-cleanup-20261022" defer></script>
-<script src="/community/assets/pillar.js?v=2" defer></script>
+<script src="/community/assets/pillar.js?v=3" defer></script>
 <?php community_page_end(); ?>

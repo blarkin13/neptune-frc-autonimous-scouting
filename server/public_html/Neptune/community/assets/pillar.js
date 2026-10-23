@@ -36,8 +36,10 @@
  const runState=r=>r.state==='done'?(r.report?.adopted?'<span class="tt-badge ok">Switched to it</span>':'<span class="tt-badge">Kept the one in use</span>'):r.state==='failed'?'<span class="tt-badge warn">Failed</span>':r.state==='claimed'?'<span class="tt-badge ok">Running</span>':'<span class="tt-badge">Waiting</span>';
  function runs(list,score){
   if(!list.length)return '<p class="training-note">No runs yet.</p>';
-  return '<table class="tt-runs"><tr><th>Started</th><th>Result</th><th>New vs in use</th><th>Details</th></tr>'+list.slice(0,8).map(r=>`<tr><td>${when(r.created_at)}</td><td>${runState(r)}</td><td>${r.report?score(r.report):'—'}</td><td class="tt-msg">${esc(r.message)}</td></tr>`).join('')+'</table>';
+  return '<table class="tt-runs"><tr><th>Started</th><th>Result</th><th>New vs in use</th><th>Review video</th><th>Details</th></tr>'+list.slice(0,8).map(r=>`<tr><td>${when(r.created_at)}</td><td>${runState(r)}</td><td>${r.report?score(r.report):'—'}</td><td>${video(r.review)}</td><td class="tt-msg">${esc(r.message)}</td></tr>`).join('')+'</table>';
  }
+ // Review video on YouTube (private until the API project passes YouTube's audit).
+ const video=v=>!v?'—':v.youtube_id?`<a href="https://youtu.be/${esc(v.youtube_id)}" target="_blank" rel="noopener">▶ Watch</a>${v.privacy==='private'?' <small>(private)</small>':''}`:v.status==='youtube_not_connected'?'<a href="/autoscout/youtube.php">Connect YouTube</a>':v.status==='upload_failed'?`<span title="${esc(v.error)}">Upload failed</span>`:'—';
  const placed=p=>!p||!p.found?'none found':`${p.found}/${p.expected} · ${(p.mean_error*100).toFixed(1)}% off`;
  const next=(items)=>items.map(([ok,text])=>`<li class="${ok?'tt-ok':'tt-todo'}">${text}</li>`).join('');
  function trainButton(name,disabled,note){

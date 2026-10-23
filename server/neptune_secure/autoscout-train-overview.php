@@ -5,7 +5,7 @@ require_once __DIR__.'/robot-detector-jobs.php';
 /** One status read for the Train page: helpers, what is running and waiting, and each trainable part's model and data. */
 function autoscout_train_overview(PDO $pdo,array $panel,int $org,int $user,string $game):array {
  $secure=__DIR__;$jobs=new RobotDetectorJobs($secure,$org);
- $requests=array_map(fn($r)=>array_intersect_key($r,array_flip(['id','kind','state','computer_id','created_at','claimed_at','heartbeat_at','finished_at','message','report','video_id','match_key'])),$jobs->requests());
+ $requests=array_map(fn($r)=>array_intersect_key($r,array_flip(['id','kind','state','computer_id','created_at','claimed_at','heartbeat_at','finished_at','message','report','review','video_id','match_key'])),$jobs->requests());
  // Robot labels: complete frames per match (site saves take precedence over the local seed frames).
  $videos=[];
  foreach(array_merge(glob($secure.'/robot-labels/seed/*.json')?:[],glob($secure.'/robot-labels/'.$org.'/*.json')?:[]) as $f){

@@ -15,6 +15,7 @@ PLANS = {
         ('Prepare training frames', ('Preparing', 'Downloading')),
         ('Train', ('Training robot detector',)),
         ('Compare with the detector in use', ('Comparing',)),
+        ('Make the review video', ('Making the review video',)),
         ('Share it if better', ('Sharing', 'Adopted', 'Kept')),
     ]),
     'train_field': ('Train the field detector', [
@@ -22,6 +23,7 @@ PLANS = {
         ('Prepare field frames', ('Preparing field frames', 'Downloading')),
         ('Train', ('Training field detector',)),
         ('Compare with the detector in use', ('Comparing',)),
+        ('Make the review video', ('Making the review video',)),
         ('Share it if better', ('Sharing', 'Adopted', 'Kept')),
     ]),
     'actions': ('Train action models & scoring', [
