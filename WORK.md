@@ -4,7 +4,8 @@
 1. Stopping a tracking review no longer saves "tracking unavailable" (InterruptedError is re-raised, so the
    match tracks next time). Training reports each match's tracking status/reason. Found and fixed: the clip
    planner did not know the tracker revision used since 3.2.8, so every clip took the strict fixed-window path
-   (likely a large share of the 312 "no usable tracking clip" losses); the current revision is now always known.
+   (a large share of the "no usable tracking clip" losses); the current and 3.2.8+ revisions are now known.
+   QM4 hand labels that become usable clips: 87 -> 128 (planner fix) -> 138 (+ roster inference).
 2. Roster solver inferences ('bidirectional_motion_and_roster', 'same_number_before_and_after_contact') become
    `roster_inferred` localizations used by training, clips and predictions. Hidden-anchor test on QM3/QM4:
    1,132 of 1,132 inferred identities correct. Adds +30% (QM3) / +17% (QM4) named sightings on hybrid tracking.

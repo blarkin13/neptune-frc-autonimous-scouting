@@ -113,7 +113,7 @@ def plan(facts, sight):
                    # same track and team: an OCR-verified stretch may continue as a solver-inferred one
                    or 'roster_inferred' in (s.get('identity_method'),anchor.get('identity_method')))]
     cuts=track.get('camera_cuts',{}).get(anchor.get('camera'),track.get('scene_cuts', []))
-    if anchor.get('identity_method')=='human_reviewed_track' or track.get('continuity_revision') in ('segment-verified-v3','bidirectional-roster-review-v4','reviewed-flow-continuity-v5','wide-tile-and-gap-continuity-v6',_current_revision()):
+    if anchor.get('identity_method')=='human_reviewed_track' or track.get('continuity_revision') in ('segment-verified-v3','bidirectional-roster-review-v4','reviewed-flow-continuity-v5','wide-tile-and-gap-continuity-v6','robot26-reacquisition-ocr3-v2',_current_revision()):
         # A clip can start at a track's visible boundary rather than insist on
         # two seconds of invisible pre-roll. It must still contain the anchor,
         # have sixteen detected positions and stay inside one phase/camera/segment.
