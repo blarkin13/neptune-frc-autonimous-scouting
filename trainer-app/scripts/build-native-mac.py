@@ -45,7 +45,8 @@ def main():
     for required in ('fps','crop','scale','split','format'):assert any(line.split()[1:2]==[required] for line in filters.splitlines()),'Missing video filter '+required
     protocols=subprocess.check_output([str(vendor/'ffmpeg'),'-hide_banner','-protocols'],text=True);assert 'pipe' in protocols
     clone(DEPS/'sparkle/Sparkle.framework',frameworks/'Sparkle.framework')
-    for name in ('Logo-transparent.png',):
+    # Icon.png is the window-header mark App.swift loads; Logo-transparent.png the wide wordmark.
+    for name in ('Logo-transparent.png','Icon.png'):
         if (SRC/'Resources'/name).exists():shutil.copy2(SRC/'Resources'/name,res/name)
     icon=SRC/'Resources/Icon.png'
     if icon.exists():
