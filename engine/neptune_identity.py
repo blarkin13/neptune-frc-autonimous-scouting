@@ -272,3 +272,30 @@ def apply_corrections(review,corrections):
         elif p['identity_status']=='verified' and original[p['point_id']].get('verified_team') is None:p['identity_status']='inferred'
     combined=sorted(refined+excluded,key=lambda p:(p['t'],p['camera'],str(p['scene']),str(p['track_id'])))
     return {**review,'points':combined,'corrections':corrections,'summary':dict(collections.Counter(p['identity_status'] for p in combined))}
+
+
+# Inferences proven reliable on hidden OCR anchors (2026txcmp1 QM3/QM4: 1,132 of 1,132 correct) may be used
+# like verified identities; short-gap visual suggestions stay review-only.
+TRAINING_INFERENCE_REASONS = ('bidirectional_motion_and_roster', 'same_number_before_and_after_contact')
+
+
+def with_roster_inferred(tracking):
+    """Add the solver's reliable inferences to tracking localizations as identity_method 'roster_inferred'."""
+    review = tracking.get('identity_review') or {}
+    base = [p for p in tracking.get('localizations', []) if p.get('identity_method') != 'roster_inferred']
+    taken = collections.defaultdict(list)
+    for p in base:
+        taken[(p.get('camera'), p['team'])].append(p['t'])
+    added = []
+    for p in review.get('points', []):
+        if p.get('identity_status') != 'inferred' or p.get('reason') not in TRAINING_INFERENCE_REASONS or p.get('team') is None:
+            continue
+        if p.get('box_source') == 'optical_flow' or p.get('occluded'):
+            continue
+        if any(abs(t-p['t']) < .2 for t in taken[(p.get('camera'), p['team'])]):
+            continue
+        added.append({'t': p['t'], 'box': p['box'], 'camera': p.get('camera'), 'camera_bounds': p.get('camera_bounds'), 'scene': p.get('scene'),
+                      'track_id': p.get('track_id'), 'team': p['team'], 'detection_confidence': p.get('detection_confidence'),
+                      'identity_method': 'roster_inferred', 'identity_segment': 'roster:'+str(p.get('review_track')),
+                      'identity_evidence': {'solver': VERSION, 'reason': p['reason'], 'point_id': p.get('point_id')}})
+    return dict(tracking, localizations=sorted(base+added, key=lambda q: (q['t'], str(q.get('camera')))), roster_inferred=len(added))

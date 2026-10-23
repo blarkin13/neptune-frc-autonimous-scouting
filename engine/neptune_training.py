@@ -135,7 +135,7 @@ def sightings(facts):
     # fragments and interpolated positions never become training crops.
     for sight in facts.get('tracking',{}).get('localizations',[]):
         key=(sight['team'],round(sight['t']))
-        if sight.get('identity_method') not in ('direct_vote_track','yolo_botsort_ocr','human_reviewed_track'):continue
+        if sight.get('identity_method') not in ('direct_vote_track','yolo_botsort_ocr','human_reviewed_track','roster_inferred'):continue
         if sight.get('identity_method')!='human_reviewed_track' and any(other['team']!=sight['team'] and abs(other['t']-sight['t'])<.2
                and boxes_overlap(sight['box'],other['box'])>.3 for other in facts.get('tracking',{}).get('localizations',[])):continue
         out.append(sight);seen.add(key)
@@ -199,6 +199,8 @@ def ensure_tracking(video,facts,game,work,progress=lambda s:None):
             roster={c:[int(t) for t,v in facts['bumpers']['identities'].items() if v['alliance']==c] for c in ('red','blue')}
             tracking['identity_review']=reconcile(tracking['observations'],roster,facts['source']['sha256'],association=association)
             tracking['association_sha']=digest(association)
+        from neptune_identity import with_roster_inferred
+        facts=dict(facts,tracking=with_roster_inferred(tracking))
         from neptune_review_learning import apply_to_facts
         return apply_to_facts(facts)
     profile=game.get('layout_profiles',{}).get(facts.get('layout',{}).get('profile'))
@@ -209,8 +211,14 @@ def ensure_tracking(video,facts,game,work,progress=lambda s:None):
     from neptune_ocr import select_backend
     try:
         facts=dict(facts,tracking=track_match(video,facts,profile,select_backend(),work,progress=progress))
+    except InterruptedError:
+        # A stopped review or job is not a tracking result; leave the match to be tracked next time.
+        raise
     except (ValueError,RuntimeError,ImportError,subprocess.SubprocessError,OSError) as error:
         facts=dict(facts,tracking={'status':'unavailable','reason':str(error)[:300]})
+    if facts['tracking'].get('status')=='measured':
+        from neptune_identity import with_roster_inferred
+        facts=dict(facts,tracking=with_roster_inferred(facts['tracking']))
     from neptune_review_learning import apply_to_facts
     return apply_to_facts(facts)
 
@@ -983,6 +991,7 @@ def run(root,year,export_url=labels.EXPORT_URL,download=True,progress=print,expo
                                 return vector
                         vector=action_features(video,sight,duration,facts);write(path,{'x':vector,'clip':sight.get('temporal_clip')});return vector
                     diagnostics['identity_review']=facts.get('tracking',{}).get('review_supervision')
+                    diagnostics['tracking']={'status':facts.get('tracking',{}).get('status'),'reason':facts.get('tracking',{}).get('reason'),'version':facts.get('tracking',{}).get('version')}
                     diagnostics['action_encoder']=action_encoder_document(selected_action_version())
                     action_selected=[r for r in selected if r['id'] in action_ids]
                     from neptune_field_regions import load as load_regions

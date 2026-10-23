@@ -6,7 +6,7 @@ VERSION = 'shared-scouting-rules-v1'
 DEFAULTS = dict(stationary_seconds=5.0, stationary_radius_widths=.20,
                 max_tracking_gap_seconds=1.1, recovery_seconds=1.0,
                 recovery_distance_widths=.5, scoring_visit_gap_seconds=3.0)
-TRUSTED = {'direct_vote_track', 'yolo_botsort_ocr', 'human_reviewed_track'}
+TRUSTED = {'direct_vote_track', 'yolo_botsort_ocr', 'human_reviewed_track', 'roster_inferred'}
 
 
 def policy(overrides=None):

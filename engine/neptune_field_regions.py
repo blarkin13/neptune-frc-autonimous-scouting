@@ -138,7 +138,7 @@ def active(r,t,camera,facts):
 
 def context(p,d,facts):
     if p.get('occluded') or p.get('box_source')=='optical_flow':return None
-    if p.get('identity_method') not in {'direct_vote_track','yolo_botsort_ocr','human_reviewed_track'}:return None
+    if p.get('identity_method') not in {'direct_vote_track','yolo_botsort_ocr','human_reviewed_track','roster_inferred'}:return None
     camera=p.get('camera');box=p.get('box',[])
     if len(box)!=4:return None
     foot=[box[0]+box[2]/2,box[1]+box[3]]

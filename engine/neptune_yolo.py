@@ -14,7 +14,7 @@ import sys
 
 VERSION = 'yolo-botsort-1'
 # Bump whenever Identities/recover_segments change: cached tracking is reused only on an exact match.
-CONTINUITY_REVISION = 'robot26-reacquisition-ocr3-v2'
+CONTINUITY_REVISION = 'contact-carry-partial-reads-v7'
 ULTRALYTICS_VERSION = '8.4.63'
 
 
@@ -147,7 +147,12 @@ class Identities:
             old = self.states.get(tid)
             crowded = det.get('occluded', False) or any(other['id'] != tid and overlap(det['box'], other['box']) > .35 for other in detections)
             if crowded:
-                self.states.pop(tid, None)
+                # Brief contact: label nothing, but remember who this track was. One matching read
+                # afterwards confirms it; a different read means the tracks swapped.
+                if old and (old.get('team') or old.get('carried')):
+                    old.update(contact=True, last=t, box=det['box'])
+                else:
+                    self.states.pop(tid, None)
                 continue
             if old and (t-old['last'] > 1.5 or old['alliance'] != det['alliance']):
                 self.states.pop(tid, None)
@@ -163,9 +168,15 @@ class Identities:
                 self.serial += 1
                 self.states[tid] = {'last': t, 'alliance': det['alliance'], 'team': None, 'candidate': None, 'moments': [], 'segment':self.serial}
             state = self.states[tid]
+            if state.get('contact'):
+                carried = state.get('team') or state.get('carried')
+                self.serial += 1
+                state.update(segment=self.serial, team=None, candidate=carried, carried=carried, moments=[], contact=False)
             state['last'] = t
             state['box'] = det['box']
-            teams = {r['team'] for r in reads if r.get('track') == tid and r.get('kind') == 'exact' and self.alliance.get(r.get('team')) == det['alliance']}
+            mine = [r for r in reads if r.get('track') == tid and r.get('kind') in ('exact', 'corrected', 'partial') and self.alliance.get(r.get('team')) == det['alliance']]
+            teams = {r['team'] for r in mine}
+            exact = any(r['kind'] == 'exact' for r in mine)
             if len(teams) > 1:
                 self.states.pop(tid, None)
                 continue
@@ -175,13 +186,17 @@ class Identities:
                     if state['candidate'] is not None:
                         self.invalid_segments.add(state['segment'])
                         self.serial += 1;state['segment']=self.serial
-                    state.update(team=None, candidate=team, moments=[])
+                    state.update(team=None, candidate=team, moments=[], carried=None, exact_reads=0)
                 if not state['moments'] or t-state['moments'][-1] >= .5:
                     state['moments'].append(t)
-                if len(state['moments']) >= 2:
+                    state['exact_reads'] = state.get('exact_reads', 0)+exact
+                # Two reads (corrected/partial ones count, but at least one must be exact), or one exact
+                # read confirming a robot carried through contact.
+                if (len(state['moments']) >= 2 and state.get('exact_reads', 0) >= 1) or (state.get('carried') == team and exact):
                     state['team'] = team
             if state['team'] is not None:
-                out.append(dict(det, team=state['team'], anchor_times=state['moments'][-2:],identity_segment=state['segment']))
+                out.append(dict(det, team=state['team'], anchor_times=state['moments'][-2:],identity_segment=state['segment'],
+                                carried=state.get('carried') == state['team']))
         # Refuse duplicate assignments rather than choosing the more convenient robot.
         duplicates = {d['team'] for d in out if sum(q['team'] == d['team'] for q in out) > 1}
         for d in out:
@@ -200,7 +215,9 @@ def recover_segments(points, confirmations, invalid, model_sha):
     verified={}
     for segment,rows in confirmations.items():
         teams={r['team'] for r in rows};times=sorted({t for r in rows for t in r['anchor_times']})
-        if segment in invalid or len(teams)!=1 or len(times)<2 or times[-1]-times[0]<.5:continue
+        if segment in invalid or len(teams)!=1:continue
+        # A segment that continues a robot through contact needs one confirming read, not two.
+        if (len(times)<2 or times[-1]-times[0]<.5) and not (times and all(r.get('carried') for r in rows)):continue
         verified[segment]=(next(iter(teams)),times)
     out=[]
     for p in points:
@@ -444,8 +461,13 @@ def _track_camera(video, facts, profile, backend, work, fps=6., width=960, read_
                     for token in texts.get(str(path), []):
                         for word in re.findall(r'\S+', token['t']):
                             matched = roster_match(word, teams)
-                            if matched and matched[0] == 'exact':
-                                reads.append({'track': d['id'], 'team': matched[1], 'kind': 'exact'})
+                            if matched and matched[0] in ('exact', 'corrected'):
+                                reads.append({'track': d['id'], 'team': matched[1], 'kind': matched[0]})
+                            elif re.fullmatch(r'[0-9]{3,5}', word):
+                                # Part of a number that only one team of this bumper colour contains.
+                                fits = [n for n in roster.get(d['alliance'], []) if word in str(n)]
+                                if len(fits) == 1:
+                                    reads.append({'track': d['id'], 'team': fits[0], 'kind': 'partial'})
                     path.unlink(missing_ok=True)
             proposals=reacquisition.propose(scene,t,dets,resolver.states,reads,width=w)
             reacquisition_rows.extend(dict(p,camera=camera['name'] if camera else 'wide') for p in proposals)
@@ -463,7 +485,7 @@ def _track_camera(video, facts, profile, backend, work, fps=6., width=960, read_
             # Flow can keep a visible box alive but never supplies an OCR verification segment.
             identified=resolver.update(scene,t,[d for d in dets if d.get('box_source')!='optical_flow'],reads)
             for d in identified:
-                segment=d['identity_segment'];confirmations.setdefault(segment,[]).append({'team':d['team'],'anchor_times':d['anchor_times']})
+                segment=d['identity_segment'];confirmations.setdefault(segment,[]).append({'team':d['team'],'anchor_times':d['anchor_times'],'carried':d.get('carried',False)})
             for d in dets:
                 state=resolver.states.get(d['id'])
                 if not state or abs(state['last']-t)>.001:continue
@@ -514,7 +536,9 @@ def track_match(video,facts,profile,backend,work,fps=6.,width=960,read_every=.5,
     all_points=[];all_anchors=[];all_observations=[];results=[]
     for camera in camera_views(profile):
         if progress:progress('Tracking robot identities in '+camera['name'])
-        result=_track_camera(video,facts,profile,backend,Path(work)/camera['name'],fps,width,read_every,progress,camera)
+        # Close-up bumpers are large and legible: read them on every processed frame.
+        every=min(read_every,1/fps) if camera['name'].startswith('closeup') else read_every
+        result=_track_camera(video,facts,profile,backend,Path(work)/camera['name'],fps,width,every,progress,camera)
         result['camera']=camera['name'];result['camera_bounds']=camera['bounds'];results.append(result)
         all_points.extend(result['localizations']);all_anchors.extend(result.get('anchors',[]));all_observations.extend(result.get('observations',[]))
     out=dict(results[0]);out.update(camera_engine='independent-camera-views-v4',localizations=sorted(all_points,key=lambda p:(p['t'],p['camera'],p['team'])),anchors=all_anchors,

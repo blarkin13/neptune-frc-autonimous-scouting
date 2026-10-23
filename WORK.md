@@ -1,5 +1,20 @@
 # Work log (newest first)
 
+## 2026-10-23 — Claude: identity coverage (engine 2.7.0-identity-coverage-preview1)
+1. Stopping a tracking review no longer saves "tracking unavailable" (InterruptedError is re-raised, so the
+   match tracks next time). Training reports each match's tracking status/reason. Found and fixed: the clip
+   planner did not know the tracker revision used since 3.2.8, so every clip took the strict fixed-window path
+   (likely a large share of the 312 "no usable tracking clip" losses); the current revision is now always known.
+2. Roster solver inferences ('bidirectional_motion_and_roster', 'same_number_before_and_after_contact') become
+   `roster_inferred` localizations used by training, clips and predictions. Hidden-anchor test on QM3/QM4:
+   1,132 of 1,132 inferred identities correct. Adds +30% (QM3) / +17% (QM4) named sightings on hybrid tracking.
+   Short-gap visual suggestions stay review-only.
+3. Brief contact keeps the identity: nothing is labelled during contact; one matching exact read afterwards
+   confirms; a different read means a swap and the old identity is dropped.
+4. Close-ups read bumpers every processed frame; OCR-corrected reads and unique 3+ digit partial reads count
+   toward the two reads, but every identity still needs one exact read. Tracker revision
+   `contact-carry-partial-reads-v7`.
+
 ## 2026-10-23 — Claude: helper 3.2.11 (engine 2.6.0-hybrid-detector-preview1)
 - Engine ships its own detectors: `robot-detector/` (owner-trained wide-shot bumper detector, merged into the
   private bundle by `neptune_yolo.with_bundled_cameras`; close-ups keep the private Prosper detector) and

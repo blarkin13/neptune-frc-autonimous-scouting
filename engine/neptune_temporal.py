@@ -81,6 +81,12 @@ def prepare_weights(progress=print):
             temp.unlink(missing_ok=True)
 
 
+def _current_revision():
+    """The tracker's own revision always gets segment-bounded clips (it was missed after v6 once)."""
+    from neptune_yolo import CONTINUITY_REVISION
+    return CONTINUITY_REVISION
+
+
 def plan(facts, sight):
     from neptune_clock import phase_at
     phase_name, phase = phase_at(facts, sight['t'])
@@ -96,16 +102,18 @@ def plan(facts, sight):
     # another camera is not enough to identify sixteen subsequent frames.
     track = facts.get('tracking', {})
     candidates = [s for s in track.get('localizations', []) if s['team'] == sight['team']
-                  and s.get('identity_method') in ('yolo_botsort_ocr','human_reviewed_track')
+                  and s.get('identity_method') in ('yolo_botsort_ocr','human_reviewed_track','roster_inferred')
                   and (not sight.get('camera') or s.get('camera')==sight['camera'])
                   and (sight.get('identity_method')!='human_reviewed_track' or s.get('identity_method')=='human_reviewed_track')]
     anchor = min(candidates, key=lambda s: abs(s['t']-sight['t']), default=None)
     if anchor is None or abs(anchor['t']-sight['t']) > .25:
         raise ClipUnavailable('temporal_robot_track_unavailable')
     points = [s for s in candidates if s['track_id'] == anchor['track_id'] and s['scene'] == anchor['scene'] and s.get('camera')==anchor.get('camera')
-              and (anchor.get('identity_segment') is None or s.get('identity_segment')==anchor['identity_segment'])]
+              and (anchor.get('identity_segment') is None or s.get('identity_segment')==anchor['identity_segment']
+                   # same track and team: an OCR-verified stretch may continue as a solver-inferred one
+                   or 'roster_inferred' in (s.get('identity_method'),anchor.get('identity_method')))]
     cuts=track.get('camera_cuts',{}).get(anchor.get('camera'),track.get('scene_cuts', []))
-    if anchor.get('identity_method')=='human_reviewed_track' or track.get('continuity_revision') in ('segment-verified-v3','bidirectional-roster-review-v4','reviewed-flow-continuity-v5','wide-tile-and-gap-continuity-v6'):
+    if anchor.get('identity_method')=='human_reviewed_track' or track.get('continuity_revision') in ('segment-verified-v3','bidirectional-roster-review-v4','reviewed-flow-continuity-v5','wide-tile-and-gap-continuity-v6',_current_revision()):
         # A clip can start at a track's visible boundary rather than insist on
         # two seconds of invisible pre-roll. It must still contain the anchor,
         # have sixteen detected positions and stay inside one phase/camera/segment.
