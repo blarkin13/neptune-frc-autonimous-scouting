@@ -1,5 +1,17 @@
 # Work log (newest first)
 
+## 2026-10-22 — Claude: bumper detector from the owner's 82 labelled frames
+- Labels: 82 frames (41 QM3, 41 QM4), 747 bumpers, all checked by the owner. QM1 had no tracking, so no frames.
+- Trained YOLO11n (COCO start, 1280 px, CPU) on QM3; scored on QM4 with `tools/robot-labeler/evaluate.py`
+  (IoU >= 0.3 one-to-one; whole-robot boxes count a bumper whose centre they contain).
+- QM4, held out (found / right):
+  - current bumper detector: wide 46% / 96%, close-ups 85% / 85%
+  - RobotTracking (robot26-trial): wide 74% / 61%; over both matches close-ups 43% / 57%
+  - new, conf 0.25: wide 80% / 72%, close-ups 55% / 61% (conf 0.15: wide 85% / 56%; conf 0.4: 55% / 86%)
+- Conclusion: new detector for the wide panel, current detector for close-ups; label more frames (close-ups,
+  other matches, another event) and retrain. Weights: `local/robot-labels/fit-a/runs/bumper/weights/best.pt`
+  (not in git). Not wired into tracking yet.
+
 ## 2026-10-22 — Claude: perception/game split; robot labeler
 - `engine/neptune_perception.py`: the reusable perception layer (robot detector, tracking, identity solver,
   field-layout detector) vs the season game layer. Trained models record both (`perception`, `game_layer`).
