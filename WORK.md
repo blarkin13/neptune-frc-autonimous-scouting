@@ -1,5 +1,17 @@
 # Work log (newest first)
 
+## 2026-10-22 — Claude: hybrid detector tracking result; site package fixed
+- Full tracking runs (`local/tracking-compare/`), current detector vs hybrid (owner-labelled wide detector +
+  current close-up detector):
+  - QM4 (held out): wide detections given a team 601 -> 831 (+38%); close-ups unchanged; median team
+    coverage 0.20 -> 0.23.
+  - QM3 (the wide detector's training match): 481 -> 846; median coverage 0.18 -> 0.21.
+  - Identification, not detection, now limits coverage (~1/5 of the match per team).
+- Site package: live `admin/community-learning.php` had Codex's newer helper-download section (sha256
+  43b63545...). Rebuilt exactly from the owner's diff into `autoscout/train.php`; package re-uploaded without
+  macOS xattrs. Live `training-control.js` (helper-connection-cleanup-20261022) is newer than the repo copy and
+  is not part of the package.
+
 ## 2026-10-22 — Claude: Auto Scout section (engine 2.5.3-autoscout-section-preview1)
 - New `public_html/Neptune/autoscout/`: `index.php` (hub with the six Auto Scout cards), `train.php` (was
   `admin/community-learning.php`), `scoring-areas.php`, `robot-labels.php`.
