@@ -972,6 +972,8 @@ def run(root,year,export_url=labels.EXPORT_URL,download=True,progress=print,expo
                     facts=refresh_cached_facts(saved,facts,{'key':record['match_key'],'roster':record['roster']},game,src['sha256'],video=videos/src['file'],progress=progress)
                     facts=ensure_tracking(videos/src['file'],facts,game,cache,progress)
                     write(saved,facts)
+                    from neptune_score_moments import save as save_score_moments
+                    save_score_moments(vid,record['match_key'],facts)   # tagging aid for Watch & tag; facts are deleted after this match
                     def extractor(video,sight,duration):
                         key=digest([FEATURE_VERSION,src['sha256'],sight['box'],sight['t'],duration])
                         path=cache_root/'features'/FEATURE_VERSION/(key+'.json')

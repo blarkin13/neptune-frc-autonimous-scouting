@@ -106,3 +106,18 @@ class SharedVideoCacheTest(unittest.TestCase):
         from neptune_robot_labels import youtube_blocked
         self.assertTrue(youtube_blocked("ERROR: [youtube] x: Sign in to confirm you’re not a bot. Use --cookies"))
         self.assertFalse(youtube_blocked('Video unavailable'))
+
+
+class ScoreMomentsTest(unittest.TestCase):
+    def test_bursts_group_changes_inside_the_match(self):
+        import neptune_score_moments as m
+        reads = lambda pts: [{'t': t, 'value': v} for t, v in pts]
+        facts = {'periods': {'auto': {'start': 0, 'end': 20}, 'teleop': {'start': 23, 'end': 163}},
+                 'accepted_scores': {'red': reads([(1, 0), (5, 2), (6, 4), (7, 5), (40, 5), (41, 8), (300, 30)]), 'blue': reads([(1, 0), (2, 0)])}}
+        self.assertEqual(m.bursts(facts), [{'start': 5.0, 'end': 7.0, 'alliance': 'red', 'points': 5, 'phase': 'auto'},
+                                           {'start': 41.0, 'end': 41.0, 'alliance': 'red', 'points': 3, 'phase': 'teleop'}])
+
+    def test_misread_drop_does_not_create_a_change(self):
+        import neptune_score_moments as m
+        facts = {'accepted_scores': {'red': [{'t': 1, 'value': 10}, {'t': 2, 'value': 1}, {'t': 3, 'value': 10}, {'t': 4, 'value': 12}], 'blue': []}}
+        self.assertEqual([e['delta'] for e in m.changes(facts)], [2])

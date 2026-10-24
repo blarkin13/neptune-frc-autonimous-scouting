@@ -83,5 +83,5 @@ community_page_start('Watch and tag a match','Add human robot tags and scoring e
 <details class="studio-history"><summary>Your saved tags &amp; history</summary><p>Your human tags and scoring contributions save immediately; they do not update a model by themselves. Training and evaluation happen separately. Use Add amount or Edit amount on a Scoring entry to keep a correction without counting both versions. Retry any unsaved actions before closing the page. Undo withdraws a label and removes it from future dataset downloads. Your anonymous undo history belongs to this browser.</p><ul id="recentLabels" class="tag-history"></ul></details>
 </div>
 <script type="application/json" id="tagConfig"><?=json_encode(['match_id'=>(int)$match['id'],'roster'=>$match['roster'],'video_id'=>$match['video_id'],'alliance_totals'=>community_scoring_alliance_totals($match),'scoring_rules'=>community_scoring_profile((int)substr($match['match_key'],0,4)),'csrf'=>csrf_token(),'tags'=>community_video_tag_catalog(),'rows'=>$rows],JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_THROW_ON_ERROR)?></script>
-<script src="assets/video-tags.js?v=10" defer></script>
+<script src="assets/video-tags.js?v=10" defer></script><script src="assets/score-moments.js?v=1" defer></script>
 <?php endif;community_page_end(); ?>

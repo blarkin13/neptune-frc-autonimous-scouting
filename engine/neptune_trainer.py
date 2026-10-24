@@ -166,7 +166,7 @@ def watch_jobs(config,hardware,execute,progress,closing,pause,busy=lambda value:
         except (OSError,ValueError):pass
         last_cleanup=time.monotonic()
     housekeeping(force=True)
-    last_detector=[0.,0.]
+    last_detector=[0.,0.,False]   # detector sync time, detector poll time, score-moments backfill done
     def detector_work():
         # Robot-detector requests from Auto Scout -> Robot labels, and the shared detector, while idle.
         import neptune_robot_jobs as robot_jobs
@@ -179,6 +179,12 @@ def watch_jobs(config,hardware,execute,progress,closing,pause,busy=lambda value:
         if now-last_detector[1]>30:
             last_detector[1]=now
             try:robot_jobs.run_pending(config,progress,busy)
+            except Exception:pass
+            # Scoreboard score changes for Watch & tag (a tagging aid, never a training input).
+            try:
+                import neptune_score_moments as moments
+                if not last_detector[2]:moments.backfill();last_detector[2]=True
+                moments.send_pending(config,robot_jobs.api)
             except Exception:pass
     while not closing.is_set():
         if not pending and device_changed():return
