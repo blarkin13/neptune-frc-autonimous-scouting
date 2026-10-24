@@ -19,6 +19,8 @@ find "${E:?}" -maxdepth 1 -type f \( -name 'neptune_*.py' -o -name 'requirements
 for s in "$R"/engine/*; do n=$(basename "$s")
   if [ -f "$s" ] && { { [ "${n##*.}" = py ] && [ "${n#test_}" = "$n" ]; } || [ "$n" = requirements.json ] || [ "$n" = requirements-yolo.txt ] || [ "$n" = requirements-videomae.txt ] || [ "$n" = season_rules.json ]; }; then cp -p "$s" "$E/$n"; fi
 done
+# The Mac app's worker (starts the engine, runs the self-check) lives with the app source.
+cp -p "$R/trainer-app/macos/NeptuneTrainingHelper/native_worker.py" "$E/native_worker.py"
 # Shipped detectors and region data live in folders next to the engine files.
 for d in field-regions field-detector robot-detector; do rm -rf "${E:?}/$d"; cp -R "$R/engine/$d" "$E/$d"; done
 rm -f "${E:?}/server_run.py"; find "$A" -name __pycache__ -prune -exec rm -rf {} +

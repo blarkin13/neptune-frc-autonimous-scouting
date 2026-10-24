@@ -121,6 +121,14 @@ final class RobotDetectorJobs {
   $r['review']=$review;self::write($this->root.'/requests/'.$r['id'].'.json',$r);
   return ['review'=>$review];
  }
+ /** A helper's GPU self-check (neptune_selfcheck), one file per helper. */
+ public function putSelfcheck(array $computer,array $p):array{
+  $keep=['version'=>(string)($p['version']??''),'checked_at'=>time(),'ok'=>!empty($p['ok']),'platform'=>mb_substr((string)($p['platform']??''),0,60),
+   'summary'=>array_map(fn($v)=>is_scalar($v)||$v===null?(is_string($v)?mb_substr($v,0,200):$v):null,array_slice(is_array($p['summary']??null)?$p['summary']:[],0,12)),
+   'checks'=>array_map(fn($c)=>['check'=>mb_substr((string)($c['check']??''),0,60),'ok'=>!empty($c['ok']),'detail'=>mb_substr((string)($c['detail']??''),0,300)],array_slice(is_array($p['checks']??null)?$p['checks']:[],0,10))];
+  self::write($this->dir('selfchecks').'/'.preg_replace('/[^A-Za-z0-9_-]/','',(string)$computer['id']).'.json',$keep);return ['ok'=>true];
+ }
+ public function selfcheck(string $computer):?array{$f=$this->root.'/selfchecks/'.preg_replace('/[^A-Za-z0-9_-]/','',$computer).'.json';return is_file($f)?json_decode((string)file_get_contents($f),true):null;}
  /** Detector guesses for Robot labels frames: {t_ms: [{alliance,x,y,w,h}]} plus the frame times. */
  public function putPrefill(array $computer,array $p):array{
   $this->owned($computer,$p);$v=self::video((string)($p['video_id']??''));$frames=[];

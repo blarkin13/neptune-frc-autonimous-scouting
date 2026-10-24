@@ -60,6 +60,16 @@ def sync_detector(config):
     return {'status': 'updated', 'sha256': row['sha256']}
 
 
+def train_device():
+    """NVIDIA GPU when there is one; otherwise CPU. Never the Apple GPU: detector training hangs on it with this
+    PyTorch build. Batch sizes stay the same on every device so results are comparable."""
+    try:
+        import torch
+        return 0 if torch.cuda.is_available() else 'cpu'
+    except ImportError:
+        return 'cpu'
+
+
 def all_cores():
     """Train on every CPU core. Tracking pins torch to one thread for the rest of the helper's session, which made
     detector training run on 1 of N cores; restore that setting afterwards."""
@@ -150,7 +160,7 @@ def frame(video, t):
 def detect(model, image, conf=.25):
     """Bumper boxes {alliance,x,y,w,h} normalized to the full frame."""
     h, w = image.shape[:2]
-    r = model.predict(image, imgsz=1280, conf=conf, verbose=False, device='cpu')[0]
+    r = model.predict(image, imgsz=1280, conf=conf, verbose=False, device=train_device())[0]
     out = []
     for (x0, y0, x1, y1), cls in zip(r.boxes.xyxy.tolist(), r.boxes.cls.tolist()):
         name = str(r.names[int(cls)]).lower()
@@ -260,9 +270,9 @@ def train(config, req, progress):
         progress('Training robot detector: pass %d of up to %d' % (trainer.epoch+1, epochs))
     model.add_callback('on_fit_epoch_end', epoch_end)
     batch_progress(model, 'Training robot detector', epochs, progress)
-    # CPU: Apple GPU training hangs with this PyTorch build.
+    # NVIDIA GPU or CPU (train_device): Apple GPU training hangs with this PyTorch build.
     with all_cores():
-        result = model.train(data=str(config_yaml), epochs=epochs, imgsz=1280, batch=4, device='cpu', workers=0, patience=20, seed=2026,
+        result = model.train(data=str(config_yaml), epochs=epochs, imgsz=1280, batch=4, device=train_device(), workers=0, patience=20, seed=2026,
                          deterministic=True, plots=False, project=str(work/'runs'), name='bumper', exist_ok=True, verbose=False,
                          translate=.2, scale=.5, fliplr=.5, mosaic=1.0, close_mosaic=10)
     best = Path(result.save_dir)/'weights'/'best.pt'
@@ -350,7 +360,7 @@ def placement(weights, frames, doc):
     model = YOLO(str(weights)); per = []
     for _, image in frames:
         h, w = image.shape[:2]
-        r = model.predict(image, imgsz=fd.FRAME_WIDTH, conf=fd.MIN_CONFIDENCE, verbose=False, device='cpu')[0]
+        r = model.predict(image, imgsz=fd.FRAME_WIDTH, conf=fd.MIN_CONFIDENCE, verbose=False, device=train_device())[0]
         per.append([{'class': fd.CLASSES[int(c)], 'box': [b[0]/w, b[1]/h, b[2]/w, b[3]/h],
                      'view': fd.view_of((b[0]+b[2])/2/w, (b[1]+b[3])/2/h, doc)} for b, c in zip(r.boxes.xyxy.tolist(), r.boxes.cls.tolist())])
     found = fd.aggregate(per, doc); errors = []; expected = 0
@@ -417,7 +427,7 @@ def train_field(config, req, progress):
     model.add_callback('on_fit_epoch_end', lambda trainer: progress('Training field detector: pass %d of up to %d' % (trainer.epoch+1, epochs)))
     batch_progress(model, 'Training field detector', epochs, progress)
     with all_cores():
-        result = model.train(data=str(data/'data.yaml'), epochs=epochs, imgsz=960, batch=8, device='cpu', workers=0, patience=8, seed=7,
+        result = model.train(data=str(data/'data.yaml'), epochs=epochs, imgsz=960, batch=8, device=train_device(), workers=0, patience=8, seed=7,
                          deterministic=True, plots=False, project=str(work/'runs'), name='field', exist_ok=True, verbose=False,
                          translate=.3, scale=.6, degrees=3, perspective=.0005, fliplr=.5, mosaic=1.0, hsv_v=.4, hsv_s=.6)
     best = Path(result.save_dir)/'weights'/'best.pt'

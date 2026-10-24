@@ -121,3 +121,13 @@ class ScoreMomentsTest(unittest.TestCase):
         import neptune_score_moments as m
         facts = {'accepted_scores': {'red': [{'t': 1, 'value': 10}, {'t': 2, 'value': 1}, {'t': 3, 'value': 10}, {'t': 4, 'value': 12}], 'blue': []}}
         self.assertEqual([e['delta'] for e in m.changes(facts)], [2])
+
+
+class SelfcheckTest(unittest.TestCase):
+    def test_verdicts(self):
+        import neptune_selfcheck as s
+        ok = lambda: [{'check': 'NVIDIA card', 'ok': True, 'detail': 'x'}]
+        self.assertTrue(s.finish(ok(), {'gpu': 'NVIDIA GeForce RTX 4060 Ti', 'device': 'cuda', 'speedup': 11.2})['summary']['verdict'].startswith('GPU ready · NVIDIA GeForce RTX 4060 Ti · 11.2x'))
+        self.assertEqual(s.finish(ok(), {'gpu': None, 'device': 'cpu'})['summary']['verdict'], 'CPU only · no NVIDIA GPU')
+        bad = ok()+[{'check': 'PyTorch', 'ok': False, 'detail': 'this is the CPU-only build'}]
+        self.assertIn('CPU-only build', s.finish(bad, {'gpu': 'RTX', 'device': 'cpu'})['summary']['verdict'])

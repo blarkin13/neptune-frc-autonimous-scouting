@@ -16,7 +16,7 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[2]
 ENGINE = ROOT / 'engine'
 WINDOWS = ROOT / 'trainer-app/windows'
-VERSION = '6.4.2'
+VERSION = '6.5.0'
 URL = 'https://neptunefrc.com/community/downloads/windows/'
 
 
@@ -52,6 +52,10 @@ def build(base, output):
             raise ValueError('The prior Windows package is missing its engine.')
         for name in neptune_engine.FILES:
             shutil.copy2(ENGINE / name, app / name)
+        # Shipped detectors and region data live in folders next to the engine files.
+        for name in ('robot-detector', 'field-detector', 'field-regions'):
+            shutil.rmtree(app / name, ignore_errors=True)
+            shutil.copytree(ENGINE / name, app / name, ignore=shutil.ignore_patterns('README.md'))
         shutil.copy2(ENGINE / 'neptune_trainer.py', app / 'neptune_trainer.py')
         for name in ('neptune_windows_update.py', 'neptune_update_apply.py', 'Neptune.ico'):
             shutil.copy2(WINDOWS / name, app / name)

@@ -64,9 +64,10 @@ function autoscout_train_overview(PDO $pdo,array $panel,int $org,int $user,strin
  usort($queue,fn($a,$b)=>[$a['state']!=='running',$a['since']]<=>[$b['state']!=='running',$b['since']]);
  return [
   // A helper on a detector job reports to that queue, not the action-training one, so its last_seen goes stale.
-  'helpers'=>array_map(function($c)use($requests){
+  'helpers'=>array_map(function($c)use($requests,$jobs){
    $job=null;foreach($requests as $r)if($r['state']==='claimed'&&($r['computer_id']??null)===$c['id']&&time()-(int)($r['heartbeat_at']??0)<900)$job=$r;
-   return $job?['name'=>$c['name'],'status'=>'working','online'=>true,'ready'=>false,'working'=>true]:['name'=>$c['name'],'status'=>$c['status'],'online'=>$c['online'],'ready'=>$c['ready']];
+   $check=$jobs->selfcheck((string)$c['id']);
+   return ($job?['name'=>$c['name'],'status'=>'working','online'=>true,'ready'=>false,'working'=>true]:['name'=>$c['name'],'status'=>$c['status'],'online'=>$c['online'],'ready'=>$c['ready']])+['selfcheck'=>$check];
   },array_values(array_filter($panel['computers'],fn($c)=>!$c['revoked']))),
   'queue'=>$queue,
   'test_videos'=>$jobs->testVideos(),

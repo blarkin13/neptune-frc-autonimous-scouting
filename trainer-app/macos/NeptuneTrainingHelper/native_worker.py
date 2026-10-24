@@ -83,8 +83,13 @@ def main():
     from neptune_yolo import prepare_runtime,fingerprint
     from neptune_training import prepare_action_encoder
     prepare_runtime(progress,hardware['device']);VERSION=prepare_action_encoder(progress)
+    try:
+        import neptune_selfcheck,neptune_robot_jobs
+        neptune_robot_jobs.api(config,'selfcheck_put',neptune_selfcheck.run(progress))
+    except Exception as error:progress('Self-check could not finish: '+str(error)[:200])
     hardware.update(label_contracts=['game-builder-moments-v1'],action_features=VERSION,robot_detector_sha256=fingerprint(),robot_tracking='yolo-botsort-1',engine_version=identity()['version'],engine_sha256=identity()['sha256'],training_protocol='page-v2',outside_adapters=['viper-2026-activity-v1','mapped-actions-v1','viper-2026-points-v1'])
     os.environ['NEPTUNE_TRACKING_DEVICE']='0' if hardware['device']=='cuda' else hardware['device']
+    os.environ['NEPTUNE_TRAIN_DEVICE']=hardware['device']   # clip features in match tests too, not only in training
     trainer.watch_jobs(config,hardware,execute,progress,closing,pause,
         busy=lambda value:emit('busy',value=value),
         connection=lambda value:emit('connection',connected=value),

@@ -67,7 +67,8 @@ def setup_device(choice,progress):
     try:import torch
     except ImportError:
         progress('Installing the GPU training library. This is a large one-time download…')
-        command=[sys.executable,'-m','pip','install','torch==2.9.1']
+        # torchvision must come from the same build as torch (a CPU torchvision with CUDA torch fails on import).
+        command=[sys.executable,'-m','pip','install','torch==2.9.1','torchvision==0.24.1']
         if device=='cuda':command+=['--index-url','https://download.pytorch.org/whl/cu128']
         process=subprocess.Popen(command,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
         for line in process.stdout:progress(line.strip()[:300])
@@ -318,6 +319,7 @@ def main():
             finally:reviewing.clear();messages.put(('review_closed',None))
         threading.Thread(target=review_worker,daemon=True).start()
     review_button=ttk.Button(actions,text='Review tracking…',style='Subtle.TButton',command=review_tracking);review_button.pack(side='left')
+    selfchecked=[]
     def worker():
         hardware=None;selected=None
         while not closing.is_set():
@@ -329,10 +331,18 @@ def main():
                     selected=choice_value['value'];hardware=setup_device(selected,progress)
                 from neptune_yolo import prepare_runtime, fingerprint
                 prepare_runtime(progress, hardware['device'])
+                # GPU self-check, once per session: shown here and on Neptune's Helpers & settings.
+                if not selfchecked:
+                    try:
+                        import neptune_selfcheck,neptune_robot_jobs
+                        neptune_robot_jobs.api(config,'selfcheck_put',neptune_selfcheck.run(progress))
+                    except Exception as error:progress('Self-check could not finish: '+str(error)[:200])
+                    selfchecked.append(True)
                 from neptune_training import prepare_action_encoder
                 hardware['action_features']=prepare_action_encoder(progress)
                 hardware['robot_detector_sha256']=fingerprint();hardware['robot_tracking']='yolo-botsort-1'
                 os.environ['NEPTUNE_TRACKING_DEVICE']='0' if hardware['device']=='cuda' else hardware['device']
+                os.environ['NEPTUNE_TRAIN_DEVICE']=hardware['device']   # clip features in match tests too, not only in training
                 from neptune_engine import identity
                 engine=identity();hardware['engine_version']=engine['version'];hardware['engine_sha256']=engine['sha256']
                 hardware['label_contracts']=['game-builder-moments-v1'];hardware['training_protocol']='page-v2';hardware['outside_adapters']=['viper-2026-activity-v1','mapped-actions-v1','viper-2026-points-v1'];progress('Connected — ready. Choose what to run on Neptune.')
