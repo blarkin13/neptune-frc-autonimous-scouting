@@ -18,7 +18,8 @@ FEED_URL = 'https://neptunefrc.com/community/downloads/windows/latest.json'
 ARCHIVE_PREFIX = 'https://neptunefrc.com/community/downloads/windows/'
 MAX_ARCHIVE = 12 * 1024 * 1024
 MAX_FEED = 16 * 1024
-NAME = re.compile(r'^app/[A-Za-z0-9_.-]+$')
+# Engine files, plus the shipped detectors and region data in their own folders (6.5.1+).
+NAME = re.compile(r'^app/(?:(?:robot-detector|field-detector|field-regions)/)?[A-Za-z0-9_.-]+$')
 VERSION = re.compile(r'^\d+(?:\.\d+){1,2}$')
 
 

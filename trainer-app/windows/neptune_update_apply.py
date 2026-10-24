@@ -39,7 +39,7 @@ def apply(app_dir, stage):
     if stage.parent != app_dir.parent / 'updates' or not stage.name.startswith('stage-'):
         raise ValueError('The update stage is outside the Neptune app directory.')
     expected = json.loads((stage / 'files.json').read_text(encoding='utf-8'))
-    if not isinstance(expected, dict) or not expected or any(not re.fullmatch(r'app/[A-Za-z0-9_.-]+', name) or name in ('app/.', 'app/..', 'app/trainer-connection.json') for name in expected):
+    if not isinstance(expected, dict) or not expected or any(not re.fullmatch(r'app/(?:(?:robot-detector|field-detector|field-regions)/)?[A-Za-z0-9_.-]+', name) or name in ('app/.', 'app/..', 'app/trainer-connection.json') for name in expected):
         raise ValueError('The update file list is invalid.')
     for name, sha in expected.items():
         if digest(stage / name) != sha:
@@ -51,6 +51,7 @@ def apply(app_dir, stage):
         for name in sorted(expected, key=lambda n: n == 'app/build-version.json'):
             target = app_dir / name[4:]
             previous = backup / name[4:]
+            target.parent.mkdir(parents=True, exist_ok=True); previous.parent.mkdir(parents=True, exist_ok=True)   # data folders
             if target.exists():
                 shutil.copy2(target, previous)
             temporary = target.with_name(target.name + '.neptune-next')
