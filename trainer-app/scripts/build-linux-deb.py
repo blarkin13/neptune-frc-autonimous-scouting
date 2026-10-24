@@ -11,7 +11,7 @@ import tempfile
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[2]
-VERSION = '6.6.0'
+VERSION = '6.6.1'
 
 
 def ar_member(name, data):
@@ -23,6 +23,12 @@ def ar_member(name, data):
 def tar_bytes(files):
     output = io.BytesIO()
     with tarfile.open(fileobj=output, mode='w:gz', format=tarfile.GNU_FORMAT) as archive:
+        # dpkg creates only the folders the archive lists, so list every parent folder before its files.
+        folders = sorted({'/'.join(name.split('/')[:i]) for name in files for i in range(1, name.count('/')+1)})
+        for folder in folders:
+            info = tarfile.TarInfo('./' + folder + '/'); info.type = tarfile.DIRTYPE; info.mode = 0o755
+            info.uid = info.gid = 0; info.uname = info.gname = 'root'; info.mtime = 0
+            archive.addfile(info)
         for name, (data, mode) in sorted(files.items()):
             info = tarfile.TarInfo('./' + name)
             info.size = len(data)
