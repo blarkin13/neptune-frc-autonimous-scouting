@@ -24,6 +24,20 @@ if sys.platform == 'win32':
             super().__init__(*args, **kwargs)
     subprocess.Popen = _HiddenPopen
 
+# Without a console (pythonw), sys.stdout and sys.stderr are None, and any library that prints (the detector
+# library, pip, PyTorch) fails with "'NoneType' object has no attribute 'write'". Send that output to a log file.
+if sys.stdout is None or sys.stderr is None:
+    try:
+        _log_dir = Path.home() / '.neptune-trainer'; _log_dir.mkdir(parents=True, exist_ok=True)
+        _log_path = _log_dir / 'helper.log'
+        if _log_path.exists() and _log_path.stat().st_size > 20 * 1024 * 1024:
+            _log_path.replace(_log_dir / 'helper.previous.log')
+        _log = open(_log_path, 'a', encoding='utf-8', errors='replace', buffering=1)
+    except OSError:
+        _log = open(os.devnull, 'w')
+    sys.stdout = sys.stdout or _log
+    sys.stderr = sys.stderr or _log
+
 
 def valid_connection(path):
     try:
