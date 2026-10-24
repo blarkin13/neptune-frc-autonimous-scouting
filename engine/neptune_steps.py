@@ -57,9 +57,12 @@ def within(message, current):
     m = re.search(r'(\d+) of (\d+) matches prepared', message)
     if m:
         current.update(match=int(m[1])+1, matches=int(m[2]), part=0.)
+    m = re.search(r'frames \d+\D(\d+) of (\d+)', message)
+    if m and current.get('matches'):
+        current['part'] = .3*int(m[1])/max(1, int(m[2]))      # reading numbers and the scoreboard comes first
     m = re.search(r'(\d+) of (\d+) video seconds', message)
     if m and current.get('matches'):
-        current['part'] = .7*int(m[1])/max(1, int(m[2]))      # tracking is most of a new match
+        current['part'] = .3+.4*int(m[1])/max(1, int(m[2]))      # then tracking
     if 'Extracting robot examples' in message and current.get('matches'):
         current['part'] = max(current.get('part', 0.), .7)
     if current.get('matches'):

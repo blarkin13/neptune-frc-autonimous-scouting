@@ -7,6 +7,7 @@ Backends
 recognize(paths) returns {path: [item]} where an item is
   {'t': text, 'c': confidence 0..1 or None, 'x','y','w','h': box as fractions of the image, top-left origin}.
 """
+import os
 import json
 import platform
 import shutil
@@ -114,6 +115,25 @@ class RapidOcrBackend(OcrBackend):
     def __init__(self):
         self._engine = None
         self._cv2 = None
+        self.provider = 'cpu'
+
+    def _params(self):
+        """CPU by default; the NVIDIA card when the helper trains on it and onnxruntime-gpu is installed."""
+        params = dict(self.PARAMS)
+        if os.environ.get('NEPTUNE_OCR_DEVICE') != 'cuda':
+            return params
+        try:
+            import onnxruntime
+            if 'CUDAExecutionProvider' not in onnxruntime.get_available_providers():
+                return params
+            if hasattr(onnxruntime, 'preload_dlls'):
+                onnxruntime.preload_dlls()      # CUDA and cuDNN from the nvidia-* wheels
+        except Exception:
+            return params
+        # Crop sizes vary, so an exhaustive cuDNN search would re-run for almost every image.
+        params.update({'EngineConfig.onnxruntime.use_cuda': True, 'EngineConfig.onnxruntime.cuda_ep_cfg.cudnn_conv_algo_search': 'HEURISTIC'})
+        self.provider = 'cuda'
+        return params
 
     @classmethod
     def available(cls) -> bool:
@@ -131,13 +151,17 @@ class RapidOcrBackend(OcrBackend):
             except ImportError as error:
                 raise OcrUnavailable('RapidOCR is not installed. Run the Neptune Helper installer again.') from error
             self._cv2 = cv2
-            self._engine = RapidOCR(params=dict(self.PARAMS))
+            self._engine = RapidOCR(params=self._params())
         return self._engine
 
     def version(self):
         from importlib.metadata import version
         models = sorted(p.name for p in self._models_folder().glob('*.onnx'))
-        return {'rapidocr': version('rapidocr'), 'onnxruntime': version('onnxruntime'),
+        try:
+            runtime = version('onnxruntime')
+        except Exception:
+            runtime = version('onnxruntime-gpu')
+        return {'rapidocr': version('rapidocr'), 'onnxruntime': runtime,
                 'opencv': version('opencv-python-headless'), 'models': models,
                 'detector_limit_side_len': self.PARAMS['Det.limit_side_len'], 'rotation_classifier': self.PARAMS['Global.use_cls']}
 

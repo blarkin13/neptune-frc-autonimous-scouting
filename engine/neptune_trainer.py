@@ -55,6 +55,26 @@ def _api_once(config,action,payload):
         except (ValueError,AttributeError):message=None
         raise TrainingApiError(message or 'Neptune rejected the training request (%s).'%error.code,error.code) from None
 
+def setup_ocr_gpu(progress):
+    """Swap the CPU onnxruntime for the CUDA 13 build so number reading runs on the NVIDIA card. A failure leaves reading on the CPU."""
+    # Read the package list, not the module: importing onnxruntime here would lock its files on Windows.
+    from importlib.metadata import version,PackageNotFoundError
+    try:version('onnxruntime-gpu');return
+    except PackageNotFoundError:pass
+    try:version('onnxruntime')
+    except PackageNotFoundError:return
+    progress('Installing GPU number reading (one-time download)…')
+    flags={'creationflags':subprocess.CREATE_NO_WINDOW} if sys.platform=='win32' else {}
+    pip=[sys.executable,'-m','pip']
+    try:
+        subprocess.run(pip+['uninstall','-y','onnxruntime'],check=True,capture_output=True,**flags)
+        process=subprocess.Popen(pip+['install','onnxruntime-gpu[cuda,cudnn]==1.31.0'],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,**flags)
+        for line in process.stdout:progress(line.strip()[:300])
+        if process.wait()!=0:raise OSError('pip failed')
+    except (OSError,subprocess.SubprocessError) as error:
+        progress('GPU number reading could not be installed (%s); reading stays on the CPU.'%str(error)[:120])
+        subprocess.run(pip+['install','onnxruntime==1.31.0'],capture_output=True,**flags)
+
 def setup_device(choice,progress):
     device={'Mac GPU':'mps','NVIDIA GPU':'cuda','CPU':'cpu'}.get(choice)
     if not device:
@@ -76,6 +96,7 @@ def setup_device(choice,progress):
         import importlib;importlib.invalidate_caches();import torch
     if device=='cuda' and not torch.cuda.is_available():raise ValueError('NVIDIA GPU unavailable. Install a compatible NVIDIA driver or explicitly choose CPU. See pytorch.org/get-started/locally/.')
     if device=='mps' and not torch.backends.mps.is_available():raise ValueError('Apple GPU unavailable. This training mode needs a supported Apple Silicon Mac; choose CPU otherwise.')
+    if device=='cuda':setup_ocr_gpu(progress)
     # Confirm allocation and execution, not merely a reported device name.
     x=torch.ones((8,8),device=device);float((x@x).sum().cpu())
     return {'platform':platform.system(),'device':device,'name':torch.cuda.get_device_name(0) if device=='cuda' else 'Apple GPU (Metal)','torch_version':torch.__version__}
@@ -361,6 +382,7 @@ def main():
                 hardware['robot_detector_sha256']=fingerprint();hardware['robot_tracking']='yolo-botsort-1'
                 os.environ['NEPTUNE_TRACKING_DEVICE']='0' if hardware['device']=='cuda' else hardware['device']
                 os.environ['NEPTUNE_TRAIN_DEVICE']=hardware['device']   # clip features in match tests too, not only in training
+                os.environ['NEPTUNE_OCR_DEVICE']='cuda' if hardware['device']=='cuda' else 'cpu'   # number and scoreboard reading (RapidOCR)
                 from neptune_engine import identity
                 engine=identity();hardware['engine_version']=engine['version'];hardware['engine_sha256']=engine['sha256']
                 hardware['label_contracts']=['game-builder-moments-v1'];hardware['training_protocol']='page-v2';hardware['outside_adapters']=['viper-2026-activity-v1','mapped-actions-v1','viper-2026-points-v1'];progress('Connected — ready. Choose what to run on Neptune.')
