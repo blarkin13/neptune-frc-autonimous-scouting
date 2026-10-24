@@ -13,6 +13,17 @@ import time
 
 SITE = 'https://neptunefrc.com'
 
+# Windows opens a console window for every program the helper starts (ffmpeg, ffprobe, nvidia-smi, pip…), which
+# flashes on screen over and over. Start them all without one unless a caller asks otherwise.
+if sys.platform == 'win32':
+    import subprocess
+
+    class _HiddenPopen(subprocess.Popen):
+        def __init__(self, *args, **kwargs):
+            kwargs.setdefault('creationflags', 0x08000000)   # CREATE_NO_WINDOW
+            super().__init__(*args, **kwargs)
+    subprocess.Popen = _HiddenPopen
+
 
 def valid_connection(path):
     try:
