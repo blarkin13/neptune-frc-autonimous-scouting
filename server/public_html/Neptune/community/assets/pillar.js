@@ -108,8 +108,12 @@
   // Each running job as a card: what it is, a progress bar with % and time left, the step in plain words, then next.
   const job=q=>{const lines=(q.message||'').split('\n');const get=p=>(lines.find(l=>l.startsWith(p))||'').slice(p.length).trim();
    const step=(lines.find(l=>l.includes(' · step '))||'').replace(/^.*? · step (\d+ of \d+): ?/,'Step $1 · ');const prog=get('Progress:').match(/(\d+)%(?: · (.*))?/);
-   const now=get('Now:').replace(/^Training (robot|field) detector: /,''),pct=prog?+prog[1]:null;
-   return `<div class="tt-job"><div class="tt-job-head"><strong>${esc(q.label||q.title)}</strong>${pct!==null?`<span>${pct}%${prog[2]?' · '+esc(prog[2]):''}</span>`:''}</div>`+
+   let now=get('Now:').replace(/^Training (robot|field) detector: /,''),pct=prog?+prog[1]:null,eta=prog?prog[2]:null;
+   // Older helpers send no progress line: estimate from "pass P of up to E · batch B of N" (training is ~80% of a detector run).
+   const pass=!prog&&now.match(/pass (\d+) of up to (\d+)(?: · batch (\d+) of (\d+))?/);
+   if(pass){const f=((+pass[1]-1)+(pass[3]?pass[3]/pass[4]:0))/pass[2];pct=Math.round(100*(.1+.82*f));
+    const ran=q.started?Date.now()/1000-q.started:0;if(ran>60&&pct>3){const s=ran/(pct/100)*(1-pct/100);eta=(s<3600?'about '+Math.round(s/60)+' min':'about '+(s/3600).toFixed(1)+' h')+' left'}}
+   return `<div class="tt-job"><div class="tt-job-head"><strong>${esc(q.label||q.title)}</strong>${pct!==null?`<span>${pct}%${eta?' · '+esc(eta):''}</span>`:''}</div>`+
     (pct!==null?`<div class="tt-bar" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><i style="width:${pct}%"></i></div>`:'')+
     `<div class="tt-job-step">${esc(step||q.title)}${now?' — '+esc(now):''}</div>`+(get('Next:')?`<div class="tt-job-more">Next: ${esc(get('Next:'))}</div>`:'')+(q.about?`<div class="tt-job-more">${esc(q.about)}</div>`:'')+'</div>'};
   if(status('now'))status('now').innerHTML=running.length?running.map(job).join(''):'<span class="tt-idle">Nothing running</span>';

@@ -149,5 +149,5 @@ community_page_start($title,$sub,$view,$kick);
 </div>
 <script type="application/json" id="training-initial"><?=json_encode($panel,JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_THROW_ON_ERROR)?></script>
 <script src="../community/assets/training-control.js?v=pillars-run-picker-1" defer></script>
-<script src="/community/assets/pillar.js?v=8" defer></script>
+<script src="/community/assets/pillar.js?v=9" defer></script>
 <?php community_page_end(); ?>
