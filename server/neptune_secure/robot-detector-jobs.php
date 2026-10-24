@@ -81,6 +81,30 @@ final class RobotDetectorJobs {
   $r=array_replace($r,['state'=>$ok?'done':'failed','finished_at'=>time(),'message'=>mb_substr((string)($p['message']??''),0,500),'report'=>is_array($p['report']??null)?$p['report']:null]);
   unset($r['lease']);self::write($this->root.'/requests/'.$r['id'].'.json',$r);return ['ok'=>true];
  }
+ /** Save a review video (last 10 kept) and upload it to YouTube when connected. Returns the review record. */
+ private function storeVideo(string $name,string $b64,string $title,string $desc,?YouTubeUploader $youtube):array{
+  $raw=base64_decode($b64,true);if($raw===false||strlen($raw)<1000||strlen($raw)>48*1024*1024)throw new InvalidArgumentException('Invalid review video');
+  $dir=$this->dir('review');$file=$dir.'/'.$name.'.mp4';file_put_contents($file,$raw,LOCK_EX);chmod($file,0600);
+  $old=glob($dir.'/*.mp4')?:[];usort($old,fn($a,$b)=>filemtime($b)<=>filemtime($a));foreach(array_slice($old,10) as $f)unlink($f);
+  $title=mb_substr(trim($title)?:'Auto Scout review',0,100);$review=['status'=>'saved','title'=>$title,'saved_at'=>time()];
+  if($youtube&&$youtube->status()['connected']){
+   set_time_limit(900);   // the upload to YouTube runs inside this request
+   try{$review=$youtube->upload($file,$title,mb_substr($desc,0,4900))+$review;$review['status']='uploaded';}
+   catch(Throwable $e){$review['status']='upload_failed';$review['error']=mb_substr($e->getMessage(),0,200);}
+  }else $review['status']='youtube_not_connected';
+  return $review;
+ }
+ /** A match test's video (test jobs live in Neptune's database, not this queue): recorded under test-videos/. */
+ public function putTestVideo(array $computer,array $p,?YouTubeUploader $youtube):array{
+  $id=(string)($p['job_id']??'');if(!preg_match('/^[a-f0-9]{32}$/D',$id))throw new InvalidArgumentException('Invalid test');
+  $review=$this->storeVideo('test-'.$id,(string)($p['video_b64']??''),(string)($p['title']??''),(string)($p['description']??''),$youtube);
+  $rec=$review+['job_id'=>$id,'match_key'=>preg_match('/^\d{4}[A-Za-z0-9_-]{1,95}$/D',(string)($p['match_key']??''))?$p['match_key']:null,'computer_id'=>$computer['id']];
+  self::write($this->dir('test-videos').'/'.$id.'.json',$rec);return ['review'=>$review];
+ }
+ public function testVideos():array{
+  $out=[];foreach(glob($this->root.'/test-videos/*.json')?:[] as $f){$d=json_decode((string)file_get_contents($f),true);if(is_array($d))$out[]=$d;}
+  usort($out,fn($a,$b)=>($b['saved_at']??0)<=>($a['saved_at']??0));return array_slice($out,0,10);
+ }
  /** A run's review video: kept on Neptune (last 10), uploaded to YouTube when connected; the result goes on the request. */
  public function putReview(array $computer,array $p,?YouTubeUploader $youtube):array{
   $r=$this->owned($computer,$p);if($r['state']==='cancelled')throw new InvalidArgumentException('This run was cancelled');if(!in_array($r['kind'],['train','train_field'],true))throw new InvalidArgumentException('Only training runs have review videos');

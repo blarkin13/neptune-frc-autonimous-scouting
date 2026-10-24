@@ -10,11 +10,11 @@ GREEN, RED, YELLOW, BLUE, WHITE, DARK = (80, 200, 90), (60, 60, 230), (40, 210, 
 WIDTH, HEIGHT, FPS, HOLD = 1280, 720, 2, 3      # each frame shown HOLD/FPS seconds
 
 
-def writer(path):
+def writer(path, fps=FPS):
     """H.264 where the platform has it (macOS), else MPEG-4 Part 2; YouTube accepts both."""
     import cv2
     for code in ('avc1', 'mp4v'):
-        w = cv2.VideoWriter(str(path), cv2.VideoWriter_fourcc(*code), FPS, (WIDTH, HEIGHT))
+        w = cv2.VideoWriter(str(path), cv2.VideoWriter_fourcc(*code), fps, (WIDTH, HEIGHT))
         if w.isOpened():
             return w
     raise RuntimeError('No video encoder available')
@@ -168,3 +168,102 @@ def describe(kind, report, engine):
                 'Colours: green = marked by people, yellow = detected by the new model.']
     body += ['', 'Engine %s. Match footage: FIRST Robotics Competition broadcast.' % engine]
     return title[:100], '\n'.join(body)[:4900]
+
+
+TEST_FPS = 4
+
+
+def match_test_video(out, video, facts, tags, scores, game_key, model_id, title):
+    """A whole match test: every tracked robot boxed with its team number, scoring areas outlined, each predicted
+    action shown on its robot for 2.5 s, then an end card with each robot's predicted points."""
+    import subprocess
+    import cv2
+    import numpy as np
+    from neptune_robot_jobs import ffmpeg
+    alliance = {}
+    for t, info in ((facts.get('bumpers') or {}).get('identities') or {}).items():
+        if isinstance(info, dict) and info.get('alliance') in ('red', 'blue'):
+            alliance[str(t)] = info['alliance']
+    for s_ in scores or []:
+        if s_.get('team') is not None and s_.get('alliance') in ('red', 'blue'):
+            alliance.setdefault(str(s_['team']), s_['alliance'])
+    colour = lambda team: RED if alliance.get(str(team)) == 'red' else BLUE if alliance.get(str(team)) == 'blue' else WHITE
+    locs = sorted(((facts.get('tracking') or {}).get('localizations') or []), key=lambda r: r['t'])
+    times = [r['t'] for r in locs]
+    try:
+        from neptune_field_regions import load
+        regions = [r for r in ((load(facts, game_key) or {}).get('regions') or []) if r.get('kind') == 'scoring_target']
+    except Exception:
+        regions = []
+    periods = [p for p in ((facts.get('periods') or {}).get(k) for k in ('auto', 'teleop')) if p]
+    start = max(0., (periods[0]['start'] if periods else 0.)-2); end = (periods[-1]['end'] if periods else start+160)+2
+    cmd = [ffmpeg(), '-v', 'error', '-ss', '%.3f' % start, '-t', '%.3f' % (end-start), '-i', str(video),
+           '-vf', 'fps=%d,scale=%d:%d' % (TEST_FPS, WIDTH, HEIGHT), '-f', 'rawvideo', '-pix_fmt', 'bgr24', '-']
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+    w = writer(out, TEST_FPS)
+    intro = card([plain(title), 'Match test - model %s' % str(model_id)[:12]],
+                 ['Boxes: robots the tracker followed, labelled with the team number it read.',
+                  'Yellow outlines: scoring areas. Yellow labels: actions the model predicted.',
+                  'Robots with no box at a moment were not tracked then.'])
+    for _ in range(TEST_FPS*4):
+        w.write(intro)
+    import bisect
+    k = 0; size = WIDTH*HEIGHT*3
+    while True:
+        raw = proc.stdout.read(size)
+        if len(raw) < size:
+            break
+        t = start+k/TEST_FPS; k += 1
+        img = np.frombuffer(raw, np.uint8).reshape(HEIGHT, WIDTH, 3).copy()
+        for r in regions:
+            if r.get('start_ms', 0) <= t*1000 <= r.get('end_ms', 10**9):
+                pts = np.array([[int(x*WIDTH), int(y*HEIGHT)] for x, y in r['points']], np.int32)
+                cv2.polylines(img, [pts], True, YELLOW, 1)
+        lo, hi = bisect.bisect_left(times, t-.35), bisect.bisect_right(times, t+.35)
+        nearest = {}
+        for r in locs[lo:hi]:
+            key = (r.get('team'), r.get('camera'))
+            if key not in nearest or abs(r['t']-t) < abs(nearest[key]['t']-t):
+                nearest[key] = r
+        boxes = {}
+        for r in nearest.values():
+            x, y, bw, bh = r['box']; c = colour(r.get('team'))
+            p0, p1 = (int(x*WIDTH), int(y*HEIGHT)), (int((x+bw)*WIDTH), int((y+bh)*HEIGHT))
+            cv2.rectangle(img, p0, p1, c, 2)
+            label = str(r.get('team') or '?')
+            cv2.putText(img, label, (p0[0], max(14, p0[1]-5)), cv2.FONT_HERSHEY_SIMPLEX, .55, c, 2, cv2.LINE_AA)
+            boxes.setdefault(r.get('team'), p0)
+        active = [g for g in tags or [] if g.get('start_ms', -1) <= t*1000 <= g.get('start_ms', -1)+2500]
+        for i, g in enumerate(active[:6]):
+            text = plain('%s - %s' % (g.get('team'), g.get('tag_key', '').replace('gb:', '').replace('_', ' ')))
+            at = boxes.get(g.get('team'))
+            if at:
+                cv2.putText(img, text, (at[0], at[1]+(-24 if at[1] > 40 else 40)), cv2.FONT_HERSHEY_SIMPLEX, .6, YELLOW, 2, cv2.LINE_AA)
+            cv2.putText(img, text, (14, HEIGHT-20-24*i), cv2.FONT_HERSHEY_SIMPLEX, .6, YELLOW, 2, cv2.LINE_AA)
+        banner(img, '%s  %d:%02d' % (plain(title)[:60], int(t)//60, int(t) % 60), [('red', RED), ('blue', BLUE), ('predicted', YELLOW)])
+        w.write(img)
+    proc.stdout.close(); proc.wait(timeout=60)
+    lines = []
+    for s_ in sorted(scores or [], key=lambda x: (x.get('alliance') or '', -(x.get('robot_points') or 0))):
+        pts = s_.get('robot_points')
+        lines.append('%s %s: %s' % ((s_.get('alliance') or '').title(), s_.get('team'), ('%.0f predicted points' % pts) if isinstance(pts, (int, float)) else 'unknown (%s)' % s_.get('reason', s_.get('status', ''))))
+    end_card = card(['Predicted robot points'], lines[:8] or ['No scoring model in this test.'])
+    for _ in range(TEST_FPS*6):
+        w.write(end_card)
+    w.release()
+    return Path(out)
+
+
+def describe_test(title, tags, scores, model_id, engine):
+    counts = {}
+    for g in tags or []:
+        counts[g.get('tag_key', '')] = counts.get(g.get('tag_key', ''), 0)+1
+    body = ['Neptune Auto Scout - match test of the current models (Robots, Field and Actions pillars).', '', 'Match: '+title,
+            'Actions model: %s' % model_id, 'Predicted actions: ' + (', '.join('%s x%d' % (k.replace('gb:', ''), v) for k, v in sorted(counts.items())) or 'none'), '']
+    for s_ in scores or []:
+        pts = s_.get('robot_points')
+        body.append('%s %s: %s' % ((s_.get('alliance') or '').title(), s_.get('team'), ('%.0f predicted points' % pts) if isinstance(pts, (int, float)) else 'unknown'))
+    body += ['', 'A single match test shows what the models do; it is not an accuracy measure.',
+             'Boxes: tracked robots and the team number read. Yellow: scoring areas and predicted actions.', '',
+             'Engine %s. Match footage: FIRST Robotics Competition broadcast.' % engine]
+    return ('Match test - ' + title)[:100], '\n'.join(body)[:4900]

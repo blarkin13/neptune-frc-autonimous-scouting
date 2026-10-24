@@ -24,6 +24,7 @@ try {
   'prefill_put'=>$jobs->putPrefill($computer,$p),
   'current'=>$jobs->current(isset($p['have'])?(string)$p['have']:null),
   'adopt'=>$jobs->adopt($computer,$p),
+  'trial_video_put'=>$jobs->putTestVideo($computer,$p,new YouTubeUploader(dirname(__DIR__,3).'/neptune_secure')),
   'score_put'=>(new ScoreMoments(dirname(__DIR__,3).'/neptune_secure',(int)$computer['organization_id']))->put($p),
   'review_put'=>$jobs->putReview($computer,$p,new YouTubeUploader(dirname(__DIR__,3).'/neptune_secure')),
   'current_field'=>$jobs->currentField(isset($p['have'])?(string)$p['have']:null,isset($p['game_key'])?(string)$p['game_key']:null),

@@ -284,6 +284,26 @@ def evaluation_report(rows,events):
             'note':'Release thresholds are engineering checks, not a six-scout accuracy claim. Missing predictions count against coverage.'}
 
 
+def send_test_video(config,job,video,facts,tags,scores,game_key,model_id,title,status):
+    """The match test as a video (robots boxed with team numbers, scoring areas, predicted actions), sent to Neptune,
+    which uploads it to YouTube. Never fails the test."""
+    try:
+        import base64
+        import neptune_review_video as rv
+        from neptune_robot_jobs import api,HOME,VERSION
+        status('Making the match test video')
+        out=HOME/'review-videos'/('test-'+job['id']+'.mp4');out.parent.mkdir(parents=True,exist_ok=True)
+        rv.match_test_video(out,video,facts,tags,scores,game_key,model_id,title)
+        if out.stat().st_size>45*1024*1024:out.unlink();return {'status':'too_large'}
+        name,description=rv.describe_test(title,tags,scores,model_id,VERSION)
+        status('Sending the match test video to Neptune')
+        reply=api(config,'trial_video_put',{'job_id':job['id'],'match_key':job['request'].get('match_key'),'title':name,'description':description,'video_b64':base64.b64encode(out.read_bytes()).decode()},timeout=900)
+        out.unlink()
+        return reply.get('review') or {'status':'sent'}
+    except Exception as error:
+        return {'status':'failed','error':str(error)[:200]}
+
+
 def run_trial(config,season,match_id,progress,job=None,transport=None):
     """Run owner-requested tags + score predictions, without generating a summary."""
     import hashlib,json,threading
@@ -364,6 +384,7 @@ def run_trial(config,season,match_id,progress,job=None,transport=None):
                 'diagnostics':{'engine':identity()['version'],'action_heads_available':len(training.usable_heads(model)),'scoring_video_validated':video_ready(model.get('scoring_head')),'blocked_action_heads':sorted(set(model['heads'])-set(training.usable_heads(model))),
                                'identity_coverage':facts.get('tracking',{}).get('coverage',{}),'tracking_status':facts.get('tracking',{}).get('status','measured')}}
         training.write(folder/'result.json',output)
+        send_test_video(config,job,video,facts,tags,scores,game['game_key'],model['model_id'],request.get('title') or request['match_key'],status)
         status('Saving robot tags and score estimates on Neptune')
         return call(config,'trial_finish',dict(payload,result=output))
     except Exception as error:
