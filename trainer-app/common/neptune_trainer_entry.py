@@ -112,8 +112,8 @@ def connect_window(path):
 
     root = tk.Tk()
     root.title('Connect Neptune Training Helper')
-    root.geometry('560x310')
-    root.resizable(False, False)
+    root.geometry('560x440')      # room for the fixed-height status box and the button below it
+    root.minsize(560, 440)
     ui.apply(root)
     icon = Path(__file__).with_name('Neptune.ico')
     if sys.platform == 'win32' and icon.is_file():
@@ -142,6 +142,8 @@ def connect_window(path):
 
     button = ttk.Button(frame, text='Connect to Neptune', style='Neptune.TButton', command=begin)
     button.pack(anchor='w')
+    root.bind('<Return>', lambda event: begin() if str(button['state']) != 'disabled' else None)
+    button.focus_set()
 
     def poll():
         while not events.empty():

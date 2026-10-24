@@ -55,6 +55,11 @@ def _api_once(config,action,payload):
         except (ValueError,AttributeError):message=None
         raise TrainingApiError(message or 'Neptune rejected the training request (%s).'%error.code,error.code) from None
 
+def helper_version():
+    """The installed helper's version (Windows and Linux builds ship build-version.json next to this file)."""
+    try:return json.loads(Path(__file__).with_name('build-version.json').read_text())['version']
+    except (OSError,ValueError,KeyError):return ''
+
 def setup_ocr_gpu(progress):
     """Swap the CPU onnxruntime for the CUDA 13 build so number reading runs on the NVIDIA card. A failure leaves reading on the CPU."""
     # Read the package list, not the module: importing onnxruntime here would lock its files on Windows.
@@ -271,7 +276,7 @@ def main():
     source=Path(__file__).with_name('trainer-connection.json')
     if not source.is_file():raise ValueError('Download the connected training helper from Neptune.')
     config=json.loads(source.read_text());HOME.mkdir(mode=0o700,exist_ok=True)
-    root=tk.Tk();root.title('Neptune Training Helper');root.geometry('600x640');root.minsize(560,560)   # one size: content never resizes the window
+    root=tk.Tk();root.title('Neptune Training Helper '+helper_version());root.geometry('600x640');root.minsize(560,560)   # one size: content never resizes the window
     ui.apply(root)
     if sys.platform == 'win32':
         try:root.iconbitmap(str(source.with_name('Neptune.ico')))
