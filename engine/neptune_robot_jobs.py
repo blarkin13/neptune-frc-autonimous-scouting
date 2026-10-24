@@ -11,6 +11,7 @@ import base64
 import hashlib
 import json
 import math
+import shutil
 import subprocess
 import time
 from pathlib import Path
@@ -261,7 +262,7 @@ def train(config, req, progress):
         raise ValueError('Label at least %d frames in two different matches first.' % MIN_FRAMES_PER_MATCH)
     in_use = SHARED/'manifest.json' if (SHARED/'manifest.json').is_file() else Path(__file__).with_name('robot-detector')/'manifest.json'
     holdout = req.get('holdout') if req.get('holdout') in usable else pick_holdout(usable, adopted_holdout(SHARED/'manifest.json'), adopted_trained_on(in_use))
-    work = HOME/'robot-detector-work'/req['id']; work.mkdir(parents=True, exist_ok=True)
+    work = HOME/'robot-detector-work'/req['id']; shutil.rmtree(work, ignore_errors=True); work.mkdir(parents=True)   # a restarted run starts clean
     built = labels.build(docs, work/'frames', holdout={holdout}, download=labels.youtube_download, progress=progress)
     config_yaml = prepare_dataset(Path(built['manifest']), work/'dataset')
     base = bundle_path()/bundle()['context']['file']
@@ -408,7 +409,7 @@ def train_field(config, req, progress):
     in_use = adopted_trained_on(fd.shared_dir(game)/'manifest.json') if (fd.shared_dir(game)/'manifest.json').is_file() else shipped
     held_key = req.get('holdout') if req.get('holdout') in keys else pick_holdout(keys, adopted_holdout(fd.shared_dir(game)/'manifest.json'), in_use)
     holdout = next(d for d in docs if doc_key(d) == held_key)   # checked, never trained on
-    work = HOME/'field-detector-work'/req['id']; data = work/'dataset'; held = []
+    work = HOME/'field-detector-work'/req['id']; shutil.rmtree(work, ignore_errors=True); data = work/'dataset'; held = []   # a restarted run starts clean
     for split in ('train', 'val'):
         (data/'images'/split).mkdir(parents=True, exist_ok=True); (data/'labels'/split).mkdir(parents=True, exist_ok=True)
     for d in docs:
