@@ -73,7 +73,7 @@ final class RobotDetectorJobs {
   $r=array_replace($r,['state'=>'cancelled','finished_at'=>time(),'message'=>'Cancelled on Neptune']);self::write($f,$r);return ['ok'=>true];
  }
  public function progress(array $computer,array $p):array{
-  $r=$this->owned($computer,$p);if($r['state']==='cancelled')return ['ok'=>true,'cancelled'=>true];$r['heartbeat_at']=time();$r['message']=mb_substr((string)($p['message']??''),0,300);
+  $r=$this->owned($computer,$p);if($r['state']==='cancelled')return ['ok'=>true,'cancelled'=>true];$r['heartbeat_at']=time();$r['message']=mb_substr((string)($p['message']??''),0,600);
   self::write($this->root.'/requests/'.$r['id'].'.json',$r);return ['ok'=>true];
  }
  public function finish(array $computer,array $p):array{

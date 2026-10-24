@@ -4,9 +4,9 @@ declare(strict_types=1);
 // A pillar page: pillar_open() · pillar_summary() (what's trained, data, what's next) · its own work area · pillar_close().
 
 function pillar_open(int $season):void { ?>
-<link rel="stylesheet" href="/community/assets/train-tabs.css?v=6-frames">
+<link rel="stylesheet" href="/community/assets/train-tabs.css?v=7-progress">
 <div id="pillar" data-season="<?=$season?>" data-csrf="<?=e(csrf_token())?>" data-endpoint="/autoscout/train.php">
- <div id="pillar-status" class="tt-status" aria-live="polite"><div><span class="stage-label">HELPERS</span><span data-slot="helpers">Checking…</span></div><div><span class="stage-label">RUNNING NOW</span><span data-slot="now">Nothing</span></div><div><span class="stage-label">WAITING</span><span data-slot="waiting">Nothing</span></div></div>
+ <div id="pillar-status" class="tt-status" aria-live="polite"><div class="tt-now"><span class="stage-label">RUNNING NOW</span><div data-slot="now">Checking…</div></div><div class="tt-side"><span class="stage-label">HELPERS</span><span data-slot="helpers">Checking…</span><span class="stage-label">WAITING</span><span data-slot="waiting">Nothing</span></div></div>
 <?php }
 
 /** How it works, the model in use, the data it learns from, and what is needed next (with Train for the detectors). */
@@ -23,5 +23,5 @@ function pillar_summary(string $part,string $how,?string $train=null):void { ?>
 
 function pillar_close():void { ?>
 </div>
-<script src="/community/assets/pillar.js?v=6" defer></script>
+<script src="/community/assets/pillar.js?v=7" defer></script>
 <?php }

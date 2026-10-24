@@ -26,6 +26,8 @@ func loadCredential() -> Data? {
     var updateStatus=NSTextField(wrappingLabelWithString:"Updates are checked automatically.")
     var version=NSTextField(wrappingLabelWithString:"")
     var reviewButton:NSButton!;var reviewing=false
+    var progress=NSProgressIndicator();var remaining=NSTextField(labelWithString:"");var progressRow=NSStackView()
+    var activityScroll:NSScrollView!;var activityToggle:NSButton!
     var log=NSTextView();var stop:NSButton!;var connect:NSButton!;var run:NSButton!;var device=NSPopUpButton()
     let support=FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/Neptune Training Helper")
     static func main() {let app=NSApplication.shared;let delegate=App();app.delegate=delegate;app.setActivationPolicy(.regular);app.run()}
@@ -91,11 +93,18 @@ func loadCredential() -> Data? {
         connection.textColor = .white;connection.font = .systemFont(ofSize:17,weight:.semibold)
         status.textColor=muted;status.font = .systemFont(ofSize:13)
         for field in [connection,status] {
-            field.lineBreakMode = .byWordWrapping;field.maximumNumberOfLines=3
+            field.lineBreakMode = .byWordWrapping;field.maximumNumberOfLines=4
             field.preferredMaxLayoutWidth=510;field.widthAnchor.constraint(equalToConstant:510).isActive=true
             cardStack.addArrangedSubview(field)
         }
         root.addArrangedSubview(card);card.widthAnchor.constraint(equalToConstant:552).isActive=true
+        // % complete and time left for the job in progress, under the connection card (hidden while idle).
+        progress.isIndeterminate=false;progress.minValue=0;progress.maxValue=100;progress.style = .bar
+        progress.widthAnchor.constraint(equalToConstant:552).isActive=true
+        remaining.textColor=accent;remaining.font = .systemFont(ofSize:13,weight:.semibold)
+        progressRow.orientation = .vertical;progressRow.alignment = .leading;progressRow.spacing=4
+        progressRow.addArrangedSubview(progress);progressRow.addArrangedSubview(remaining);progressRow.isHidden=true
+        root.addArrangedSubview(progressRow)
         let buttons=NSStackView();buttons.orientation = .horizontal;buttons.spacing=9
         run=NSButton(title:"Open Neptune",target:self,action:#selector(openSite))
         connect=NSButton(title:"Reconnect",target:self,action:#selector(reconnect))
@@ -119,9 +128,10 @@ func loadCredential() -> Data? {
         updateStatus.lineBreakMode = .byWordWrapping;updateStatus.maximumNumberOfLines=2
         updateStatus.widthAnchor.constraint(equalToConstant:552).isActive=true
         root.addArrangedSubview(updateStatus)
-        let activity=NSTextField(labelWithString:"ACTIVITY")
-        activity.textColor=muted;activity.font = .systemFont(ofSize:10,weight:.bold)
-        root.addArrangedSubview(activity)
+        // The activity log stays hidden until asked for.
+        activityToggle=NSButton(title:"Show activity",target:self,action:#selector(toggleActivity))
+        activityToggle.bezelStyle = .rounded;activityToggle.font = .systemFont(ofSize:12,weight:.medium)
+        root.addArrangedSubview(activityToggle)
         let scroll=NSScrollView();scroll.hasVerticalScroller=true;scroll.borderType = .noBorder
         scroll.wantsLayer=true;scroll.layer?.backgroundColor=NSColor(srgbRed:0.027,green:0.067,blue:0.11,alpha:1).cgColor
         scroll.layer?.borderColor=line.cgColor;scroll.layer?.borderWidth=1;scroll.layer?.cornerRadius=10
@@ -129,7 +139,7 @@ func loadCredential() -> Data? {
         log.font = .monospacedSystemFont(ofSize:11,weight:.regular);log.textColor = .white
         log.backgroundColor=NSColor(srgbRed:0.027,green:0.067,blue:0.11,alpha:1)
         log.autoresizingMask=[.width];log.isVerticallyResizable=true;log.textContainer?.widthTracksTextView=true
-        root.addArrangedSubview(scroll);scroll.widthAnchor.constraint(equalToConstant:552).isActive=true
+        root.addArrangedSubview(scroll);scroll.widthAnchor.constraint(equalToConstant:552).isActive=true;activityScroll=scroll;scroll.isHidden=true
         scroll.heightAnchor.constraint(greaterThanOrEqualToConstant:190).isActive=true
         let menu=NSMenu();let item=NSMenuItem();let appMenu=NSMenu()
         appMenu.addItem(withTitle:"Check for Updates…",action:#selector(checkUpdates),keyEquivalent:"")
@@ -138,7 +148,7 @@ func loadCredential() -> Data? {
         appMenu.addItem(.separator())
         appMenu.addItem(withTitle:"Quit Neptune Training Helper",action:#selector(NSApplication.terminate(_:)),keyEquivalent:"q")
         item.submenu=appMenu;menu.addItem(item);NSApp.mainMenu=menu
-        window.contentView!.layoutSubtreeIfNeeded();window.setContentSize(NSSize(width:600,height:640))
+        window.contentView!.layoutSubtreeIfNeeded();window.setContentSize(NSSize(width:600,height:430))
         window.center();window.makeKeyAndOrderFront(nil);NSApp.activate(ignoringOtherApps:true)
     }
     func append(_ message:String) {
@@ -180,13 +190,27 @@ func loadCredential() -> Data? {
             let config=cachedCredential.flatMap {try? JSONSerialization.jsonObject(with:$0) as? [String:Any]}
             let shortID=(config?["computer_id"] as? String).map {String($0.prefix(4)).uppercased()}
             connection.stringValue="Connected to Neptune"+(shortID.map {" · "+$0} ?? "")
-        case "busy":setBusy(value["value"] as? Bool ?? false)
+        case "busy":setBusy(value["value"] as? Bool ?? false);if !(value["value"] as? Bool ?? false) {progressRow.isHidden=true}
         case "error":status.stringValue=value["message"] as? String ?? "Needs attention";connection.stringValue="Needs attention — your saved work is kept";append(status.stringValue)
-        case "status":status.stringValue=value["message"] as? String ?? "";append(status.stringValue)
+        case "status":
+            let message=value["message"] as? String ?? "";append(message)
+            // "Progress: 37% · about 42 min left" drives the bar; the rest stays as the status text.
+            let lines=message.components(separatedBy:"\n")
+            if let line=lines.first(where:{$0.hasPrefix("Progress: ")}) {
+                let rest=String(line.dropFirst("Progress: ".count))
+                if let pct=Double(rest.prefix(while:{$0.isNumber})) {progress.doubleValue=pct;remaining.stringValue=rest;progressRow.isHidden=false}
+            } else if !busy {progressRow.isHidden=true}
+            status.stringValue=lines.filter {!$0.hasPrefix("Progress: ")}.joined(separator:"\n")
         default:break
         }
     }
     func setBusy(_ value:Bool) {busy=value;reviewButton.isEnabled = !value;stop.isEnabled=value;connect.isEnabled = !value;device.isEnabled = !value;if !value, let handler=installHandler {installHandler=nil;send(["command":"quit"]);handler()}}
+    @objc func toggleActivity() {
+        activityScroll.isHidden.toggle();activityToggle.title=activityScroll.isHidden ? "Show activity":"Hide activity"
+        // Grow or shrink by the log's height, keeping the top edge where it is.
+        var frame=window.frame;let delta:CGFloat=activityScroll.isHidden ? -210:210
+        frame.size.height+=delta;frame.origin.y-=delta;window.setFrame(frame,display:true,animate:true)
+    }
     @objc func reviewTracking() {
         guard !busy else {return}
         if reviewing {reviewing=false;reviewButton.title="Review robot tracking…";pendingCommand="run";send(["command":"quit"]);return}

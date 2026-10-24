@@ -105,8 +105,15 @@
   const running=o.queue.filter(q=>q.state==='running'),waiting=o.queue.filter(q=>q.state==='waiting');
   // "Pillar — part", then the helper's step lines (minus its own job title), then what it learns from.
   const line=q=>[q.label||q.title,(q.message||'').replace(/^[^\n]*? · (step \d+ of \d+)/,'$1'),q.about].filter(Boolean).join('\n');
-  if(status('now'))status('now').textContent=running.length?running.map(line).join('\n\n'):'Nothing';
-  if(status('waiting'))status('waiting').textContent=waiting.length?waiting.map((q,i)=>`${i+1}. ${q.label||q.title}`).join('\n'):'Nothing';
+  // Each running job as a card: what it is, a progress bar with % and time left, the step in plain words, then next.
+  const job=q=>{const lines=(q.message||'').split('\n');const get=p=>(lines.find(l=>l.startsWith(p))||'').slice(p.length).trim();
+   const step=(lines.find(l=>l.includes(' · step '))||'').replace(/^.*? · step (\d+ of \d+): ?/,'Step $1 · ');const prog=get('Progress:').match(/(\d+)%(?: · (.*))?/);
+   const now=get('Now:').replace(/^Training (robot|field) detector: /,''),pct=prog?+prog[1]:null;
+   return `<div class="tt-job"><div class="tt-job-head"><strong>${esc(q.label||q.title)}</strong>${pct!==null?`<span>${pct}%${prog[2]?' · '+esc(prog[2]):''}</span>`:''}</div>`+
+    (pct!==null?`<div class="tt-bar" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><i style="width:${pct}%"></i></div>`:'')+
+    `<div class="tt-job-step">${esc(step||q.title)}${now?' — '+esc(now):''}</div>`+(get('Next:')?`<div class="tt-job-more">Next: ${esc(get('Next:'))}</div>`:'')+(q.about?`<div class="tt-job-more">${esc(q.about)}</div>`:'')+'</div>'};
+  if(status('now'))status('now').innerHTML=running.length?running.map(job).join(''):'<span class="tt-idle">Nothing running</span>';
+  if(status('waiting'))status('waiting').textContent=waiting.length?waiting.map(q=>`• ${q.label||q.title}`).join('\n'):'Nothing';
   const busy=k=>o.queue.some(q=>q.part===k);
   const needs={robot:robot(o.robot,busy('robot')),field:field(o.field,busy('field')),actions:actions(o.actions,o)};
   fill('test','videos',(o.test_videos||[]).length?'<table class="tt-runs"><tr><th>Made</th><th>Match</th><th>Video</th></tr>'+o.test_videos.map(v=>`<tr><td>${when(v.saved_at)}</td><td>${esc(v.match_key||'')}</td><td>${video(v)}</td></tr>`).join('')+'</table>':'<p class="training-note">No match test videos yet. Run Preview a match below.</p>');

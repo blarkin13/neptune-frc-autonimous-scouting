@@ -472,7 +472,7 @@ def run_pending(config, progress, busy=lambda value: None):
         if time.monotonic()-last[0] > 20:
             last[0] = time.monotonic()
             try:
-                reply = api(config, 'progress', {'request_id': req['id'], 'lease': req['lease'], 'message': str(message)[:300]})
+                reply = api(config, 'progress', {'request_id': req['id'], 'lease': req['lease'], 'message': str(message)[:600]})
             except Exception:
                 reply = {}
             if reply.get('cancelled'):

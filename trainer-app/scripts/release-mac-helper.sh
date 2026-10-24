@@ -22,6 +22,10 @@ done
 # Shipped detectors and region data live in folders next to the engine files.
 for d in field-regions field-detector robot-detector; do rm -rf "${E:?}/$d"; cp -R "$R/engine/$d" "$E/$d"; done
 rm -f "${E:?}/server_run.py"; find "$A" -name __pycache__ -prune -exec rm -rf {} +
+# The window itself (App.swift), compiled against the Sparkle framework already inside the app.
+MC=$(mktemp -d); /usr/bin/swiftc -module-cache-path "$MC" -O -parse-as-library -target arm64-apple-macos14.0 -F "$A/Contents/Frameworks" \
+  -framework Sparkle -framework AppKit -framework Security -Xlinker -rpath -Xlinker @executable_path/../Frameworks \
+  "$R/trainer-app/macos/NeptuneTrainingHelper/App.swift" -o "$A/Contents/MacOS/NeptuneTrainingHelper"; rm -rf "${MC:?}"
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $NEW" -c "Set :CFBundleVersion $BUILD" "$A/Contents/Info.plist"
 (cd "$R/engine" && python3 -c "import json,neptune_engine;print(json.dumps(neptune_engine.identity()))") > "$A/Contents/Resources/engine-identity.json"
 find "$R/engine" -name __pycache__ -prune -exec rm -rf {} +

@@ -39,3 +39,11 @@
 #training-app .tt-showing{display:flex;align-items:center;gap:12px;width:100%;max-width:none;margin:6px 0 14px;font-weight:650}
 #training-app .tt-showing select{flex:1;max-width:none;width:auto}
 .tt-runs tr.tt-short td:last-child{color:var(--c1-orange,#f0a03c);font-weight:650}
+/* Status: running jobs as progress cards, helpers and waiting at the side. */
+.tt-status{grid-template-columns:minmax(0,2.4fr) minmax(0,1fr)!important;align-items:start}
+.tt-side{display:flex;flex-direction:column;gap:4px}.tt-side .stage-label+span{margin-bottom:10px}
+.tt-job{padding:2px 0 12px}.tt-job+.tt-job{border-top:1px solid var(--line);padding-top:12px}
+.tt-job-head{display:flex;justify-content:space-between;gap:12px;align-items:baseline;flex-wrap:wrap}.tt-job-head span{font-weight:700;color:var(--accent)}
+.tt-bar{height:10px;border-radius:999px;background:var(--panel2);overflow:hidden;margin:8px 0}.tt-bar i{display:block;height:100%;background:var(--accent);border-radius:999px;transition:width .6s}
+.tt-job-step{font-weight:600}.tt-job-more{color:var(--muted);font-size:.9rem;margin-top:3px}.tt-idle{color:var(--muted)}
+@media(max-width:800px){.tt-status{grid-template-columns:1fr!important}}
