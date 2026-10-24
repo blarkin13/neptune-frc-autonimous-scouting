@@ -53,7 +53,9 @@
   fill('robot','current',c?`<dl><dt>Adopted</dt><dd>${when(c.adopted_at)}</dd><dt>Held-out match</dt><dd>${esc(rep.holdout_match||'—')}</dd><dt>Bumpers found</dt><dd>${pct(rep.new?.recall)} (precision ${pct(rep.new?.precision)})</dd><dt>Learned from</dt><dd>${rep.train_frames??'—'} frames, ${(rep.matches||[]).length} matches</dd></dl>`:'<p>The built-in detector that came with the helper. It has not been retrained here yet.</p>');
   rollback('robot',d.history);
   const m=Object.entries(d.matches),ready=m.filter(([,n])=>n>=d.min_frames),frames=m.reduce((a,[,n])=>a+n,0);
-  fill('robot','data',`<dl><dt>Labelled frames</dt><dd>${frames}</dd><dt>Matches</dt><dd>${m.length} (${ready.length} with ${d.min_frames}+ frames)</dd><dt>Events</dt><dd>${d.events.length?d.events.map(esc).join(', '):'—'}</dd></dl>`);
+  // Frames per match, fewest first: which matches still need frames before training can use them.
+  const rows=(d.rows||[]).map(r=>`<tr${r.frames<d.min_frames?' class="tt-short"':''}><td>${r.match_id?`<a href="/autoscout/robot-labels.php?match_id=${r.match_id}">${esc(r.match_key||r.video_id)}</a>`:esc(r.match_key||r.video_id)}${r.match_key===d.holdout?' <small>(held out)</small>':''}</td><td>${r.frames}</td><td>${r.frames<d.min_frames?`needs ${d.min_frames-r.frames} more`:'✓ used'}</td></tr>`).join('');
+  fill('robot','data',`<dl><dt>Labelled frames</dt><dd>${frames}</dd><dt>Matches</dt><dd>${m.length} (${ready.length} with ${d.min_frames}+ frames)</dd><dt>Events</dt><dd>${d.events.length?d.events.map(esc).join(', '):'—'}</dd></dl>`+(rows?`<details class="tt-runs-more" open><summary>Frames per match</summary><table class="tt-runs"><tr><th>Match</th><th>Frames</th><th></th></tr>${rows}</table></details>`:''));
   fill('robot','next',next([
    [ready.length>=2,`Label ${d.min_frames}+ frames in at least 2 matches (${ready.length} so far). One is held back for checking: never one the detector in use learned from.`],
    ...(d.holdout?[[true,`Next run is checked on <strong>${esc(d.holdout)}</strong>.`]]:[]),

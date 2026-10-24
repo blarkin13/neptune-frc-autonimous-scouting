@@ -38,3 +38,4 @@
 #use-server[hidden],#modal-use-server[hidden]{display:none!important}
 #training-app .tt-showing{display:flex;align-items:center;gap:12px;width:100%;max-width:none;margin:6px 0 14px;font-weight:650}
 #training-app .tt-showing select{flex:1;max-width:none;width:auto}
+.tt-runs tr.tt-short td:last-child{color:var(--c1-orange,#f0a03c);font-weight:650}

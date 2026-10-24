@@ -25,6 +25,10 @@ function autoscout_train_overview(PDO $pdo,array $panel,int $org,int $user,strin
   $d=json_decode((string)file_get_contents($f),true);if(!is_array($d)||empty($d['video_id']))continue;$v=$d['video_id'];
   $videos[$v]['frames']=($d['frames']??[])+($videos[$v]['frames']??[]);$videos[$v]['match_key']=$d['match_key']??($videos[$v]['match_key']??null);
  }
+ // One row per labelled video for the Robots page table (fewest completed frames first), linked to its match.
+ $robotRows=[];$find=$pdo->prepare('SELECT id FROM community_matches WHERE source_url LIKE ? LIMIT 1');
+ foreach($videos as $vid=>$v){$find->execute(['%'.$vid.'%']);$robotRows[]=['video_id'=>$vid,'match_key'=>$v['match_key'],'match_id'=>($id=$find->fetchColumn())?(int)$id:null,'frames'=>count(array_filter($v['frames'],fn($fr)=>!empty($fr['complete'])))];}
+ usort($robotRows,fn($a,$b)=>[$a['frames'],$a['match_key']]<=>[$b['frames'],$b['match_key']]);
  $robotMatches=[];foreach($videos as $v){$n=count(array_filter($v['frames'],fn($fr)=>!empty($fr['complete'])));if($n&&$v['match_key'])$robotMatches[$v['match_key']]=($robotMatches[$v['match_key']]??0)+$n;}
  // Scoring areas: this game's matches with scoring targets and the four field corners marked.
  $fieldMatches=[];$fieldVideo=[];
@@ -66,7 +70,7 @@ function autoscout_train_overview(PDO $pdo,array $panel,int $org,int $user,strin
   },array_values(array_filter($panel['computers'],fn($c)=>!$c['revoked']))),
   'queue'=>$queue,
   'test_videos'=>$jobs->testVideos(),
-  'robot'=>['holdout'=>$heldRobot,'current'=>$robot,'history'=>count($jobs->history('robot')),'matches'=>$robotMatches,'events'=>array_values(array_unique(array_filter(array_map($event,array_keys($robotMatches))))),'min_frames'=>8,'runs'=>array_values(array_filter($requests,fn($r)=>$r['kind']==='train'))],
+  'robot'=>['rows'=>$robotRows,'holdout'=>$heldRobot,'current'=>$robot,'history'=>count($jobs->history('robot')),'matches'=>$robotMatches,'events'=>array_values(array_unique(array_filter(array_map($event,array_keys($robotMatches))))),'min_frames'=>8,'runs'=>array_values(array_filter($requests,fn($r)=>$r['kind']==='train'))],
   'field'=>['holdout'=>$heldField,'game_key'=>$game,'current'=>$field,'history'=>count($jobs->history('field',$game)),'matches'=>$fieldMatches,'events'=>array_values(array_unique(array_filter(array_map($event,array_keys($fieldMatches))))),'runs'=>array_values(array_filter($requests,fn($r)=>$r['kind']==='train_field'&&($r['game_key']??RobotDetectorJobs::defaultGame())===$game))],
   'actions'=>['latest'=>$latest?['id'=>$latest['id'],'created_at'=>$latest['created_at']]:null,'released'=>$panel['released'],'counts'=>$panel['counts']],
  ];
