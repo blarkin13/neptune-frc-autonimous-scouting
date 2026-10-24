@@ -1,5 +1,15 @@
 # Work log (newest first)
 
+## 2026-10-24 — Claude: GPU number reading, connect fixes, My computers
+- Windows/Linux number reading on the NVIDIA GPU (`onnxruntime-gpu` CUDA 13, installed once when the device is
+  NVIDIA GPU; CPU fallback). Actions progress counts reading (30%) and tracking (40%) per match.
+- Windows 6.5.8–6.5.9: connect page opens via `os.startfile`, link shown; connect window tall enough for its button.
+- Linux 6.6.2: video runtime download accepts GitHub's release-asset redirect (checksum unchanged).
+- My computers (Helpers & settings): every connected computer, live job, start robot/field runs on that computer
+  (`target` on detector requests), Actions via the existing picker, stop, rename, keep awake (jobs/always/off,
+  stored in `robot-detector/<org>/computers/`). Helpers check in with `computer_poll`; `neptune_awake.py` uses
+  caffeinate / SetThreadExecutionState / systemd-inhibit. Engine 2.7.22, Windows 6.5.10, Linux 6.6.3.
+
 ## 2026-10-23 — Claude: pillars, per-game field detector, 2025 layouts, helper 3.2.15–3.2.20
 - Auto Scout is three pillar pages (Robots → Field → Actions) plus Test & release and Helpers; each pillar
   holds its examples, Train, model in use and past runs (commit b9d6539, previewed locally, not packaged yet).

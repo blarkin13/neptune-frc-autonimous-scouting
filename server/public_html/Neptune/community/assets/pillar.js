@@ -97,6 +97,31 @@
   return !l||changed.length>0;
  }
 
+ // One computer on My computers: state, current job, queued work for it, start/stop and keep-awake controls.
+ const kinds={robot:'Robot detector',field:'Field detector',prepare:'Prepare frames',actions:'Actions training',test:'Match test',evaluation:'Evaluation'};
+ const ago=t=>{if(!t)return 'never';const s=Date.now()/1000-t;return s<90?'just now':s<3600?Math.round(s/60)+' min ago':s<86400?Math.round(s/3600)+' h ago':when(t)};
+ function computerCard(c,job){
+  const badge=c.job?'<span class="tt-badge ok">Working</span>':c.online?'<span class="tt-badge ok">Online · idle</span>':`<span class="tt-badge">Offline · seen ${ago(c.last_seen)}</span>`;
+  const verdict=c.selfcheck?.summary?.verdict;
+  const facts=[c.platform||c.device,c.version&&'helper '+c.version,verdict].filter(Boolean).map(esc).join(' · ');
+  const now=c.job?job({label:kinds[c.job.kind]||c.job.kind,title:kinds[c.job.kind]||c.job.kind,message:c.job.message,started:c.job.started}):'';
+  const stop=c.job?(c.job.request?`<button type="button" class="button-secondary" data-cancel="${esc(c.job.request)}">Stop</button>`:c.job.job?`<button type="button" class="button-secondary" data-stop-job="${esc(c.job.job)}">Stop after this match</button>`:''):'';
+  const waiting=c.waiting.length?`<p class="training-note">Waiting for this computer: ${c.waiting.map(w=>`${kinds[w.kind]} <button type="button" class="button-secondary tt-cancel" data-cancel="${esc(w.request)}">Cancel</button>`).join(' ')}</p>`:'';
+  const start=c.job?'':`<button type="button" data-start="train" data-computer="${esc(c.id)}">Train robot detector</button> <button type="button" data-start="train_field" data-computer="${esc(c.id)}">Train field detector</button> <a class="community-button" href="/autoscout/train.php?connect=1&amp;computer=${encodeURIComponent(c.id)}#train">Train actions…</a>`;
+  const awake=`<label class="tt-awake">Keep awake <select data-awake="${esc(c.id)}">${[['jobs','During jobs'],['always','Always while the helper is open'],['off','Off']].map(([v,l])=>`<option value="${v}"${c.settings.keep_awake===v?' selected':''}>${l}</option>`).join('')}</select></label> <small>${!c.polls?'Needs the updated helper.':c.online?(c.awake?'☀ Awake now':'Allowed to sleep now'):''}</small>`;
+  return `<div class="tt-computer"><div class="tt-job-head"><strong>${esc(c.name)}</strong> <button type="button" class="button-secondary tt-cancel" data-rename="${esc(c.id)}" data-name="${esc(c.name)}" aria-label="Rename ${esc(c.name)}">Rename</button> ${badge}</div><p class="training-note">${facts||'—'}</p>${now}${waiting}<div class="training-actions">${start}${stop}</div>${awake}</div>`;
+ }
+ document.addEventListener('click',async e=>{
+  const b=e.target.closest('[data-start],[data-stop-job],[data-rename]');if(!b)return;
+  try{
+   if(b.dataset.start){b.disabled=true;await send({action:'queue_detector',kind:b.dataset.start,computer:b.dataset.computer})}
+   else if(b.dataset.stopJob){if(!confirm('Stop this run after the current match? Progress is saved and it can be continued later.'))return;await send({action:'stop',job:b.dataset.stopJob})}
+   else{const name=prompt('Name this computer',b.dataset.name);if(!name||name===b.dataset.name)return;await send({action:'rename_computer',computer:b.dataset.rename,name})}
+   b.blur();await refresh();
+  }catch(err){alert(err.message);b.disabled=false}
+ });
+ document.addEventListener('change',async e=>{const s=e.target.closest('[data-awake]');if(!s)return;try{await send({action:'computer_settings',computer:s.dataset.awake,keep_awake:s.value});s.blur();await refresh()}catch(err){alert(err.message)}});
+
  async function refresh(){
   const status=k=>document.querySelector(`#pillar-status [data-slot="${k}"]`);
   let o;try{const r=await fetch(`${endpoint}?overview=1&season=${encodeURIComponent(season)}`,{headers:{Accept:'application/json'}});o=await r.json();if(!r.ok)throw Error(o.error)}catch(e){if(status('helpers'))status('helpers').textContent='Status unavailable: '+e.message;return}
@@ -121,6 +146,9 @@
   const busy=k=>o.queue.some(q=>q.part===k);
   const needs={robot:robot(o.robot,busy('robot')),field:field(o.field,busy('field')),actions:actions(o.actions,o)};
   fill('test','videos',(o.test_videos||[]).length?'<table class="tt-runs"><tr><th>Made</th><th>Match</th><th>Video</th></tr>'+o.test_videos.map(v=>`<tr><td>${when(v.saved_at)}</td><td>${esc(v.match_key||'')}</td><td>${video(v)}</td></tr>`).join('')+'</table>':'<p class="training-note">No match test videos yet. Run Preview a match below.</p>');
+  // Helpers & settings → My computers. Not redrawn while you are using one of its controls.
+  const mine=slot('helpers','computers');
+  if(mine&&!mine.contains(document.activeElement))mine.innerHTML=(o.computers||[]).length?o.computers.map(c=>computerCard(c,job)).join(''):'<p class="training-note">No computers connected yet. Install the helper below and connect it.</p>';
   // Helpers & settings: each helper's last GPU self-check.
   fill('helpers','selfchecks',o.helpers.some(h=>h.selfcheck)?o.helpers.filter(h=>h.selfcheck).map(h=>{const c=h.selfcheck;return `<p><strong>${esc(h.name)}</strong> · ${esc(c.summary?.verdict||'')} <small>(${when(c.checked_at)} · ${esc(c.platform||'')})</small></p><table class="tt-runs">`+(c.checks||[]).map(x=>`<tr><td>${x.ok?'✓':'⚠'}</td><td>${esc(x.check)}</td><td class="tt-msg">${esc(x.detail)}</td></tr>`).join('')+'</table>'}).join(''):'<p class="training-note">No self-check yet. It runs when a helper (version 3.2.32 / Windows 6.5.0 or newer) starts.</p>');
   // Test & release: the detectors a test uses are always the ones in use; only the Actions model is chosen.

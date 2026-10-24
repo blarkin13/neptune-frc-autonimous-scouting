@@ -16,7 +16,7 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[2]
 ENGINE = ROOT / 'engine'
 WINDOWS = ROOT / 'trainer-app/windows'
-VERSION = '6.5.9'
+VERSION = '6.5.10'
 URL = 'https://neptunefrc.com/community/downloads/windows/'
 
 

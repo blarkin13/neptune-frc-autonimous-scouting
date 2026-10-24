@@ -2,11 +2,11 @@
 import hashlib
 from pathlib import Path
 
-VERSION = '2.7.21-gpu-reading'
+VERSION = '2.7.22-my-computers'
 FILES = ('neptune_trainer.py', 'neptune_ui.py', 'neptune_cache.py', 'neptune_page_worker.py', 'neptune_action_labels.py', 'neptune_training.py', 'neptune_scoring_model.py', 'neptune_clock.py',
          'neptune_events.py', 'neptune_tracking.py', 'neptune_yolo.py', 'neptune_identity.py', 'neptune_identity_review.py', 'neptune_review_learning.py', 'neptune_review_cloud.py', 'neptune_box_follow.py', 'neptune_temporal.py', 'neptune_detector_training.py', 'requirements-yolo.txt', 'neptune_facts.py',
          'neptune_ocr.py', 'neptune_video_labels.py', 'neptune_games.py', 'season_rules.json',
-         'neptune_engine.py','neptune_videomae.py','requirements-videomae.txt','neptune_quality.py','neptune_scouting_rules.py','neptune_field_regions.py','neptune_homography.py','neptune_reacquisition.py','neptune_housekeeping.py','neptune_field_detector.py','neptune_perception.py','neptune_robot_labels.py','neptune_robot_jobs.py', 'neptune_steps.py', 'neptune_review_video.py', 'neptune_score_moments.py', 'neptune_selfcheck.py')
+         'neptune_engine.py','neptune_videomae.py','requirements-videomae.txt','neptune_quality.py','neptune_scouting_rules.py','neptune_field_regions.py','neptune_homography.py','neptune_reacquisition.py','neptune_housekeeping.py','neptune_field_detector.py','neptune_perception.py','neptune_robot_labels.py','neptune_robot_jobs.py', 'neptune_steps.py', 'neptune_review_video.py', 'neptune_score_moments.py', 'neptune_selfcheck.py', 'neptune_awake.py')
 
 
 def identity():

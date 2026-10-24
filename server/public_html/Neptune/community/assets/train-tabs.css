@@ -48,3 +48,8 @@
 .tt-job-step{font-weight:600}.tt-job-more{color:var(--muted);font-size:.9rem;margin-top:3px}.tt-idle{color:var(--muted)}
 @media(max-width:800px){.tt-status{grid-template-columns:1fr!important}}
 .tt-cmd{white-space:pre-wrap;overflow-wrap:anywhere;font-size:.85rem;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:6px 0}
+
+/* Helpers & settings → My computers */
+.tt-computer{border-top:1px solid var(--line);padding:12px 0}.tt-computer:first-of-type{border-top:0;padding-top:4px}
+.tt-computer .training-actions{margin:8px 0}.tt-awake{display:inline-flex;gap:8px;align-items:center;flex-wrap:wrap}
+.tt-computer .tt-job-head{display:flex;gap:8px;align-items:center;flex-wrap:wrap}

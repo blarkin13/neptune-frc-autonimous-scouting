@@ -16,6 +16,21 @@ function autoscout_trained_on(?array $current,array $shipped):array {
 }
 
 /** One status read for the Train page: helpers, what is running and waiting, and each trainable part's model and data. */
+/** My computers: each connected computer, what it is doing now and its keep-awake setting. */
+function autoscout_computers(PDO $pdo,RobotDetectorJobs $jobs,array $computers,array $requests):array {
+ $lease=$pdo->prepare("SELECT j.id,j.state,j.message,j.started_at FROM community_training_leases l JOIN community_learning_jobs j ON j.id=l.job_id WHERE l.computer_id=? AND l.expires_at>? AND j.state IN ('remote_running','running','test_running','evaluation_running') LIMIT 1");
+ $out=[];
+ foreach($computers as $c){
+  if($c['revoked'])continue;$st=$jobs->status((string)$c['id']);$job=null;
+  foreach($requests as $r)if($r['state']==='claimed'&&($r['computer_id']??null)===$c['id']&&time()-(int)($r['heartbeat_at']??0)<900)$job=['kind'=>$r['kind']==='train_field'?'field':($r['kind']==='train'?'robot':'prepare'),'request'=>$r['id'],'message'=>$r['message']??'','started'=>$r['claimed_at']??null];
+  if(!$job){$lease->execute([$c['id'],time()]);if($j=$lease->fetch(PDO::FETCH_ASSOC))$job=['kind'=>str_starts_with($j['state'],'test_')?'test':(str_starts_with($j['state'],'evaluation_')?'evaluation':'actions'),'job'=>$j['id'],'message'=>$j['message']??'','started'=>$j['started_at']];}
+  $waiting=array_values(array_map(fn($r)=>['kind'=>$r['kind']==='train_field'?'field':'robot','request'=>$r['id']],array_filter($requests,fn($r)=>$r['state']==='queued'&&($r['target']??null)===$c['id'])));
+  $seen=max((int)$c['last_seen'],(int)($st['at']??0));$online=!$c['revoked']&&(int)$c['expires_at']>time()&&$seen>time()-90;
+  $out[]=['id'=>$c['id'],'name'=>$c['name'],'device'=>$c['device'],'online'=>$online||(bool)$job,'ready'=>$c['ready'],'status'=>$job?'Working':($online?'Idle':$c['status']),'last_seen'=>$seen?:null,
+   'platform'=>$st['platform']??null,'version'=>$st['version']??null,'awake'=>!empty($st['awake']),'polls'=>$st!==null,'job'=>$job,'waiting'=>$waiting,'settings'=>$jobs->settings((string)$c['id']),'selfcheck'=>$jobs->selfcheck((string)$c['id'])];
+ }
+ return $out;
+}
 function autoscout_train_overview(PDO $pdo,array $panel,int $org,int $user,string $game):array {
  $secure=__DIR__;$jobs=new RobotDetectorJobs($secure,$org);
  $requests=array_map(fn($r)=>array_intersect_key($r,array_flip(['id','kind','state','computer_id','holdout','created_at','claimed_at','heartbeat_at','finished_at','message','report','review','video_id','match_key'])),$jobs->requests());
@@ -69,6 +84,7 @@ function autoscout_train_overview(PDO $pdo,array $panel,int $org,int $user,strin
    $check=$jobs->selfcheck((string)$c['id']);
    return ($job?['name'=>$c['name'],'status'=>'working','online'=>true,'ready'=>false,'working'=>true]:['name'=>$c['name'],'status'=>$c['status'],'online'=>$c['online'],'ready'=>$c['ready']])+['selfcheck'=>$check];
   },array_values(array_filter($panel['computers'],fn($c)=>!$c['revoked']))),
+  'computers'=>autoscout_computers($pdo,$jobs,$panel['computers'],$requests),
   'queue'=>$queue,
   'test_videos'=>$jobs->testVideos(),
   'robot'=>['rows'=>$robotRows,'holdout'=>$heldRobot,'current'=>$robot,'history'=>count($jobs->history('robot')),'matches'=>$robotMatches,'events'=>array_values(array_unique(array_filter(array_map($event,array_keys($robotMatches))))),'min_frames'=>8,'runs'=>array_values(array_filter($requests,fn($r)=>$r['kind']==='train'))],

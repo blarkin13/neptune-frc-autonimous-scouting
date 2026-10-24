@@ -25,6 +25,7 @@ try {
   'current'=>$jobs->current(isset($p['have'])?(string)$p['have']:null),
   'adopt'=>$jobs->adopt($computer,$p),
   'trial_video_put'=>$jobs->putTestVideo($computer,$p,new YouTubeUploader(dirname(__DIR__,3).'/neptune_secure')),
+  'computer_poll'=>$jobs->poll($computer,$p),
   'selfcheck_put'=>$jobs->putSelfcheck($computer,$p),
   'score_put'=>(new ScoreMoments(dirname(__DIR__,3).'/neptune_secure',(int)$computer['organization_id']))->put($p),
   'review_put'=>$jobs->putReview($computer,$p,new YouTubeUploader(dirname(__DIR__,3).'/neptune_secure')),

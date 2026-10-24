@@ -55,6 +55,12 @@ def _api_once(config,action,payload):
         except (ValueError,AttributeError):message=None
         raise TrainingApiError(message or 'Neptune rejected the training request (%s).'%error.code,error.code) from None
 
+def engine_version():
+    try:
+        from neptune_engine import VERSION
+        return 'engine '+VERSION
+    except Exception:return ''
+
 def helper_version():
     """The installed helper's version (Windows and Linux builds ship build-version.json next to this file)."""
     try:return json.loads(Path(__file__).with_name('build-version.json').read_text())['version']
@@ -184,6 +190,13 @@ def run_job(config,job,hardware,progress,benchmark=None,max_matches=None,should_
 def watch_jobs(config,hardware,execute,progress,closing,pause,busy=lambda value:None,connection=lambda value:None,failed=lambda message:None,device_changed=lambda:False):
     """Keep transport interruptions separate from rejected jobs and credentials."""
     pending=None;connected=False;last_cleanup=None
+    # Keep awake (set on Neptune → My computers) follows whether a job is running.
+    from neptune_awake import shared
+    awake=shared();show_busy=busy;show_progress=progress;last_message=['']
+    def busy(value):
+        awake.set_busy(value);show_busy(value)
+    def progress(message):
+        last_message[0]=str(message);show_progress(message)
     def housekeeping(force=False):
         # Startup, after every job, and hourly while idle: remove only re-downloadable media.
         nonlocal last_cleanup
@@ -205,6 +218,11 @@ def watch_jobs(config,hardware,execute,progress,closing,pause,busy=lambda value:
             last_detector[0]=now
         if now-last_detector[1]>30:
             last_detector[1]=now
+            # Check in for My computers: status line, whether sleep is held off; get this computer's settings back.
+            try:
+                reply=robot_jobs.api(config,'computer_poll',{'busy':awake.busy,'awake':awake.active,'message':last_message[0][:600],'version':helper_version() or engine_version(),'platform':'%s · %s'%(platform.system().replace('Darwin','Mac'),hardware.get('name','CPU'))},timeout=20)
+                awake.set_mode((reply.get('settings') or {}).get('keep_awake','jobs'))
+            except Exception:pass
             try:robot_jobs.run_pending(config,progress,busy)
             except Exception:pass
             # Scoreboard score changes for Watch & tag (a tagging aid, never a training input).

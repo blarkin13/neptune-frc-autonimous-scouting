@@ -37,9 +37,10 @@ final class RobotDetectorJobs {
   if(!in_array($kind,['prepare','train','train_field'],true))throw new InvalidArgumentException('Unknown request');
   $body=['kind'=>$kind];if($kind==='train_field')$body['game_key']=self::game((string)($p['game_key']??''));
   if(in_array($kind,['train','train_field'],true)&&preg_match('/^[A-Za-z0-9_-]{1,100}$/D',(string)($p['holdout']??'')))$body['holdout']=$p['holdout'];   // chosen by autoscout_holdout()
+  if(preg_match('/^[a-f0-9]{32}$/D',(string)($p['computer']??'')))$body['target']=$p['computer'];   // only this helper may claim it
   if($kind==='prepare'){$body['video_id']=self::video((string)($p['video_id']??''));$body['match_key']=(string)($p['match_key']??'');if(!preg_match('/^\d{4}[A-Za-z0-9_-]{1,95}$/D',$body['match_key']))throw new InvalidArgumentException('Invalid match');}
   foreach($this->requests() as $r)if(in_array($r['state'],['queued','claimed'],true)&&$r['kind']===$kind&&($r['video_id']??null)===($body['video_id']??null)&&($r['game_key']??null)===($body['game_key']??null))return $r;
-  $r=$body+['id'=>bin2hex(random_bytes(12)),'state'=>'queued','created_at'=>time(),'created_by'=>$user,'message'=>'Waiting for a connected helper'];
+  $r=$body+['id'=>bin2hex(random_bytes(12)),'state'=>'queued','created_at'=>time(),'created_by'=>$user,'message'=>empty($body['target'])?'Waiting for a connected helper':'Waiting for the chosen computer'];
   self::write($this->dir('requests').'/'.$r['id'].'.json',$r);return $r;
  }
  public function requests():array{
@@ -54,6 +55,7 @@ final class RobotDetectorJobs {
    // Another helper takes over after 4 h of silence; the same helper takes its own run back at once (it restarted).
    $stale=$r['state']==='claimed'&&($quiet>4*3600||(($r['computer_id']??null)===$computer['id']&&$quiet>60));
    if($r['state']!=='queued'&&!$stale)continue;
+   if(!empty($r['target'])&&$r['target']!==$computer['id'])continue;   // sent to another computer
    $r=array_replace($r,['state'=>'claimed','claimed_at'=>time(),'heartbeat_at'=>time(),'computer_id'=>$computer['id'],'lease'=>bin2hex(random_bytes(16)),'message'=>($r['state']==='claimed'?'Restarted on the helper':'Started on a helper')]);
    self::write($this->dir('requests').'/'.$r['id'].'.json',$r);return $r;
   }
@@ -121,6 +123,19 @@ final class RobotDetectorJobs {
   $r['review']=$review;self::write($this->root.'/requests/'.$r['id'].'.json',$r);
   return ['review'=>$review];
  }
+ /** Per-computer settings set on Neptune (My computers): keep awake 'jobs' (default), 'always' or 'off'. */
+ private static function cid(string $id):string{if(!preg_match('/^[a-f0-9]{32}$/D',$id))throw new InvalidArgumentException('Invalid computer');return $id;}
+ public function settings(string $computer):array{$f=$this->root.'/computers/'.self::cid($computer).'.json';$d=is_file($f)?json_decode((string)file_get_contents($f),true):[];return ['keep_awake'=>in_array($d['keep_awake']??'',['jobs','always','off'],true)?$d['keep_awake']:'jobs'];}
+ public function setSettings(string $computer,array $p):array{
+  $s=$this->settings($computer);if(isset($p['keep_awake'])){if(!in_array($p['keep_awake'],['jobs','always','off'],true))throw new InvalidArgumentException('Choose when to keep this computer awake.');$s['keep_awake']=$p['keep_awake'];}
+  self::write($this->dir('computers').'/'.self::cid($computer).'.json',$s+['updated_at'=>time()]);return $s;
+ }
+ /** A helper checks in every ~30 s while idle and with each job update: its status line and whether it is keeping the computer awake. */
+ public function poll(array $computer,array $p):array{
+  self::write($this->dir('computers').'/'.self::cid((string)$computer['id']).'.status.json',['at'=>time(),'busy'=>!empty($p['busy']),'awake'=>!empty($p['awake']),'message'=>mb_substr((string)($p['message']??''),0,600),'version'=>mb_substr((string)($p['version']??''),0,40),'platform'=>mb_substr((string)($p['platform']??''),0,40)]);
+  return ['settings'=>$this->settings((string)$computer['id'])];
+ }
+ public function status(string $computer):?array{$f=$this->root.'/computers/'.self::cid($computer).'.status.json';return is_file($f)?json_decode((string)file_get_contents($f),true):null;}
  /** A helper's GPU self-check (neptune_selfcheck), one file per helper. */
  public function putSelfcheck(array $computer,array $p):array{
   $keep=['version'=>(string)($p['version']??''),'checked_at'=>time(),'ok'=>!empty($p['ok']),'platform'=>mb_substr((string)($p['platform']??''),0,60),

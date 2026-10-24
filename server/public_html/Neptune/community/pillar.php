@@ -4,7 +4,7 @@ declare(strict_types=1);
 // A pillar page: pillar_open() · pillar_summary() (what's trained, data, what's next) · its own work area · pillar_close().
 
 function pillar_open(int $season):void { ?>
-<link rel="stylesheet" href="/community/assets/train-tabs.css?v=7-progress">
+<link rel="stylesheet" href="/community/assets/train-tabs.css?v=8-computers">
 <div id="pillar" data-season="<?=$season?>" data-csrf="<?=e(csrf_token())?>" data-endpoint="/autoscout/train.php">
  <div id="pillar-status" class="tt-status" aria-live="polite"><div class="tt-now"><span class="stage-label">RUNNING NOW</span><div data-slot="now">Checking…</div></div><div class="tt-side"><span class="stage-label">HELPERS</span><span data-slot="helpers">Checking…</span><span class="stage-label">WAITING</span><span data-slot="waiting">Nothing</span></div></div>
 <?php }
