@@ -8,6 +8,7 @@ import shutil
 import subprocess
 import sys
 import threading
+import urllib.parse
 import urllib.request
 import zipfile
 
@@ -65,7 +66,10 @@ def prepare(progress):
         progress('Installing the verified YouTube video runtime…')
         pending = USER_ROOT / 'deno.zip.pending'
         with urllib.request.urlopen(url, timeout=90) as response, pending.open('wb') as output:
-            if response.geturl() != url: raise ValueError('The video runtime download redirected unexpectedly.')
+            # GitHub serves release files from its asset host; the checksum below proves the file either way.
+            final = urllib.parse.urlparse(response.geturl())
+            if final.scheme != 'https' or final.hostname not in ('github.com', 'objects.githubusercontent.com', 'release-assets.githubusercontent.com'):
+                raise ValueError('The video runtime download redirected unexpectedly.')
             shutil.copyfileobj(response, output)
         if hashlib.sha256(pending.read_bytes()).hexdigest() != expected:
             pending.unlink(missing_ok=True)
