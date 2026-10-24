@@ -11,7 +11,7 @@ import tempfile
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[2]
-VERSION = '6.5'
+VERSION = '6.6.0'
 
 
 def ar_member(name, data):
@@ -54,8 +54,12 @@ def build(base, output):
             shutil.copy2(ROOT / 'trainer-app/common' / name, app / name)
         shutil.copy2(ROOT / 'trainer-app/linux/Neptune.png', app / 'Neptune.png')
         (app / 'build-version.json').write_text(json.dumps({'version': VERSION}) + '\n')
-        files = {'usr/share/neptune-training-helper/app/' + path.name: (path.read_bytes(), 0o644)
-                 for path in app.iterdir() if path.is_file()}
+        # Shipped detectors and region data live in folders next to the engine files.
+        for name in ('robot-detector', 'field-detector', 'field-regions'):
+            shutil.rmtree(app / name, ignore_errors=True)
+            shutil.copytree(ROOT / 'engine' / name, app / name, ignore=shutil.ignore_patterns('README.md'))
+        files = {'usr/share/neptune-training-helper/app/' + path.relative_to(app).as_posix(): (path.read_bytes(), 0o644)
+                 for path in app.rglob('*') if path.is_file()}
         bootstrap = ROOT / 'trainer-app/linux/bootstrap.py'
         icon = ROOT / 'trainer-app/linux/Neptune.png'
         files['usr/share/neptune-training-helper/bootstrap.py'] = (bootstrap.read_bytes(), 0o644)

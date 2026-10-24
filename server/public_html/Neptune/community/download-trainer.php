@@ -10,7 +10,7 @@ if($_SERVER['REQUEST_METHOD']==='GET'&&in_array(($_GET['native']??''),['mac','wi
  $native=(string)$_GET['native'];
  $packages=['mac'=>['mac/Neptune-Training-Helper.dmg','application/x-apple-diskimage'],
             'windows'=>['windows/Neptune-Training-Helper-Setup.exe','application/vnd.microsoft.portable-executable'],
-            'linux'=>['linux/Neptune-Training-Helper_6.5_all.deb','application/vnd.debian.binary-package']];
+            'linux'=>['linux/Neptune-Training-Helper_all.deb','application/vnd.debian.binary-package']];
  [$file,$type]=$packages[$native];
  $path=__DIR__.'/downloads/'.$file;
  if(!is_readable($path)){http_response_code(503);exit('This helper installer is not published yet.');}
