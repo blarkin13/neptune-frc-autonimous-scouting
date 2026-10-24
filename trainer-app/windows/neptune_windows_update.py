@@ -16,7 +16,7 @@ import zipfile
 
 FEED_URL = 'https://neptunefrc.com/community/downloads/windows/latest.json'
 ARCHIVE_PREFIX = 'https://neptunefrc.com/community/downloads/windows/'
-MAX_ARCHIVE = 12 * 1024 * 1024
+MAX_ARCHIVE = 80 * 1024 * 1024
 MAX_FEED = 16 * 1024
 # Engine files, plus the shipped detectors and region data in their own folders (6.5.1+).
 NAME = re.compile(r'^app/(?:(?:robot-detector|field-detector|field-regions)/)?[A-Za-z0-9_.-]+$')
@@ -104,7 +104,7 @@ def prepare(app_dir, release, update_root=None):
                 if not isinstance(sha, str) or not re.fullmatch(r'[0-9a-f]{64}', sha):
                     raise UpdateError('The Windows update has an invalid file hash.')
                 info = z.getinfo(name)
-                if info.file_size > 5 * 1024 * 1024:
+                if info.file_size > 64 * 1024 * 1024:   # detector models can be tens of MB
                     raise UpdateError('An update file is unexpectedly large.')
                 data = z.read(info)
                 if hashlib.sha256(data).hexdigest() != sha:

@@ -16,7 +16,7 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[2]
 ENGINE = ROOT / 'engine'
 WINDOWS = ROOT / 'trainer-app/windows'
-VERSION = '6.5.2'
+VERSION = '6.5.3'
 URL = 'https://neptunefrc.com/community/downloads/windows/'
 
 
@@ -82,7 +82,9 @@ def build(base, output):
         write_zip(stage, full)
         update_root = stage / 'update'
         update_root.mkdir()
-        shutil.copytree(app, update_root / 'app', ignore=shutil.ignore_patterns('trainer-connection.json'))
+        # Updates carry code and small data only: the shipped detector models come with the full installer, and
+        # detectors trained on Neptune reach helpers by sync. (Updaters before 6.5.3 refuse files over 5 MB.)
+        shutil.copytree(app, update_root / 'app', ignore=shutil.ignore_patterns('trainer-connection.json', '*.pt'))
         update_files = {p.relative_to(update_root).as_posix(): sha(p) for p in sorted((update_root / 'app').rglob('*')) if p.is_file()}
         (update_root / 'files.json').write_text(json.dumps(update_files, indent=2, sort_keys=True) + '\n')
         update = output / ('Neptune-Training-Helper-' + VERSION + '-update.zip')
