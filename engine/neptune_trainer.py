@@ -250,27 +250,28 @@ def main():
     source=Path(__file__).with_name('trainer-connection.json')
     if not source.is_file():raise ValueError('Download the connected training helper from Neptune.')
     config=json.loads(source.read_text());HOME.mkdir(mode=0o700,exist_ok=True)
-    root=tk.Tk();root.title('Neptune Training Helper');root.geometry('600x470');root.minsize(560,420)   # taller when the activity log is shown
+    root=tk.Tk();root.title('Neptune Training Helper');root.geometry('600x640');root.minsize(560,560)   # one size: content never resizes the window
     ui.apply(root)
     if sys.platform == 'win32':
         try:root.iconbitmap(str(source.with_name('Neptune.ico')))
         except tk.TclError:pass
     frame=ttk.Frame(root,padding=20,style='Neptune.TFrame');frame.pack(fill='both',expand=True)
+    root.pack_propagate(False)   # the window keeps its size; content fits inside it
     from neptune_engine import VERSION as engine_version
     ui.header(frame,logo=source.with_name('Neptune.png'),version='Engine '+engine_version.split('-')[0])
     status=tk.StringVar(value='Connecting to Neptune…')
     status_anchor=ui.status(frame,status,detail='Choose matches and review results on Neptune. Keep this window open while it works.').master   # the card's outer frame
     # % complete and time left for the job in progress, under the connection card (hidden while idle).
-    progress_box=ttk.Frame(frame,style='Neptune.TFrame');progress_value=tk.DoubleVar(value=0);remaining=tk.StringVar(value='')
+    progress_box=ttk.Frame(frame,style='Neptune.TFrame');progress_value=tk.DoubleVar(value=0);remaining=tk.StringVar(value='No job running')
     ttk.Progressbar(progress_box,variable=progress_value,maximum=100,mode='determinate').pack(fill='x')
     ttk.Label(progress_box,textvariable=remaining,style='Muted.TLabel').pack(anchor='w',pady=(4,0))
+    progress_box.pack(fill='x',pady=(0,12),after=status_anchor)   # always there, so nothing shifts when a job starts
     def show_progress(text):
         line=next((l for l in text.split('\n') if l.startswith('Progress: ')),None)
         if line is None:return text
         rest=line[len('Progress: '):];digits=''.join(ch for ch in rest.split('%')[0] if ch.isdigit())
         if digits:
             progress_value.set(float(digits));remaining.set(rest)
-            if not progress_box.winfo_ismapped():progress_box.pack(fill='x',pady=(0,12),after=status_anchor)
         return '\n'.join(l for l in text.split('\n') if not l.startswith('Progress: '))
     controls=ttk.Frame(frame,style='Neptune.TFrame');controls.pack(fill='x',pady=(0,13))
     ttk.Button(controls,text='Open Neptune',style='Neptune.TButton',command=lambda:webbrowser.open(config['site'].rstrip('/')+'/autoscout/train.php?connect=1')).pack(side='left',padx=(0,8))
@@ -282,8 +283,8 @@ def main():
     # The activity log stays hidden until asked for.
     activity_box=ttk.Frame(frame,style='Neptune.TFrame');log=ui.activity(activity_box)
     def toggle_activity():
-        if activity_box.winfo_ismapped():activity_box.pack_forget();activity_button.config(text='Show activity');root.geometry('600x470')
-        else:activity_box.pack(fill='both',expand=True);activity_button.config(text='Hide activity');root.geometry('600x680')
+        if activity_box.winfo_ismapped():activity_box.pack_forget();activity_button.config(text='Show activity')
+        else:activity_box.pack(fill='both',expand=True);activity_button.config(text='Hide activity')   # opens inside the window
     activity_button=ttk.Button(frame,text='Show activity',style='Subtle.TButton',command=toggle_activity);activity_button.pack(anchor='w')
     messages=queue.Queue();closing=threading.Event();pause=threading.Event();busy={'value':False};reviewing=threading.Event();review_closing=threading.Event()
     reconnect_requested={'value':False}
@@ -403,7 +404,7 @@ def main():
                 except Exception as error:
                     update_status.set('Update install: '+str(error));update_button.config(state='normal');continue
             if kind=='busy':
-                if not message:progress_box.pack_forget()
+                if not message:progress_value.set(0);remaining.set('No job running')
                 busy['value']=message;review_button.config(state='disabled' if message else 'normal');stop_button.config(state='normal' if message else 'disabled');device.config(state='disabled' if message else 'readonly')
                 if sys.platform=='win32':update_button.config(state='disabled' if message else 'normal')
                 if not message and update['stage']:

@@ -87,8 +87,9 @@ def status(parent, value, *, detail=None, eyebrow='CONNECTION'):
     inner = card(parent)
     tk.Label(inner, text=eyebrow, font=('Arial', 9, 'bold'), fg=ACCENT,
              bg=PANEL, anchor='w').pack(fill='x')
-    tk.Label(inner, textvariable=value, font=('Arial', 14, 'bold'), fg=TEXT,
-             bg=PANEL, anchor='w', justify='left', wraplength=500).pack(fill='x', pady=(7, 3))
+    # Room for four lines whatever the message, so the window never changes size with the text.
+    tk.Label(inner, textvariable=value, font=('Arial', 13, 'bold'), fg=TEXT, height=4,
+             bg=PANEL, anchor='nw', justify='left', wraplength=500).pack(fill='x', pady=(7, 3))
     if detail is not None:
         tk.Label(inner, text=detail, font=('Arial', 10), fg=MUTED, bg=PANEL,
                  anchor='w', justify='left', wraplength=500).pack(fill='x')
