@@ -1,11 +1,23 @@
 """One-use browser approval for a Neptune training computer."""
 import base64
 import hashlib
+import os
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import secrets
+import sys
 import time
 import urllib.parse
 import webbrowser
+
+def open_browser(url):
+    """Windows' own opener first: webbrowser may start the browser through subprocess, which the helper starts hidden."""
+    if sys.platform == 'win32':
+        try:
+            os.startfile(url); return True
+        except OSError:
+            pass
+    return webbrowser.open(url, new=2)
+
 
 from neptune_helper import public_https, request
 
@@ -47,10 +59,10 @@ def connect_account(site, progress, stop):
         grant = request(api + '?action=connect_start',
                         {'challenge': challenge, 'state': state, 'port': server.server_port})
         deadline = time.monotonic() + min(int(grant['expires_in']), 600)
-        progress('Approve this computer in your browser. Matching code: ' + grant['user_code'])
         url = site + '/community/connect-training.php?' + urllib.parse.urlencode({'request': grant['request_id']})
-        if not webbrowser.open(url, new=2):
-            raise ValueError('Could not open your browser. Set a default browser and try again.')
+        progress('Approve this computer in your browser. Matching code: %s · If no page opened, open %s' % (grant['user_code'], url))
+        if not open_browser(url):
+            raise ValueError('Could not open your browser. Open %s yourself, or set a default browser and try again.' % url)
         while not received and time.monotonic() < deadline and not stop.is_set():
             server.handle_request()
     if stop.is_set(): raise ValueError('Connection canceled.')
