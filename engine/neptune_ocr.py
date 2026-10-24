@@ -54,9 +54,40 @@ class AppleVisionBackend(OcrBackend):
             self._version.pop('backend', None)
         return self._version
 
+    def _server(self):
+        """One long-lived reader (--serve) instead of a launch per call; None with an older reader."""
+        if getattr(self, '_serve', None) is None:
+            self._serve = False
+            try:
+                caps = subprocess.run([str(self.binary), '--capabilities'], capture_output=True, text=True, timeout=30).stdout.split()
+                if 'serve' in caps:
+                    self._serve = subprocess.Popen([str(self.binary), '--serve'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True, bufsize=1)
+            except OSError:
+                pass
+        if self._serve and self._serve.poll() is not None:   # it exited; start again next time
+            self._serve = None
+            return None
+        return self._serve or None
+
     def recognize(self, paths):
         paths = [str(p) for p in paths]
         out = {}
+        server = self._server() if paths else None
+        if server:
+            for path in paths:
+                if '\n' in path:
+                    raise OcrUnavailable('Image path contains a line break.')
+                server.stdin.write(path+'\n'); server.stdin.flush()
+                line = server.stdout.readline()
+                if not line:
+                    self._serve = None
+                    raise OcrUnavailable('The Apple Vision text reader stopped.')
+                d = json.loads(line)
+                if d.get('file') != Path(path).name:
+                    raise OcrUnavailable('The Apple Vision text reader returned results out of order.')
+                if d.get('error'):raise OcrUnavailable('Apple Vision could not read an image: '+str(d['error'])[:160])
+                out[path] = d.get('items', [])
+            return out
         for i in range(0, len(paths), 48):
             chunk = paths[i:i + 48]
             proc = subprocess.run([str(self.binary)] + chunk, capture_output=True, text=True, timeout=900)

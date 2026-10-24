@@ -371,7 +371,7 @@ def _track_camera(video, facts, profile, backend, work, fps=6., width=960, read_
     if device == 'auto':
         device = 'mps' if torch.backends.mps.is_available() else '0' if torch.cuda.is_available() else 'cpu'
     if device == 'cpu':
-        torch.set_num_threads(1)
+        torch.set_num_threads(max(1, (os.cpu_count() or 2)-1))   # all but one core; tiny run-to-run differences are accepted
         fps = min(fps, 3.)
     if not 1 <= fps <= 15 or not 320 <= width <= 1920:
         raise ValueError('Invalid robot tracking sampling settings.')

@@ -48,7 +48,9 @@ def encoder(device):
     model=VideoMAEForVideoClassification.from_pretrained(str(root),local_files_only=True,use_safetensors=True,attn_implementation='sdpa')
     model.classifier=torch.nn.Identity()
     model.requires_grad_(False);model.eval();model.to(device)
-    if device=='cpu':torch.set_num_threads(1)
+    if device=='cpu':
+        import os
+        torch.set_num_threads(max(1,(os.cpu_count() or 2)-1))   # all but one core
     return model,processor
 
 

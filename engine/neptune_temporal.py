@@ -166,7 +166,8 @@ def encoder(device):
     model.fc = torch.nn.Identity()
     model.requires_grad_(False); model.eval(); model.to(device)
     if device == 'cpu':
-        torch.set_num_threads(1)
+        import os
+        torch.set_num_threads(max(1, (os.cpu_count() or 2)-1))   # all but one core
     return model, R3D_18_Weights.KINETICS400_V1.transforms()
 
 
