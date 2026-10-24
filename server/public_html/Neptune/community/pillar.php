@@ -23,5 +23,5 @@ function pillar_summary(string $part,string $how,?string $train=null):void { ?>
 
 function pillar_close():void { ?>
 </div>
-<script src="/community/assets/pillar.js?v=7" defer></script>
+<script src="/community/assets/pillar.js?v=8" defer></script>
 <?php }

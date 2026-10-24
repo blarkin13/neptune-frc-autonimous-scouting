@@ -118,7 +118,7 @@
   const needs={robot:robot(o.robot,busy('robot')),field:field(o.field,busy('field')),actions:actions(o.actions,o)};
   fill('test','videos',(o.test_videos||[]).length?'<table class="tt-runs"><tr><th>Made</th><th>Match</th><th>Video</th></tr>'+o.test_videos.map(v=>`<tr><td>${when(v.saved_at)}</td><td>${esc(v.match_key||'')}</td><td>${video(v)}</td></tr>`).join('')+'</table>':'<p class="training-note">No match test videos yet. Run Preview a match below.</p>');
   // Test & release: the detectors a test uses are always the ones in use; only the Actions model is chosen.
-  fill('test','detectors',`Uses the robot detector ${o.robot.current?'adopted '+when(o.robot.current.adopted_at):'that came with the helper'} and the field detector for ${esc(o.field.game_key)} ${o.field.current?'adopted '+when(o.field.current.adopted_at):'(none trained yet; marked scoring areas are used where they exist)'}.`);
+  fill('test','detectors',`Uses the robot detector ${o.robot.current?'you trained (adopted '+when(o.robot.current.adopted_at)+')':'built into the helper'} and ${o.field.current?'the field detector you trained for '+esc(o.field.game_key)+' (adopted '+when(o.field.current.adopted_at)+')':'the field detector built into the helper for '+esc(o.field.game_key)}. Where you marked scoring areas on 2 · Field, those marks are used instead.`);
   const menu=document.getElementById('trial-model'),empty=slot('test','no-model');
   if(menu&&empty){const has=[...menu.options].some(x=>x.value);empty.hidden=has;menu.hidden=!has}
   // A dot on each pillar in the Auto Scout menu that needs something.
