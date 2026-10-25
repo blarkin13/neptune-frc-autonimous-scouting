@@ -4,9 +4,13 @@ declare(strict_types=1);
 // A pillar page: pillar_open() · pillar_summary() (what's trained, data, what's next) · its own work area · pillar_close().
 
 function pillar_open(int $season):void { ?>
-<link rel="stylesheet" href="/community/assets/train-tabs.css?v=9-console">
+<link rel="stylesheet" href="/community/assets/train-tabs.css?v=10-dashboard">
 <div id="pillar" data-season="<?=$season?>" data-csrf="<?=e(csrf_token())?>" data-endpoint="/autoscout/train.php">
- <div id="pillar-status" class="tt-status" aria-live="polite"><div class="tt-now"><span class="stage-label">RUNNING NOW</span><div data-slot="now">Checking…</div></div><div class="tt-side"><span class="stage-label">HELPERS</span><span data-slot="helpers">Checking…</span><span class="stage-label">WAITING</span><span data-slot="waiting">Nothing</span></div></div>
+ <div id="pillar-status" class="ts" aria-live="polite">
+  <section class="ts-sec"><h3 class="ts-h"><i class="fa-solid fa-chart-line" aria-hidden="true"></i>Running now <span class="ts-count" data-slot="now-count">…</span></h3><div data-slot="now">Checking…</div></section>
+  <section class="ts-sec"><h3 class="ts-h"><i class="fa-solid fa-desktop" aria-hidden="true"></i>Connected helpers <span class="ts-count" data-slot="helpers-count">…</span></h3><div class="hc-grid" data-slot="helpers">Checking…</div></section>
+  <section class="ts-sec ts-empty"><h3 class="ts-h"><i class="fa-solid fa-list" aria-hidden="true"></i>Queue <span class="ts-count ts-quiet" data-slot="waiting-count">…</span></h3><div data-slot="waiting"></div></section>
+ </div>
 <?php }
 
 /** How it works, the model in use, the data it learns from, and what is needed next (with Train for the detectors). */
@@ -25,5 +29,5 @@ function pillar_summary(string $part,string $how,?string $train=null):void { ?>
 
 function pillar_close():void { ?>
 </div>
-<script src="/community/assets/pillar.js?v=16" defer></script>
+<script src="/community/assets/pillar.js?v=17" defer></script>
 <?php }

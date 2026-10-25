@@ -158,46 +158,83 @@
    k.matches.slice(0,60).map(x=>`<tr${x.eligible?'':' class="tt-short"'}><td>${esc(x.match_key)}</td><td>${x.robots_tagged}/6</td><td>${x.tags}</td><td>${x.eligible?'✓ usable':x.trained_event?'trained event':'tag all six robots'}</td></tr>`).join('')+'</table>');
  }
  document.addEventListener('change',e=>{if(e.target.id==='trial-model')refresh()});
+ document.addEventListener('click',async e=>{const b=e.target.closest('[data-log]');if(!b)return;const box=b.closest('[data-log-key]'),key=box.dataset.logKey,book=(window.__neptuneLogs||{})[key]||[];
+  const text=book.map(([t,l])=>new Date(t*1000).toISOString().replace('T',' ').slice(0,19)+'  '+l).join('\n');
+  if(b.dataset.log==='pause'){const st=(window.__neptuneLogState||(window.__neptuneLogState={}))[key]||(window.__neptuneLogState[key]={});st.paused=!st.paused;b.textContent=st.paused?'Resume scroll':'Pause scroll';if(!st.paused){const l=box.querySelector('.tc-log');l.scrollTop=l.scrollHeight}}
+  else if(b.dataset.log==='copy'){try{await navigator.clipboard.writeText(text);b.textContent='Copied ✓';setTimeout(()=>b.textContent='Copy log',1500)}catch{alert('Copy is blocked here; use Download log.')}}
+  else{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text+'\n'],{type:'text/plain'}));a.download='neptune-'+key.slice(0,12)+'.log';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}});
  async function refresh(){
   const status=k=>document.querySelector(`#pillar-status [data-slot="${k}"]`);
   let o;try{const r=await fetch(`${endpoint}?overview=1&season=${encodeURIComponent(season)}`,{headers:{Accept:'application/json'}});o=await r.json();if(!r.ok)throw Error(o.error)}catch(e){if(status('helpers'))status('helpers').textContent='Status unavailable: '+e.message;return}
-  const on=o.helpers.filter(h=>h.online);
-  if(status('helpers')&&(o.computers||[]).some(c=>c.online&&c.stats)){status('helpers').innerHTML=(o.computers||[]).filter(c=>c.online).map(c=>`<div class="tc-mini"><b>${esc(c.name)}</b> · ${c.job?'working':'idle'}${c.awake?' · ☀':''}${(()=>{const st=c.stats||{};return (st.gpu?`\nGPU ${tbar(st.gpu.util,10)} ${st.gpu.util}%`:'')+(st.cpu!=null?`\nCPU ${tbar(st.cpu,10)} ${st.cpu}%`:'')})()}</div>`).join('')}else if(status('helpers'))status('helpers').textContent=on.length?on.map(h=>`${h.name} · ${h.working?'working':h.ready?'ready':h.status}`+(h.selfcheck?.summary?.verdict?`\n   ${h.selfcheck.summary.verdict}`:'')).join('\n'):(o.helpers.length?'No helper open. Open the helper app on your computer.':'No helper connected — see Helpers & settings.');
+  const comps=[...(o.computers||[])].sort((a,b)=>a.name.localeCompare(b.name)||a.id.localeCompare(b.id)),online=comps.filter(c=>c.online);
   const running=o.queue.filter(q=>q.state==='running'),waiting=o.queue.filter(q=>q.state==='waiting');
-  // "Pillar — part", then the helper's step lines (minus its own job title), then what it learns from.
-  const line=q=>[q.label||q.title,(q.message||'').replace(/^[^\n]*? · (step \d+ of \d+)/,'$1'),q.about].filter(Boolean).join('\n');
-  // Each running job as a live console, A1111-style: system meters, the step and overall bars, speed and the helper's last lines.
-  const meters=c=>{const st=c?.stats;if(!st)return '';const g=st.gpu,rows=[];
-   if(g)rows.push(`<span class="tc-k">GPU</span> ${tbar(g.util,16)} <b>${String(g.util??'?').padStart(3)}%</b>${g.mem_used_mb!=null?`  VRAM ${gb(g.mem_used_mb)}${g.mem_total_mb?'/'+gb(g.mem_total_mb):''} GB`:''}${g.temp_c!=null?`  ${g.temp_c}°C`:''}`);
-   if(st.cpu!=null)rows.push(`<span class="tc-k">CPU</span> ${tbar(st.cpu,16)} <b>${String(st.cpu).padStart(3)}%</b>${st.ram_total_mb?`  RAM ${gb(st.ram_used_mb)}/${gb(st.ram_total_mb)} GB`:''}${st.cores?`  ${st.cores} cores`:''}`);
-   return rows.length?`<div class="tc-meters">${rows.join('\n')}</div>`:''};
-  const job=(q,c)=>{const lines=(q.message||'').split('\n');const get=p=>(lines.find(l=>l.startsWith(p))||'').slice(p.length).trim();
+  window.__neptuneFast=running.length>0;
+  const count=(k,t)=>{const e=status(k+'-count');if(e)e.textContent=t};
+  count('now',running.length?running.length+' active':'idle');count('helpers',online.length+' online');count('waiting',waiting.length+' waiting');
+  const ago=t=>{if(!t)return 'never';const s=Math.max(0,Date.now()/1000-t);return s<90?Math.round(s)+'s ago':s<3600?Math.round(s/60)+' min ago':Math.round(s/3600)+' h ago'};
+  const meter=(label,pct,value,hot)=>`<div class="hm"><div class="hm-top"><span>${label}</span><span>${value}</span></div><div class="hm-bar"><i class="${hot?'hot':''}" style="width:${pct==null?0:Math.max(0,Math.min(100,pct))}%"></i></div></div>`;
+  const pct=(u,t)=>u!=null&&t?100*u/t:null;
+  const runner=q=>comps.find(c=>c.job&&((q.request&&c.job.request===q.request)||(q.job&&c.job.job===q.job)));
+  const kinds={robot:'Robot detector',field:'Field detector',prepare:'Prepare frames',actions:'Actions & scoring',test:'Match test',evaluation:'Evaluation'};
+  // Connected helpers: one card per computer. Status (Training / Available / Offline) is separate from system load.
+  function helperCard(c){const st=c.stats||{},g=st.gpu,q=c.job&&o.queue.find(x=>(x.request&&x.request===c.job.request)||(x.job&&x.job===c.job.job));
+   const stepNo=((q?.message||'').match(/step (\d+ of \d+)/)||[])[1];
+   const gpuCap=g?.name&&/nvidia|rtx|gtx|geforce/i.test(g.name)?'GPU training':c.selfcheck?.summary?.verdict?.startsWith('GPU ready')?'GPU training':'CPU training';   // Macs train on the CPU (Apple-GPU training hangs with this PyTorch build)
+   const badge=c.job?'<span class="hc-badge on">Training</span>':c.online?'<span class="hc-badge">Available</span>':'<span class="hc-badge off">Offline</span>';
+   const meters=c.stats?[meter('CPU',st.cpu,st.cpu!=null?st.cpu+'%':'—'),meter('GPU',g?.util,g?.util!=null?g.util+'%':'—',!!c.job),
+     meter('RAM',pct(st.ram_used_mb,st.ram_total_mb),st.ram_total_mb?`${gb(st.ram_used_mb)} / ${gb(st.ram_total_mb)} GB`:'—'),
+     g?.mem_total_mb?meter('VRAM',pct(g.mem_used_mb,g.mem_total_mb),`${gb(g.mem_used_mb)} / ${gb(g.mem_total_mb)} GB`):g?.mem_used_mb!=null?meter('GPU memory',null,gb(g.mem_used_mb)+' GB'):meter('VRAM',null,'—')].join('')
+     :`<p class="hc-note">${c.polls?'Waiting for its first reading…':'No live readings: update this helper to see CPU, GPU and memory.'}</p>`;
+   return `<div class="hc${c.online?'':' hc-off'}"><div class="hc-head"><i class="fa-solid ${(c.platform||'').startsWith('Mac')?'fa-laptop':'fa-desktop'}" aria-hidden="true"></i><div><strong>${esc(c.name)}</strong><small>${esc((c.platform||c.device||'Computer').replace(/ · CPU$/,''))}${g?.name&&!(c.platform||'').includes(g.name)?' · '+esc(g.name.replace(/^NVIDIA GeForce /,'')):''} · ${gpuCap}${c.version?' · helper '+esc(c.version):''}</small></div>${badge}</div>
+    <div class="hc-meters">${meters}</div><div class="hc-foot"><span>${c.job?`Job: ${esc(kinds[c.job.kind]||c.job.kind)}${stepNo?' · Step '+stepNo.replace(' of ','/'):''}`:'No assigned job'}${c.awake?' · kept awake':''}</span><span title="Last check-in">Seen ${ago(c.reported_at||c.last_seen)}</span></div></div>`}
+  const hs=status('helpers');
+  if(hs)hs.innerHTML=comps.length?comps.filter(c=>c.online||(Date.now()/1000-(c.last_seen||0))<86400).map(helperCard).join('')||'<p class="hc-note">No helper open. Open the helper app on a computer.</p>':'<p class="hc-note">No helper connected — see Helpers &amp; settings.</p>';
+  // Running now: one console per job.
+  const logs=window.__neptuneLogs||(window.__neptuneLogs={}),keep=window.__neptuneLogState||(window.__neptuneLogState={});
+  const level=l=>/fail|error|could not|refused|unavailable|timed out/i.test(l)?'err':/warn|skipp|retry|slow|missing/i.test(l)?'warn':/finish|saved|adopted|done|complete|kept|passed|✓/i.test(l)?'ok':'info';
+  const matchOf=t=>(String(t).match(/\b(\d{4}[a-z0-9]+_[a-z0-9]+)\b/)||[])[1];
+  const job=(q,c)=>{const key=q.request||q.job||q.title,lines=(q.message||'').split('\n');const get=p=>(lines.find(l=>l.startsWith(p))||'').slice(p.length).trim();
    const step=(lines.find(l=>l.includes(' · step '))||'').replace(/^.*? · step (\d+ of \d+): ?/,'Step $1 · ');const prog=get('Progress:').match(/(\d+)%(?: · (.*))?/);
-   let now=get('Now:').replace(/^Training (robot|field) detector: /,''),pct=prog?+prog[1]:null,eta=prog?prog[2]:null;
-   // Older helpers send no progress line: estimate from "pass P of up to E · batch B of N" (training is ~80% of a detector run).
+   let now=get('Now:').replace(/^Training (robot|field) detector: /,''),all=prog?+prog[1]:null,eta=prog?prog[2]:null;
    const pass=!prog&&now.match(/pass (\d+) of up to (\d+)(?: · batch (\d+) of (\d+))?/);
-   if(pass){const f=((+pass[1]-1)+(pass[3]?pass[3]/pass[4]:0))/pass[2];pct=Math.round(100*(.1+.82*f));
-    const ran=q.started?Date.now()/1000-q.started:0;if(ran>60&&pct>3){const s=ran/(pct/100)*(1-pct/100);eta=(s<3600?'about '+Math.round(s/60)+' min':'about '+(s/3600).toFixed(1)+' h')+' left'}}
-   const k=c?.counters||{},ran=q.started?Date.now()/1000-q.started:null;
-   const passRow=k.pass&&k.passes?`<span class="tc-k">pass</span>  ${String(k.pass).padStart(3)}/${k.passes} ${tbar(100*((k.pass-1)+(k.batches?k.batch/k.batches:0))/k.passes)} batch ${k.batch}/${k.batches??'?'}${k.it_s?`  <b>${k.it_s} it/s</b>`:''}\n`:'';
-   const all=pct!==null?`<span class="tc-k">all</span>   ${tbar(pct)} <b>${String(pct).padStart(3)}%</b>${ran?`  ${clock(ran)} elapsed`:''}${eta?' · '+esc(eta.replace(/^about /,'~')):''}`:'';
-   const log=(c?.log||[]).slice(-8).map(([t,l])=>`<span class="tc-t">${new Date(t*1000).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'})}</span> ${esc(l)}`).join('\n');
-   const who=c?`${esc(c.name)}${c.stats?.gpu?.name?' · '+esc(c.stats.gpu.name):''}`:'';
-   return `<div class="tt-job tt-console"><div class="tc-head"><span><i class="tc-dot"></i>${who||'helper'}</span><span>${esc((q.label||q.title).toUpperCase())}</span></div>`+
-    meters(c)+`<div class="tc-bars">${passRow}${all}</div>`+
-    `<div class="tc-step">${esc(step||q.title)}${now?' — '+esc(now):''}${get('Next:')?`\n<span class="tc-dim">next → ${esc(get('Next:'))}</span>`:''}</div>`+
-    (log?`<div class="tc-log">${log}<span class="tc-cursor">▌</span></div>`:'')+
+   if(pass){const f=((+pass[1]-1)+(pass[3]?pass[3]/pass[4]:0))/pass[2];all=Math.round(100*(.1+.82*f));
+    const r=q.started?Date.now()/1000-q.started:0;if(r>60&&all>3){const s=r/(all/100)*(1-all/100);eta=(s<3600?'about '+Math.round(s/60)+' min':'about '+(s/3600).toFixed(1)+' h')+' left'}}
+   // Keep every line seen this visit (the helper sends its last 14), for scrolling back, copy and download.
+   const book=logs[key]||(logs[key]=[]);for(const [t,l] of (c?.log||[]))if(!book.some(([a,b])=>a===t&&b===l))book.push([t,l]);book.sort((a,b)=>a[0]-b[0]);if(book.length>800)book.splice(0,book.length-800);
+   // Stage progress: detector passes/batches, or matches prepared ([i/n]) plus the part of this match, from the helper's own lines.
+   const k=c?.counters||{};let stage=null,stageText='';
+   if(k.pass&&k.passes){stage=100*((k.pass-1)+(k.batches?k.batch/k.batches:0))/k.passes;stageText=`pass ${k.pass}/${k.passes} · batch ${k.batch}/${k.batches??'?'}${k.it_s?` · ${k.it_s} it/s`:''}`}
+   else{const all2=[...book.map(x=>x[1]),now].join('\n'),m=[...all2.matchAll(/\[(\d+)\/(\d+)\]/g)].pop();if(m){let part=0;const fr=now.match(/frames \d+\D(\d+) of (\d+)/),vs=now.match(/(\d+) of (\d+) video seconds/);if(fr)part=.3*fr[1]/fr[2];else if(vs)part=.3+.4*vs[1]/vs[2];stage=100*((m[1]-1)+part)/m[2];stageText=`match ${m[1]} of ${m[2]}${fr?` · reading frames ${fr[1]}/${fr[2]}`:vs?` · tracking ${vs[1]}/${vs[2]} s`:''}`}}
+   const ran=q.started?Date.now()/1000-q.started:null,match=matchOf(now)||matchOf(book.length?book[book.length-1][1]:'');
+   const bar=(label,p,text)=>`<div class="tc-row"><span class="tc-k">${label}</span> ${tbar(p,26)} <b>${p==null?'  —':String(Math.round(p)).padStart(3)+'%'}</b>  <span class="tc-dim">${text}</span></div>`;
+   const st=c?.stats||{},g=st.gpu,sys=c?.stats?[g?`GPU ${g.util??'?'}%`:'',g?.mem_used_mb!=null?`VRAM ${gb(g.mem_used_mb)}${g.mem_total_mb?'/'+gb(g.mem_total_mb):''} GB`:'',g?.temp_c!=null?g.temp_c+'°C':'',st.cpu!=null?`CPU ${st.cpu}%`:'',st.ram_total_mb?`RAM ${gb(st.ram_used_mb)}/${gb(st.ram_total_mb)} GB`:''].filter(Boolean).join('  ·  '):'';
+   const logHtml=book.map(([t,l])=>`<div class="tl tl-${level(l)}"><span class="tc-t">${new Date(t*1000).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'})}</span> ${esc(l)}</div>`).join('');
+   return `<div class="tt-job tt-console" data-log-key="${esc(key)}"><div class="tc-head"><span><i class="tc-dot"></i>${esc(q.label||q.title)}</span><span>${c?esc(c.name)+(g?.name?' · '+esc(g.name.replace(/^NVIDIA GeForce /,'')):''):'waiting for its helper'}</span></div>`+
+    `<div class="tc-title">${esc(step||q.title)}${match?` · <b>${esc(match)}</b>`:''}</div>`+`<div class="tc-sys">${sys||'no live readings from this helper yet'}</div>`+
+    `<div class="tc-bars">${bar('stage',stage,stageText||esc(now||'—'))}${bar('overall',all,`${ran?clock(ran)+' elapsed':''}${eta?' · '+esc(eta.replace(/^about /,'~')):all!=null?' · estimating':''}`)}</div>`+
+    `<div class="tc-dim tc-next">${get('Next:')?'next → '+esc(get('Next:')):'&nbsp;'}</div>`+
+    `<div class="tc-logbar"><span>log · ${book.length} lines</span><span><button type="button" data-log="pause">${keep[key]?.paused?'Resume scroll':'Pause scroll'}</button><button type="button" data-log="copy">Copy log</button><button type="button" data-log="download">Download log</button></span></div>`+
+    `<div class="tc-log" tabindex="0" aria-label="Helper log">${logHtml||'<div class="tl tl-info">Waiting for the helper’s first lines…</div>'}<div class="tc-cursor">▌</div></div>`+
     `<div class="tc-foot">${q.about?esc(q.about):''}${q.job?` <button type="button" class="button-secondary" data-cancel-job="${esc(q.job)}">Cancel this run</button>`:q.request?` <button type="button" class="button-secondary" data-cancel="${esc(q.request)}">Cancel this run</button>`:''}</div></div>`};
-  const runner=q=>(o.computers||[]).find(c=>c.job&&((q.request&&c.job.request===q.request)||(q.job&&c.job.job===q.job)));
-  if(status('now'))status('now').innerHTML=running.length?running.map(q=>job(q,runner(q))).join(''):'<span class="tt-idle">Nothing running</span>';
-  if(status('waiting'))status('waiting').textContent=waiting.length?waiting.map(q=>`• ${q.label||q.title}`).join('\n'):'Nothing';
+  const nowSlot=status('now');
+  if(nowSlot){
+   // Remember where each log was scrolled; follow new lines unless scrolled up or paused.
+   for(const el of nowSlot.querySelectorAll('[data-log-key] .tc-log')){const key=el.closest('[data-log-key]').dataset.logKey,st=keep[key]||(keep[key]={});st.top=el.scrollTop;st.bottom=el.scrollHeight-el.scrollTop-el.clientHeight<8}
+   nowSlot.innerHTML=running.length?running.map(q=>job(q,runner(q))).join(''):'<p class="hc-note">Nothing running. Start a run from a pillar’s Train button or from My computers.</p>';
+   for(const el of nowSlot.querySelectorAll('[data-log-key] .tc-log')){const st=keep[el.closest('[data-log-key]').dataset.logKey]||{};el.scrollTop=(st.paused||st.bottom===false)&&st.top!=null?st.top:el.scrollHeight}
+  }
+  // Queue: just the count when empty; otherwise position, stage and which helpers can take each job.
+  const qs=status('waiting');
+  if(qs){qs.closest('.ts-sec')?.classList.toggle('ts-empty',!waiting.length);
+   qs.innerHTML=waiting.map((q,i)=>{const target=q.target&&comps.find(c=>c.id===q.target);const who=target?esc(target.name)+' (chosen)':online.length?online.map(c=>esc(c.name)).join(', '):'the next helper that opens';
+    return `<div class="tq"><b>#${i+1}</b> ${esc(q.label||q.title)}<small>waiting since ${when(q.since)} · can run on ${who}</small></div>`}).join('')}
   const busy=k=>o.queue.some(q=>q.part===k);
   const needs={robot:robot(o.robot,busy('robot')),field:field(o.field,busy('field')),actions:actions(o.actions,o,busy('actions'))};
   for(const [part,need] of Object.entries(needs)){const f=document.querySelector(`[data-part="${part}"] .tt-sum-flag`);if(f)f.hidden=!need;if(!picked[part])sumTab(part,need?'next':'current')}
   fill('test','videos',(o.test_videos||[]).length?'<table class="tt-runs"><tr><th>Made</th><th>Match</th><th>Video</th></tr>'+o.test_videos.map(v=>`<tr><td>${when(v.saved_at)}</td><td>${esc(v.match_key||'')}</td><td>${video(v)}</td></tr>`).join('')+'</table>':'<p class="training-note">No match test videos yet. Run Preview a match below.</p>');
   // Helpers & settings → My computers. Not redrawn while you are using one of its controls.
   const mine=slot('helpers','computers');
-  if(mine&&!mine.contains(document.activeElement))mine.innerHTML=(o.computers||[]).length?o.computers.map(c=>computerCard(c,job)).join(''):'<p class="training-note">No computers connected yet. Install the helper below and connect it.</p>';
+  if(mine&&!mine.contains(document.activeElement))mine.innerHTML=comps.length?comps.map(c=>computerCard(c,job)).join(''):'<p class="training-note">No computers connected yet. Install the helper below and connect it.</p>';
   // Helpers & settings: each helper's last GPU self-check.
   fill('helpers','selfchecks',o.helpers.some(h=>h.selfcheck)?o.helpers.filter(h=>h.selfcheck).map(h=>{const c=h.selfcheck;return `<p><strong>${esc(h.name)}</strong> · ${esc(c.summary?.verdict||'')} <small>(${when(c.checked_at)} · ${esc(c.platform||'')})</small></p><table class="tt-runs">`+(c.checks||[]).map(x=>`<tr><td>${x.ok?'✓':'⚠'}</td><td>${esc(x.check)}</td><td class="tt-msg">${esc(x.detail)}</td></tr>`).join('')+'</table>'}).join(''):'<p class="training-note">No self-check yet. It runs when a helper (version 3.2.32 / Windows 6.5.0 or newer) starts.</p>');
   testFlow(o);
@@ -211,5 +248,5 @@
  for(const b of $$('[data-train]'))b.addEventListener('click',async()=>{if(b.dataset.train==='actions'){document.getElementById('use-helper')?.click();return}b.disabled=true;try{await send({action:'queue_detector',kind:b.dataset.train==='field'?'train_field':'train'});await refresh()}catch(e){alert(e.message);b.disabled=false}});
  document.addEventListener('click',async e=>{const b=e.target.closest('[data-cancel]');if(!b)return;if(!confirm('Cancel this run? The helper stops at its next progress report.'))return;b.disabled=true;try{await send({action:'cancel_detector',request:b.dataset.cancel});await refresh()}catch(err){alert(err.message);b.disabled=false}});
  for(const b of $$('[data-rollback]'))b.addEventListener('click',async()=>{if(!confirm('Go back to the previous model? The current one is set aside, and helpers switch within an hour.'))return;try{await send({action:'rollback_detector',which:b.dataset.rollback});await refresh()}catch(e){alert(e.message)}});
- refresh();setInterval(()=>{if(!document.hidden)refresh()},10000);
+ refresh();let tick=0;setInterval(()=>{tick++;if(!document.hidden&&(window.__neptuneFast||tick%2===0))refresh()},5000);   // every 5 s while something runs, 10 s otherwise
 })();
