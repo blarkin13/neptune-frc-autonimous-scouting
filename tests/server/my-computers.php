@@ -16,4 +16,6 @@ $jobs->setSettings($mac['id'],['keep_awake'=>'always']);$check($jobs->poll($mac,
 $st=$jobs->status($mac['id']);$check($st['awake']&&$st['busy']&&$st['version']==='3.2.35'&&$st['at']>=time()-5,'helper status saved');
 try{$jobs->setSettings($mac['id'],['keep_awake'=>'forever']);$check(false,'bad mode accepted');}catch(InvalidArgumentException){$check(true,'unknown keep-awake mode refused');}
 try{$jobs->settings('../x');$check(false,'bad id accepted');}catch(InvalidArgumentException){$check(true,'computer id validated');}
+$jobs->poll($mac,['stats'=>['cpu'=>31,'gpu'=>['util'=>87,'name'=>'RTX','bad key'=>1],'x'=>['deep'=>['no'=>1]]],'counters'=>['pass'=>17,'it_s'=>3.8],'log'=>[[1,'pass 17/80'],'junk']]);
+$st=$jobs->status($mac['id']);$check($st['stats']['gpu']===['util'=>87,'name'=>'RTX']&&$st['counters']['pass']===17&&$st['log']===[[1,'pass 17/80']],'live readout kept, junk dropped');
 exec('rm -rf '.escapeshellarg($root));

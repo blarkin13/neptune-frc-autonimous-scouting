@@ -132,11 +132,20 @@ final class RobotDetectorJobs {
  }
  /** A helper checks in every ~30 s while idle and with each job update: its status line and whether it is keeping the computer awake. */
  public function poll(array $computer,array $p):array{
-  self::write($this->dir('computers').'/'.self::cid((string)$computer['id']).'.status.json',['at'=>time(),'busy'=>!empty($p['busy']),'awake'=>!empty($p['awake']),'message'=>mb_substr((string)($p['message']??''),0,600),'version'=>mb_substr((string)($p['version']??''),0,40),'platform'=>mb_substr((string)($p['platform']??''),0,40)]);
+  self::write($this->dir('computers').'/'.self::cid((string)$computer['id']).'.status.json',['at'=>time(),'busy'=>!empty($p['busy']),'awake'=>!empty($p['awake']),'message'=>mb_substr((string)($p['message']??''),0,600),'version'=>mb_substr((string)($p['version']??''),0,40),'platform'=>mb_substr((string)($p['platform']??''),0,80),
+   'stats'=>self::numbers($p['stats']??null,2),'counters'=>self::numbers($p['counters']??null,1),
+   'log'=>array_values(array_map(fn($l)=>[(int)($l[0]??0),mb_substr((string)($l[1]??''),0,220)],array_slice(is_array($p['log']??null)?array_filter($p['log'],'is_array'):[],-14)))]);
   return ['settings'=>$this->settings((string)$computer['id'])];
  }
  /** A removed computer's settings and last check-in. */
  public function forget(string $computer):void{foreach(['.json','.status.json'] as $x){$f=$this->root.'/computers/'.self::cid($computer).$x;if(is_file($f))unlink($f);}$f=$this->root.'/selfchecks/'.self::cid($computer).'.json';if(is_file($f))unlink($f);}
+ /** Live readout values: short strings and numbers only, nested one level (stats.gpu). */
+ private static function numbers(mixed $v,int $depth):array{
+  if(!is_array($v))return [];$out=[];
+  foreach(array_slice($v,0,16,true) as $k=>$x){if(!is_string($k)||!preg_match('/^[a-z_]{1,20}$/D',$k))continue;
+   if(is_int($x)||is_float($x))$out[$k]=$x;elseif(is_string($x))$out[$k]=mb_substr($x,0,60);elseif(is_array($x)&&$depth>1)$out[$k]=self::numbers($x,$depth-1);elseif($x===null)$out[$k]=null;}
+  return $out;
+ }
  public function status(string $computer):?array{$f=$this->root.'/computers/'.self::cid($computer).'.status.json';return is_file($f)?json_decode((string)file_get_contents($f),true):null;}
  /** A helper's GPU self-check (neptune_selfcheck), one file per helper. */
  public function putSelfcheck(array $computer,array $p):array{

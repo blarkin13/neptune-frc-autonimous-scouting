@@ -1,5 +1,14 @@
 # Work log (newest first)
 
+## 2026-10-24 — Claude: live console, tabbed summaries, Test & release stepper
+- Running now is a live console: GPU/CPU/RAM meters (nvidia-smi, macOS ioreg, psutil), pass/batch/it-s and
+  overall bars, last helper lines. Helpers report every 5 s (15 s idle) from `neptune_telemetry.Reporter`.
+- Pillar summaries are one tabbed card (opens on "What's needed next" when something needs doing).
+- 3 · Actions laid out like the other pillars; cancel covers stale runs.
+- Test & release: Model → Preview → Score → Release stepper; live release checklist and the list of
+  tagged matches usable as an answer key (`?answer_key_candidates=<model job>`). Gates unchanged.
+- Engine 2.7.23, Windows 6.5.11, Linux 6.6.4 (Mac 3.2.36 pending release).
+
 ## 2026-10-24 — Claude: GPU number reading, connect fixes, My computers
 - Windows/Linux number reading on the NVIDIA GPU (`onnxruntime-gpu` CUDA 13, installed once when the device is
   NVIDIA GPU; CPU fallback). Actions progress counts reading (30%) and tracking (40%) per match.

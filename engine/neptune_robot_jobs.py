@@ -102,6 +102,10 @@ def batch_progress(model, label, epochs, progress):
         batches = len(trainer.train_loader) if getattr(trainer, 'train_loader', None) is not None else '?'
         progress('%s: pass %d of up to %d · batch %d of %s' % (label, trainer.epoch+1, epochs, seen['batch'], batches))
     model.add_callback('on_train_batch_end', on_batch)
+    # Running now console: batch counters and speed, and one line per finished pass with losses and mAP.
+    import neptune_telemetry as telemetry
+    model.add_callback('on_train_batch_end', telemetry.batch_counter(label, epochs))
+    model.add_callback('on_fit_epoch_end', lambda trainer: telemetry.epoch_line(label, trainer, epochs))
 
 
 def adopted_holdout(manifest):

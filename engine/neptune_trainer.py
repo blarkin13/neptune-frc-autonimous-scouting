@@ -193,10 +193,18 @@ def watch_jobs(config,hardware,execute,progress,closing,pause,busy=lambda value:
     # Keep awake (set on Neptune → My computers) follows whether a job is running.
     from neptune_awake import shared
     awake=shared();show_busy=busy;show_progress=progress;last_message=['']
+    import neptune_telemetry as telemetry
     def busy(value):
         awake.set_busy(value);show_busy(value)
+        if not value:telemetry.clear()
     def progress(message):
         last_message[0]=str(message);show_progress(message)
+        telemetry.note(str(message).split('\n')[-1] if 'Now:' not in str(message) else next((l[4:].strip() for l in str(message).split('\n') if l.startswith('Now:')),str(message)))
+    # Check in for My computers and the Running now console every 5 s while working (15 s idle), from its own thread.
+    import neptune_robot_jobs as robot_jobs
+    if not getattr(telemetry,'reporter',None):telemetry.reporter=telemetry.Reporter(lambda payload:robot_jobs.api(config,'computer_poll',payload,timeout=20),
+                       lambda:{'busy':awake.busy,'awake':awake.active,'message':last_message[0][:600],'version':helper_version() or engine_version(),'platform':'%s · %s'%(platform.system().replace('Darwin','Mac'),hardware.get('name','CPU'))},
+                       lambda reply:awake.set_mode((reply.get('settings') or {}).get('keep_awake','jobs')),closing).start()
     def housekeeping(force=False):
         # Startup, after every job, and hourly while idle: remove only re-downloadable media.
         nonlocal last_cleanup
@@ -218,11 +226,6 @@ def watch_jobs(config,hardware,execute,progress,closing,pause,busy=lambda value:
             last_detector[0]=now
         if now-last_detector[1]>30:
             last_detector[1]=now
-            # Check in for My computers: status line, whether sleep is held off; get this computer's settings back.
-            try:
-                reply=robot_jobs.api(config,'computer_poll',{'busy':awake.busy,'awake':awake.active,'message':last_message[0][:600],'version':helper_version() or engine_version(),'platform':'%s · %s'%(platform.system().replace('Darwin','Mac'),hardware.get('name','CPU'))},timeout=20)
-                awake.set_mode((reply.get('settings') or {}).get('keep_awake','jobs'))
-            except Exception:pass
             try:robot_jobs.run_pending(config,progress,busy)
             except Exception:pass
             # Scoreboard score changes for Watch & tag (a tagging aid, never a training input).

@@ -46,6 +46,12 @@
   const b=document.querySelector(`[data-part="${name}"] [data-train]`);if(b)b.disabled=disabled;
   const s=slot(name,'train-note');if(s)s.textContent=note;
  }
+ // Summary card tabs (What's trained · Your data · What's needed next). Opens on "next" when something needs doing, until you pick one.
+ const picked={};
+ function sumTab(part,name,user){const card=document.querySelector(`[data-part="${part}"] .tt-sum`);if(!card)return;if(user)picked[part]=true;
+  for(const b of card.querySelectorAll('[data-sum]'))b.setAttribute('aria-selected',String(b.dataset.sum===name));
+  for(const p of card.querySelectorAll('[data-sum-panel]'))p.hidden=p.dataset.sumPanel!==name}
+ document.addEventListener('click',e=>{const b=e.target.closest('[data-sum]');if(b)sumTab(b.closest('[data-part]').dataset.part,b.dataset.sum,true)});
  const rollback=(name,has)=>{for(const b of $$(`[data-rollback="${name}"]`))b.hidden=!has};
 
  function robot(d,busy){
@@ -125,35 +131,76 @@
  });
  document.addEventListener('change',async e=>{const s=e.target.closest('[data-awake]');if(!s)return;try{await send({action:'computer_settings',computer:s.dataset.awake,keep_awake:s.value});s.blur();await refresh()}catch(err){alert(err.message)}});
 
+ const tbar=(p,w=22)=>{p=Math.max(0,Math.min(100,p||0));const cells=p/100*w,full=Math.floor(cells),part=' ▏▎▍▌▋▊▉'[Math.floor((cells-full)*8)];return '▕'+'█'.repeat(full)+(full<w?part+' '.repeat(w-full-1):'')+'▏'};
+ const gb=mb=>mb==null?'?':(mb/1024).toFixed(mb<10240?1:0);
+ const clock=s=>{s=Math.max(0,Math.round(s));return (s>=3600?Math.floor(s/3600)+':':'')+String(Math.floor(s/60)%60).padStart(s>=3600?2:1,'0')+':'+String(s%60).padStart(2,'0')};
+ // Test & release as four steps: model → preview → score (live checklist, eligible answer-key matches) → release.
+ const keyCache={};
+ async function testFlow(o){
+  const menu=document.getElementById('trial-model');if(!menu||!slot('test','gates'))return;
+  const id=menu.value,m=(o.actions.models||[]).find(x=>x.id===id),released=o.actions.released&&o.actions.released===id;
+  const newer=[['robot detector',o.robot.current],['field detector',o.field.current]].filter(([,c])=>c&&m&&c.adopted_at>m.created_at).map(([n])=>n);
+  fill('test','model-info',m?`<dl><dt>Trained</dt><dd>${when(m.created_at)}</dd><dt>Status</dt><dd>${released?'Released':m.evaluated?'Passed its checks — ready to release':'Experimental — not yet scored'}</dd></dl>`+(newer.length?`<p class="tr-warn">⚠ The ${newer.join(' and ')} changed after this model was trained. Its results may be off; retrain on 3 · Actions for a fair test.</p>`:''):'');
+  const vids=o.test_videos||[];fill('test','latest-video',vids[0]?`<p class="training-note">Latest match test: ${esc(vids[0].match_key||'')} · ${video(vids[0])} <small>(${when(vids[0].saved_at)})</small></p>`:'');
+  fill('test','release-state',released?'✓ This model is what Auto Scout uses now.':m?.evaluated?'All checks passed. Review the report, then release.':o.actions.released?'Another model is released. This one unlocks when its checks pass.':'Release unlocks when every check in step 3 passes.');
+  const done={model:!!m,preview:vids.length>0,score:!!m?.evaluated,release:!!released};
+  for(const li of $$('.tr-steps [data-step]'))li.dataset.done=String(done[li.dataset.step]);
+  if(!m){fill('test','gates','<p class="training-note">Choose a model to see its checks.</p>');return}
+  let k=keyCache[id];
+  if(!k){try{const r=await fetch(`${endpoint}?answer_key_candidates=${encodeURIComponent(id)}&season=${encodeURIComponent(season)}`,{headers:{Accept:'application/json'}});k=await r.json();if(!r.ok)throw Error(k.error);keyCache[id]=k}catch(e){fill('test','gates',`<p class="training-note">Checks unavailable: ${esc(e.message)}</p>`);return}}
+  const tick=(ok,text)=>`<li class="${ok?'tt-ok':'tt-todo'}">${text}</li>`;
+  fill('test','gates','<ul class="tt-next">'+
+   tick(k.eligible>=k.need.matches,`Answer-key matches: <b>${k.eligible}</b> of ${k.need.matches} (all six robots tagged, from events this model never trained on)`)+
+   tick(k.eligible_events>=k.need.events,`Events: <b>${k.eligible_events}</b> of ${k.need.events}`)+
+   Object.entries(k.by_tag).map(([t,n])=>tick(n>=k.need.per_tag,`<code>${esc(t)}</code>: <b>${n}</b> of ${k.need.per_tag} reference actions`)).join('')+
+   tick(!!m.evaluated,m.evaluated?'Scored: precision ≥ 90% and recall ≥ 80% on every action':'Scored against the answer key (precision ≥ 90%, recall ≥ 80% per action)')+'</ul>');
+  fill('test','answer-key',`<p class="training-note">Trained on events: ${k.trained_events.map(esc).join(', ')||'—'}. Matches from those events can't be used.</p><table class="tt-runs"><tr><th>Match</th><th>Robots tagged</th><th>Tags</th><th></th></tr>`+
+   k.matches.slice(0,60).map(x=>`<tr${x.eligible?'':' class="tt-short"'}><td>${esc(x.match_key)}</td><td>${x.robots_tagged}/6</td><td>${x.tags}</td><td>${x.eligible?'✓ usable':x.trained_event?'trained event':'tag all six robots'}</td></tr>`).join('')+'</table>');
+ }
+ document.addEventListener('change',e=>{if(e.target.id==='trial-model')refresh()});
  async function refresh(){
   const status=k=>document.querySelector(`#pillar-status [data-slot="${k}"]`);
   let o;try{const r=await fetch(`${endpoint}?overview=1&season=${encodeURIComponent(season)}`,{headers:{Accept:'application/json'}});o=await r.json();if(!r.ok)throw Error(o.error)}catch(e){if(status('helpers'))status('helpers').textContent='Status unavailable: '+e.message;return}
   const on=o.helpers.filter(h=>h.online);
-  if(status('helpers'))status('helpers').textContent=on.length?on.map(h=>`${h.name} · ${h.working?'working':h.ready?'ready':h.status}`+(h.selfcheck?.summary?.verdict?`\n   ${h.selfcheck.summary.verdict}`:'')).join('\n'):(o.helpers.length?'No helper open. Open the helper app on your computer.':'No helper connected — see Helpers & settings.');
+  if(status('helpers')&&(o.computers||[]).some(c=>c.online&&c.stats)){status('helpers').innerHTML=(o.computers||[]).filter(c=>c.online).map(c=>`<div class="tc-mini"><b>${esc(c.name)}</b> · ${c.job?'working':'idle'}${c.awake?' · ☀':''}${(()=>{const st=c.stats||{};return (st.gpu?`\nGPU ${tbar(st.gpu.util,10)} ${st.gpu.util}%`:'')+(st.cpu!=null?`\nCPU ${tbar(st.cpu,10)} ${st.cpu}%`:'')})()}</div>`).join('')}else if(status('helpers'))status('helpers').textContent=on.length?on.map(h=>`${h.name} · ${h.working?'working':h.ready?'ready':h.status}`+(h.selfcheck?.summary?.verdict?`\n   ${h.selfcheck.summary.verdict}`:'')).join('\n'):(o.helpers.length?'No helper open. Open the helper app on your computer.':'No helper connected — see Helpers & settings.');
   const running=o.queue.filter(q=>q.state==='running'),waiting=o.queue.filter(q=>q.state==='waiting');
   // "Pillar — part", then the helper's step lines (minus its own job title), then what it learns from.
   const line=q=>[q.label||q.title,(q.message||'').replace(/^[^\n]*? · (step \d+ of \d+)/,'$1'),q.about].filter(Boolean).join('\n');
-  // Each running job as a card: what it is, a progress bar with % and time left, the step in plain words, then next.
-  const job=q=>{const lines=(q.message||'').split('\n');const get=p=>(lines.find(l=>l.startsWith(p))||'').slice(p.length).trim();
+  // Each running job as a live console, A1111-style: system meters, the step and overall bars, speed and the helper's last lines.
+  const meters=c=>{const st=c?.stats;if(!st)return '';const g=st.gpu,rows=[];
+   if(g)rows.push(`<span class="tc-k">GPU</span> ${tbar(g.util,16)} <b>${String(g.util??'?').padStart(3)}%</b>${g.mem_used_mb!=null?`  VRAM ${gb(g.mem_used_mb)}${g.mem_total_mb?'/'+gb(g.mem_total_mb):''} GB`:''}${g.temp_c!=null?`  ${g.temp_c}°C`:''}`);
+   if(st.cpu!=null)rows.push(`<span class="tc-k">CPU</span> ${tbar(st.cpu,16)} <b>${String(st.cpu).padStart(3)}%</b>${st.ram_total_mb?`  RAM ${gb(st.ram_used_mb)}/${gb(st.ram_total_mb)} GB`:''}${st.cores?`  ${st.cores} cores`:''}`);
+   return rows.length?`<div class="tc-meters">${rows.join('\n')}</div>`:''};
+  const job=(q,c)=>{const lines=(q.message||'').split('\n');const get=p=>(lines.find(l=>l.startsWith(p))||'').slice(p.length).trim();
    const step=(lines.find(l=>l.includes(' · step '))||'').replace(/^.*? · step (\d+ of \d+): ?/,'Step $1 · ');const prog=get('Progress:').match(/(\d+)%(?: · (.*))?/);
    let now=get('Now:').replace(/^Training (robot|field) detector: /,''),pct=prog?+prog[1]:null,eta=prog?prog[2]:null;
    // Older helpers send no progress line: estimate from "pass P of up to E · batch B of N" (training is ~80% of a detector run).
    const pass=!prog&&now.match(/pass (\d+) of up to (\d+)(?: · batch (\d+) of (\d+))?/);
    if(pass){const f=((+pass[1]-1)+(pass[3]?pass[3]/pass[4]:0))/pass[2];pct=Math.round(100*(.1+.82*f));
     const ran=q.started?Date.now()/1000-q.started:0;if(ran>60&&pct>3){const s=ran/(pct/100)*(1-pct/100);eta=(s<3600?'about '+Math.round(s/60)+' min':'about '+(s/3600).toFixed(1)+' h')+' left'}}
-   return `<div class="tt-job"><div class="tt-job-head"><strong>${esc(q.label||q.title)}</strong>${pct!==null?`<span>${pct}%${eta?' · '+esc(eta):''}</span>`:''}</div>`+
-    (pct!==null?`<div class="tt-bar" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><i style="width:${pct}%"></i></div>`:'')+
-    `<div class="tt-job-step">${esc(step||q.title)}${now?' — '+esc(now):''}</div>`+(get('Next:')?`<div class="tt-job-more">Next: ${esc(get('Next:'))}</div>`:'')+(q.about?`<div class="tt-job-more">${esc(q.about)}</div>`:'')+(q.job?`<div class="training-actions"><button type="button" class="button-secondary" data-cancel-job="${esc(q.job)}">Cancel this run</button></div>`:'')+'</div>'};
-  if(status('now'))status('now').innerHTML=running.length?running.map(job).join(''):'<span class="tt-idle">Nothing running</span>';
+   const k=c?.counters||{},ran=q.started?Date.now()/1000-q.started:null;
+   const passRow=k.pass&&k.passes?`<span class="tc-k">pass</span>  ${String(k.pass).padStart(3)}/${k.passes} ${tbar(100*((k.pass-1)+(k.batches?k.batch/k.batches:0))/k.passes)} batch ${k.batch}/${k.batches??'?'}${k.it_s?`  <b>${k.it_s} it/s</b>`:''}\n`:'';
+   const all=pct!==null?`<span class="tc-k">all</span>   ${tbar(pct)} <b>${String(pct).padStart(3)}%</b>${ran?`  ${clock(ran)} elapsed`:''}${eta?' · '+esc(eta.replace(/^about /,'~')):''}`:'';
+   const log=(c?.log||[]).slice(-8).map(([t,l])=>`<span class="tc-t">${new Date(t*1000).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'})}</span> ${esc(l)}`).join('\n');
+   const who=c?`${esc(c.name)}${c.stats?.gpu?.name?' · '+esc(c.stats.gpu.name):''}`:'';
+   return `<div class="tt-job tt-console"><div class="tc-head"><span><i class="tc-dot"></i>${who||'helper'}</span><span>${esc((q.label||q.title).toUpperCase())}</span></div>`+
+    meters(c)+`<div class="tc-bars">${passRow}${all}</div>`+
+    `<div class="tc-step">${esc(step||q.title)}${now?' — '+esc(now):''}${get('Next:')?`\n<span class="tc-dim">next → ${esc(get('Next:'))}</span>`:''}</div>`+
+    (log?`<div class="tc-log">${log}<span class="tc-cursor">▌</span></div>`:'')+
+    `<div class="tc-foot">${q.about?esc(q.about):''}${q.job?` <button type="button" class="button-secondary" data-cancel-job="${esc(q.job)}">Cancel this run</button>`:q.request?` <button type="button" class="button-secondary" data-cancel="${esc(q.request)}">Cancel this run</button>`:''}</div></div>`};
+  const runner=q=>(o.computers||[]).find(c=>c.job&&((q.request&&c.job.request===q.request)||(q.job&&c.job.job===q.job)));
+  if(status('now'))status('now').innerHTML=running.length?running.map(q=>job(q,runner(q))).join(''):'<span class="tt-idle">Nothing running</span>';
   if(status('waiting'))status('waiting').textContent=waiting.length?waiting.map(q=>`• ${q.label||q.title}`).join('\n'):'Nothing';
   const busy=k=>o.queue.some(q=>q.part===k);
   const needs={robot:robot(o.robot,busy('robot')),field:field(o.field,busy('field')),actions:actions(o.actions,o,busy('actions'))};
+  for(const [part,need] of Object.entries(needs)){const f=document.querySelector(`[data-part="${part}"] .tt-sum-flag`);if(f)f.hidden=!need;if(!picked[part])sumTab(part,need?'next':'current')}
   fill('test','videos',(o.test_videos||[]).length?'<table class="tt-runs"><tr><th>Made</th><th>Match</th><th>Video</th></tr>'+o.test_videos.map(v=>`<tr><td>${when(v.saved_at)}</td><td>${esc(v.match_key||'')}</td><td>${video(v)}</td></tr>`).join('')+'</table>':'<p class="training-note">No match test videos yet. Run Preview a match below.</p>');
   // Helpers & settings → My computers. Not redrawn while you are using one of its controls.
   const mine=slot('helpers','computers');
   if(mine&&!mine.contains(document.activeElement))mine.innerHTML=(o.computers||[]).length?o.computers.map(c=>computerCard(c,job)).join(''):'<p class="training-note">No computers connected yet. Install the helper below and connect it.</p>';
   // Helpers & settings: each helper's last GPU self-check.
   fill('helpers','selfchecks',o.helpers.some(h=>h.selfcheck)?o.helpers.filter(h=>h.selfcheck).map(h=>{const c=h.selfcheck;return `<p><strong>${esc(h.name)}</strong> · ${esc(c.summary?.verdict||'')} <small>(${when(c.checked_at)} · ${esc(c.platform||'')})</small></p><table class="tt-runs">`+(c.checks||[]).map(x=>`<tr><td>${x.ok?'✓':'⚠'}</td><td>${esc(x.check)}</td><td class="tt-msg">${esc(x.detail)}</td></tr>`).join('')+'</table>'}).join(''):'<p class="training-note">No self-check yet. It runs when a helper (version 3.2.32 / Windows 6.5.0 or newer) starts.</p>');
+  testFlow(o);
   // Test & release: the detectors a test uses are always the ones in use; only the Actions model is chosen.
   fill('test','detectors',`Uses the robot detector ${o.robot.current?'you trained (adopted '+when(o.robot.current.adopted_at)+')':'built into the helper'} and ${o.field.current?'the field detector you trained for '+esc(o.field.game_key)+' (adopted '+when(o.field.current.adopted_at)+')':'the field detector built into the helper for '+esc(o.field.game_key)}. Where you marked scoring areas on 2 · Field, those marks are used instead.`);
   const menu=document.getElementById('trial-model'),empty=slot('test','no-model');

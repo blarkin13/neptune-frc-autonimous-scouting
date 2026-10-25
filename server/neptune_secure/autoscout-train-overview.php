@@ -27,7 +27,7 @@ function autoscout_computers(PDO $pdo,RobotDetectorJobs $jobs,array $computers,a
   $waiting=array_values(array_map(fn($r)=>['kind'=>$r['kind']==='train_field'?'field':'robot','request'=>$r['id']],array_filter($requests,fn($r)=>$r['state']==='queued'&&($r['target']??null)===$c['id'])));
   $seen=max((int)$c['last_seen'],(int)($st['at']??0));$online=!$c['revoked']&&(int)$c['expires_at']>time()&&$seen>time()-90;
   $out[]=['id'=>$c['id'],'name'=>$c['name'],'device'=>$c['device'],'online'=>$online||(bool)$job,'ready'=>$c['ready'],'status'=>$job?'Working':($online?'Idle':$c['status']),'last_seen'=>$seen?:null,
-   'platform'=>$st['platform']??null,'version'=>$st['version']??null,'awake'=>!empty($st['awake']),'polls'=>$st!==null,'job'=>$job,'waiting'=>$waiting,'settings'=>$jobs->settings((string)$c['id']),'selfcheck'=>$jobs->selfcheck((string)$c['id'])];
+   'platform'=>$st['platform']??null,'stats'=>($online||$job)?($st['stats']??null):null,'counters'=>$job?($st['counters']??null):null,'log'=>$st['log']??[],'reported_at'=>$st['at']??null,'version'=>$st['version']??null,'awake'=>!empty($st['awake']),'polls'=>$st!==null,'job'=>$job,'waiting'=>$waiting,'settings'=>$jobs->settings((string)$c['id']),'selfcheck'=>$jobs->selfcheck((string)$c['id'])];
  }
  return $out;
 }
@@ -61,7 +61,7 @@ function autoscout_train_overview(PDO $pdo,array $panel,int $org,int $user,strin
  $latest=null;foreach($panel['jobs'] as $j)if($j['state']==='candidate'){$latest=$j;break;}
  $active=['remote_queued','remote_running','queued','running','test_queued','test_running','evaluation_queued','evaluation_running'];
  $queue=[];
- foreach(array_reverse($requests) as $r)if(in_array($r['state'],['queued','claimed'],true))$queue[]=['part'=>$r['kind']==='train_field'?'field':($r['kind']==='train'?'robot':'prepare'),'holdout'=>$r['holdout']??null,'started'=>$r['claimed_at']??null,'state'=>$r['state']==='claimed'?'running':'waiting','title'=>['train'=>'Train robot detector','train_field'=>'Train field detector · '.($r['game_key']??''),'prepare'=>'Prepare frames · '.($r['match_key']??'')][$r['kind']]??$r['kind'],'message'=>$r['message']??'','since'=>$r['created_at']];
+ foreach(array_reverse($requests) as $r)if(in_array($r['state'],['queued','claimed'],true))$queue[]=['request'=>$r['id'],'part'=>$r['kind']==='train_field'?'field':($r['kind']==='train'?'robot':'prepare'),'holdout'=>$r['holdout']??null,'started'=>$r['claimed_at']??null,'state'=>$r['state']==='claimed'?'running':'waiting','title'=>['train'=>'Train robot detector','train_field'=>'Train field detector · '.($r['game_key']??''),'prepare'=>'Prepare frames · '.($r['match_key']??'')][$r['kind']]??$r['kind'],'message'=>$r['message']??'','since'=>$r['created_at']];
  foreach(array_reverse($panel['jobs']) as $j)if(in_array($j['state'],$active,true))$queue[]=['job'=>$j['id'],'part'=>str_starts_with($j['state'],'test_')||str_starts_with($j['state'],'evaluation_')?'test':'actions','state'=>str_ends_with($j['state'],'_queued')||$j['state']==='queued'?'waiting':'running','title'=>str_starts_with($j['state'],'test_')?'Test a match':(str_starts_with($j['state'],'evaluation_')?'Independent evaluation':'Train action models & scoring'),'message'=>$j['message']??'','since'=>$j['created_at']];
  // Say which pillar each job belongs to and what it is learning from (the same matches the helper picks).
  $usable=array_keys(array_filter($robotMatches,fn($n)=>$n>=8));sort($usable);
@@ -89,6 +89,6 @@ function autoscout_train_overview(PDO $pdo,array $panel,int $org,int $user,strin
   'test_videos'=>$jobs->testVideos(),
   'robot'=>['rows'=>$robotRows,'holdout'=>$heldRobot,'current'=>$robot,'history'=>count($jobs->history('robot')),'matches'=>$robotMatches,'events'=>array_values(array_unique(array_filter(array_map($event,array_keys($robotMatches))))),'min_frames'=>8,'runs'=>array_values(array_filter($requests,fn($r)=>$r['kind']==='train'))],
   'field'=>['holdout'=>$heldField,'game_key'=>$game,'current'=>$field,'history'=>count($jobs->history('field',$game)),'matches'=>$fieldMatches,'events'=>array_values(array_unique(array_filter(array_map($event,array_keys($fieldMatches))))),'runs'=>array_values(array_filter($requests,fn($r)=>$r['kind']==='train_field'&&($r['game_key']??RobotDetectorJobs::defaultGame())===$game))],
-  'actions'=>['latest'=>$latest?['id'=>$latest['id'],'created_at'=>$latest['created_at']]:null,'released'=>$panel['released'],'counts'=>$panel['counts']],
+  'actions'=>['models'=>$panel['models'],'latest'=>$latest?['id'=>$latest['id'],'created_at'=>$latest['created_at']]:null,'released'=>$panel['released'],'counts'=>$panel['counts']],
  ];
 }
