@@ -2,7 +2,9 @@
 declare(strict_types=1);
 function community_page_start(string $title,string $subtitle,string $active='public',string $eyebrow='AUTO SCOUT'):void {
  global $pdo,$config,$u,$pageTitle,$moduleName,$hideChrome,$isPublicHome,$navigationSection;
- $pageTitle=$title;$moduleName='AUTO SCOUT';$hideChrome=false;
+ $pageTitle=$title;$moduleName='AUTO SCOUT';
+ // ?embed=1: the page alone, inside another Auto Scout page (3 · Actions shows Watch & tag this way). No header, hero or menus.
+ $embed=($_GET['embed']??'')==='1';$hideChrome=$embed;
  $viewer=function_exists('current_user')?current_user():null;
  // Auto Scout pages sit under the Auto Scout menu section for the platform owner who has it.
  if(in_array($viewer['role']??'',['owner','admin'],true)&&(int)($viewer['organization_id']??0)===(int)($config['app']['platform_organization_id']??1))$navigationSection='autoscout';
@@ -10,6 +12,7 @@ function community_page_start(string $title,string $subtitle,string $active='pub
  ?>
 <link rel="stylesheet" href="/community/assets/community.css?v=9-mission-pages">
 <?php
+ if($embed){echo '<style>body{background:transparent!important}header,footer,.site-header,.site-footer,.neptune-breadcrumbs,.neptune-alert-bell,.neptune-alert-toasts,.nd-depth-field{display:none!important}main.wrap{padding:0!important;margin:0!important;max-width:none!important}</style><div class="community-main auto-scout-platform community-embed">';return;}
  $communityHeroIcon=neptune_hero_relief_icon($title,'AUTO SCOUT');
  $communityHeroSteps=neptune_hero_guide($title);
  $communityHeroKicker=$eyebrow==='AUTO SCOUT'

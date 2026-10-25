@@ -32,6 +32,9 @@
  year.addEventListener('change',()=>{search.value='';loadEvents()});
  search.addEventListener('input',()=>fillEvents(event.value));
  event.addEventListener('change',()=>event.value&&loadMatches());
- match.addEventListener('change',()=>{if(match.value)location.search='?match_id='+match.value});
+ // data-target: open the match in that frame on this page (3 · Actions) instead of reloading the page.
+ match.addEventListener('change',()=>{if(!match.value)return;const frame=box.dataset.target&&document.getElementById(box.dataset.target);
+  if(frame){frame.src=frame.dataset.src.replace('{id}',match.value);frame.hidden=false;const key=match.selectedOptions[0]?.dataset.key||'';history.replaceState(null,'',`?tag=${match.value}&key=${encodeURIComponent(key)}`+location.hash);frame.dispatchEvent(new Event('match'))}
+  else location.search='?match_id='+match.value});
  loadEvents(pick?pick[1]+pick[2]:'');
 })();
