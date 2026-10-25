@@ -23,7 +23,7 @@
  for(const t of tabs)t.addEventListener('click',()=>show(t.dataset.tab));
  // Older code scrolls to sections (for example the run report); open their tab first.
  const scroll=Element.prototype.scrollIntoView;
- Element.prototype.scrollIntoView=function(...a){const p=this.closest('[data-panel]');if(p&&p.hidden)show(p.dataset.panel);return scroll.apply(this,a)};
+ Element.prototype.scrollIntoView=function(...a){const p=this.closest('[data-panel]');if(p&&p.hidden)show(p.dataset.panel);const d=this.closest('details');if(d)d.open=true;return scroll.apply(this,a)};
  show(location.hash.slice(1));
  addEventListener('hashchange',()=>show(location.hash.slice(1)));
 
@@ -82,7 +82,7 @@
   fill('field','runs',runs(d.runs,r=>`${placed(r.new)} vs ${r.current?placed(r.current):'none'}`));
   return !c||ready.length<2;
  }
- function actions(d,o){
+ function actions(d,o,busy){
   const l=d.latest,c=d.counts||{};
   fill('actions','current',l?`<dl><dt>Latest model</dt><dd>${when(l.created_at)}</dd><dt>Released</dt><dd>${d.released?(d.released===l.id?'Yes, this one':'An earlier model'):'Not yet — evaluate it on Test & release'}</dd></dl>`:'<p>No action model yet.</p>');
   fill('actions','data',`<dl><dt>Tagged matches</dt><dd>${c.matches??0}</dd><dt>Human tags</dt><dd>${c.tags??0}</dd><dt>Scoring estimates</dt><dd>${c.scores??0}</dd><dt>Imported actions</dt><dd>${c.external??0}</dd></dl>`);
@@ -93,7 +93,8 @@
    [!changed.length,changed.length?`The ${changed.join(' and ')} changed after this model was trained — retrain so it learns from the better tracking.`:'Model is up to date with the detectors.'],
    [!!l,l?'Try it on a match, then evaluate it on Test & release.':'Train the first model below.'],
   ]));
-  fill('actions','runs','<p class="training-note">Every run with its report is on the <a href="#train">Train</a> tab, under “Your training results”.</p>');
+  fill('actions','runs','<p class="training-note">Every run with its report is under <a href="#actions-results" onclick="document.getElementById(\'actions-results\').open=true">Training results</a> below.</p>');
+  trainButton('actions',busy,busy?'An Actions run is already queued or running.':'Pick the computer and how many matches in the next window.');
   return !l||changed.length>0;
  }
 
@@ -146,7 +147,7 @@
   if(status('now'))status('now').innerHTML=running.length?running.map(job).join(''):'<span class="tt-idle">Nothing running</span>';
   if(status('waiting'))status('waiting').textContent=waiting.length?waiting.map(q=>`• ${q.label||q.title}`).join('\n'):'Nothing';
   const busy=k=>o.queue.some(q=>q.part===k);
-  const needs={robot:robot(o.robot,busy('robot')),field:field(o.field,busy('field')),actions:actions(o.actions,o)};
+  const needs={robot:robot(o.robot,busy('robot')),field:field(o.field,busy('field')),actions:actions(o.actions,o,busy('actions'))};
   fill('test','videos',(o.test_videos||[]).length?'<table class="tt-runs"><tr><th>Made</th><th>Match</th><th>Video</th></tr>'+o.test_videos.map(v=>`<tr><td>${when(v.saved_at)}</td><td>${esc(v.match_key||'')}</td><td>${video(v)}</td></tr>`).join('')+'</table>':'<p class="training-note">No match test videos yet. Run Preview a match below.</p>');
   // Helpers & settings → My computers. Not redrawn while you are using one of its controls.
   const mine=slot('helpers','computers');
@@ -160,7 +161,7 @@
   // A dot on each pillar in the Auto Scout menu that needs something.
   for(const a of $$('.community-nav [data-pillar]')){a.querySelector('.tt-flag')?.remove();if(needs[a.dataset.pillar]){const f=document.createElement('span');f.className='tt-flag';f.title='Needs attention';a.append(f)}}
  }
- for(const b of $$('[data-train]'))b.addEventListener('click',async()=>{b.disabled=true;try{await send({action:'queue_detector',kind:b.dataset.train==='field'?'train_field':'train'});await refresh()}catch(e){alert(e.message);b.disabled=false}});
+ for(const b of $$('[data-train]'))b.addEventListener('click',async()=>{if(b.dataset.train==='actions'){document.getElementById('use-helper')?.click();return}b.disabled=true;try{await send({action:'queue_detector',kind:b.dataset.train==='field'?'train_field':'train'});await refresh()}catch(e){alert(e.message);b.disabled=false}});
  document.addEventListener('click',async e=>{const b=e.target.closest('[data-cancel]');if(!b)return;if(!confirm('Cancel this run? The helper stops at its next progress report.'))return;b.disabled=true;try{await send({action:'cancel_detector',request:b.dataset.cancel});await refresh()}catch(err){alert(err.message);b.disabled=false}});
  for(const b of $$('[data-rollback]'))b.addEventListener('click',async()=>{if(!confirm('Go back to the previous model? The current one is set aside, and helpers switch within an hour.'))return;try{await send({action:'rollback_detector',which:b.dataset.rollback});await refresh()}catch(e){alert(e.message)}});
  refresh();setInterval(()=>{if(!document.hidden)refresh()},10000);
