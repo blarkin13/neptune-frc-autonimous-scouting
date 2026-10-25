@@ -109,12 +109,13 @@
   const waiting=c.waiting.length?`<p class="training-note">Waiting for this computer: ${c.waiting.map(w=>`${kinds[w.kind]} <button type="button" class="button-secondary tt-cancel" data-cancel="${esc(w.request)}">Cancel</button>`).join(' ')}</p>`:'';
   const start=c.job?'':`<button type="button" data-start="train" data-computer="${esc(c.id)}">Train robot detector</button> <button type="button" data-start="train_field" data-computer="${esc(c.id)}">Train field detector</button> <a class="community-button" href="/autoscout/train.php?connect=1&amp;computer=${encodeURIComponent(c.id)}#train">Train actions…</a>`;
   const awake=`<label class="tt-awake">Keep awake <select data-awake="${esc(c.id)}">${[['jobs','During jobs'],['always','Always while the helper is open'],['off','Off']].map(([v,l])=>`<option value="${v}"${c.settings.keep_awake===v?' selected':''}>${l}</option>`).join('')}</select></label> <small>${!c.polls?'Needs the updated helper.':c.online?(c.awake?'☀ Awake now':'Allowed to sleep now'):''}</small>`;
-  return `<div class="tt-computer"><div class="tt-job-head"><strong>${esc(c.name)}</strong> <button type="button" class="button-secondary tt-cancel" data-rename="${esc(c.id)}" data-name="${esc(c.name)}" aria-label="Rename ${esc(c.name)}">Rename</button> ${badge}</div><p class="training-note">${facts||'—'}</p>${now}${waiting}<div class="training-actions">${start}${stop}</div>${awake}</div>`;
+  return `<div class="tt-computer"><div class="tt-job-head"><strong>${esc(c.name)}</strong> <button type="button" class="button-secondary tt-cancel" data-rename="${esc(c.id)}" data-name="${esc(c.name)}" aria-label="Rename ${esc(c.name)}">Rename</button> ${badge}</div><p class="training-note">${facts||'—'}</p>${now}${waiting}<div class="training-actions">${start}${stop}${!c.online&&!c.job?` <button type="button" class="button-secondary" data-remove="${esc(c.id)}" data-name="${esc(c.name)}">Remove</button>`:''}</div>${awake}</div>`;
  }
  document.addEventListener('click',async e=>{
-  const b=e.target.closest('[data-start],[data-stop-job],[data-cancel-job],[data-rename]');if(!b)return;
+  const b=e.target.closest('[data-start],[data-stop-job],[data-cancel-job],[data-rename],[data-remove]');if(!b)return;
   try{
    if(b.dataset.start){b.disabled=true;await send({action:'queue_detector',kind:b.dataset.start,computer:b.dataset.computer})}
+   else if(b.dataset.remove){if(!confirm(`Remove ${b.dataset.name} from your computers? It would need to connect again to come back.`))return;await send({action:'delete_computer',computer:b.dataset.remove})}
    else if(b.dataset.cancelJob){if(!confirm('Cancel this run now? Use this when the helper is closed or stuck. Saved video work and human tags are kept.'))return;await send({action:'cancel',job:b.dataset.cancelJob})}
    else if(b.dataset.stopJob){if(!confirm('Stop this run after the current match? Progress is saved and it can be continued later.'))return;await send({action:'stop',job:b.dataset.stopJob})}
    else{const name=prompt('Name this computer',b.dataset.name);if(!name||name===b.dataset.name)return;await send({action:'rename_computer',computer:b.dataset.rename,name})}

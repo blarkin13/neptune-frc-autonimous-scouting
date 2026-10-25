@@ -135,6 +135,8 @@ final class RobotDetectorJobs {
   self::write($this->dir('computers').'/'.self::cid((string)$computer['id']).'.status.json',['at'=>time(),'busy'=>!empty($p['busy']),'awake'=>!empty($p['awake']),'message'=>mb_substr((string)($p['message']??''),0,600),'version'=>mb_substr((string)($p['version']??''),0,40),'platform'=>mb_substr((string)($p['platform']??''),0,40)]);
   return ['settings'=>$this->settings((string)$computer['id'])];
  }
+ /** A removed computer's settings and last check-in. */
+ public function forget(string $computer):void{foreach(['.json','.status.json'] as $x){$f=$this->root.'/computers/'.self::cid($computer).$x;if(is_file($f))unlink($f);}$f=$this->root.'/selfchecks/'.self::cid($computer).'.json';if(is_file($f))unlink($f);}
  public function status(string $computer):?array{$f=$this->root.'/computers/'.self::cid($computer).'.status.json';return is_file($f)?json_decode((string)file_get_contents($f),true):null;}
  /** A helper's GPU self-check (neptune_selfcheck), one file per helper. */
  public function putSelfcheck(array $computer,array $p):array{

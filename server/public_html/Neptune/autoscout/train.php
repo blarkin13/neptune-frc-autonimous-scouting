@@ -75,6 +75,14 @@ try {
   elseif($action==='run_evaluation'){
    $file=$_FILES['reference']??[];if(($file['error']??UPLOAD_ERR_NO_FILE)!==UPLOAD_ERR_OK||($file['size']??0)>1048576)throw new CommunityAnalysisError(422,'Choose a reference JSON file smaller than 1 MB.');$reference=json_decode((string)file_get_contents($file['tmp_name']),true,64,JSON_THROW_ON_ERROR);if(!is_array($reference))throw new CommunityAnalysisError(422,'The reference file must contain an evaluation set.');$reply=$control->evaluate($season,$uid,$executor,$computer,(string)($_POST['model']??''),$reference);
   }elseif($action==='release'){$reply=(new CommunityModelManagement($pdo))->release($season,(string)($_POST['job']??''),$uid);
+  }elseif($action==='delete_computer'){
+   // Remove an old computer from the list: only when it is not connected and not holding a job. It must pair again to come back.
+   $c=null;foreach($control->computers($uid) as $x)if($x['id']===$computer)$c=$x;
+   if(!$c)throw new CommunityAnalysisError(422,'Choose one of your computers.');
+   if($c['online']&&!$c['revoked'])throw new CommunityAnalysisError(409,'This computer is connected right now. Close its helper (or disconnect it) first.');
+   $q=$pdo->prepare('SELECT COUNT(*) FROM community_training_leases WHERE computer_id=? AND expires_at>?');$q->execute([$computer,time()]);if((int)$q->fetchColumn())throw new CommunityAnalysisError(409,'This computer still holds a run. Cancel the run first.');
+   $q=$pdo->prepare('DELETE FROM community_training_computers WHERE id=? AND user_id=?');$q->execute([$computer,$uid]);
+   (new RobotDetectorJobs(dirname(__DIR__,3).'/neptune_secure',(int)$u['organization_id']))->forget($computer);$reply=['ok'=>true];
   }elseif($action==='revoke_computer'){$pdo->beginTransaction();try{$q=$pdo->prepare('UPDATE community_training_computers SET revoked=1 WHERE id=? AND user_id=?');$q->execute([$computer,$uid]);$q=$pdo->prepare("SELECT j.id,j.state,j.control_json,l.computer_id FROM community_learning_jobs j LEFT JOIN community_training_leases l ON l.job_id=j.id WHERE j.created_by=? AND j.state IN ('remote_queued','remote_running','test_queued','test_running','evaluation_queued','evaluation_running') FOR UPDATE");$q->execute([$uid]);foreach($q->fetchAll(PDO::FETCH_ASSOC) as $runningJob){$c=$runningJob['control_json']?json_decode($runningJob['control_json'],true):[];if(($c['computer_id']??$runningJob['computer_id'])!==$computer)continue;$state=in_array($runningJob['state'],['remote_queued','remote_running'],true)?'remote_paused':'failed';$change=$pdo->prepare('UPDATE community_learning_jobs SET state=?,message=? WHERE id=?');$change->execute([$state,'Helper disconnected. Saved files are kept. Reconnect a helper to continue from this page.',$runningJob['id']]);}$pdo->commit();}catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}$reply=['ok'=>true];
   }elseif($action==='cancel'){
    // Also a running job: the helper may be gone (closed, asleep). A helper that is still working is refused on its next update and stops.
@@ -166,6 +174,6 @@ sudo apt update &amp;&amp; sudo apt install neptune-training-helper</pre><p clas
  <dialog id="data-modal" aria-labelledby="data-title"><div class="training-modal-head"><span class="stage-label">HUMAN CONTRIBUTIONS · <?=$season?></span><button type="button" id="data-close" class="training-close" aria-label="Close saved data">×</button></div><h2 id="data-title">Saved tags &amp; scoring estimates</h2><p>These are people’s observations. Model predictions are shown separately on the training page.</p><div id="human-data-table"></div><button type="button" id="data-more" hidden>Load more saved observations</button></dialog>
 </div>
 <script type="application/json" id="training-initial"><?=json_encode($panel,JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_THROW_ON_ERROR)?></script>
-<script src="../community/assets/training-control.js?v=cancel-running-1" defer></script>
-<script src="/community/assets/pillar.js?v=12" defer></script>
+<script src="../community/assets/training-control.js?v=remove-computers-1" defer></script>
+<script src="/community/assets/pillar.js?v=13" defer></script>
 <?php community_page_end(); ?>
