@@ -142,7 +142,7 @@
     const ran=q.started?Date.now()/1000-q.started:0;if(ran>60&&pct>3){const s=ran/(pct/100)*(1-pct/100);eta=(s<3600?'about '+Math.round(s/60)+' min':'about '+(s/3600).toFixed(1)+' h')+' left'}}
    return `<div class="tt-job"><div class="tt-job-head"><strong>${esc(q.label||q.title)}</strong>${pct!==null?`<span>${pct}%${eta?' · '+esc(eta):''}</span>`:''}</div>`+
     (pct!==null?`<div class="tt-bar" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><i style="width:${pct}%"></i></div>`:'')+
-    `<div class="tt-job-step">${esc(step||q.title)}${now?' — '+esc(now):''}</div>`+(get('Next:')?`<div class="tt-job-more">Next: ${esc(get('Next:'))}</div>`:'')+(q.about?`<div class="tt-job-more">${esc(q.about)}</div>`:'')+'</div>'};
+    `<div class="tt-job-step">${esc(step||q.title)}${now?' — '+esc(now):''}</div>`+(get('Next:')?`<div class="tt-job-more">Next: ${esc(get('Next:'))}</div>`:'')+(q.about?`<div class="tt-job-more">${esc(q.about)}</div>`:'')+(q.job?`<div class="training-actions"><button type="button" class="button-secondary" data-cancel-job="${esc(q.job)}">Cancel this run</button></div>`:'')+'</div>'};
   if(status('now'))status('now').innerHTML=running.length?running.map(job).join(''):'<span class="tt-idle">Nothing running</span>';
   if(status('waiting'))status('waiting').textContent=waiting.length?waiting.map(q=>`• ${q.label||q.title}`).join('\n'):'Nothing';
   const busy=k=>o.queue.some(q=>q.part===k);
