@@ -158,6 +158,11 @@
    k.matches.slice(0,60).map(x=>`<tr${x.eligible?'':' class="tt-short"'}><td>${esc(x.match_key)}</td><td>${x.robots_tagged}/6</td><td>${x.tags}</td><td>${x.eligible?'✓ usable':x.trained_event?'trained event':'tag all six robots'}</td></tr>`).join('')+'</table>');
  }
  document.addEventListener('change',e=>{if(e.target.id==='trial-model')refresh()});
+ // Status area: each part collapses from its heading; remembered in this browser.
+ const folded=(()=>{try{return JSON.parse(localStorage.getItem('neptune.status.folded')||'{}')}catch{return {}}})();
+ function fold(sec,on){sec.classList.toggle('ts-folded',on);sec.querySelector('.ts-toggle')?.setAttribute('aria-expanded',String(!on))}
+ for(const sec of $$('#pillar-status [data-sec]'))fold(sec,!!folded[sec.dataset.sec]);
+ document.addEventListener('click',e=>{const b=e.target.closest('.ts-toggle');if(!b)return;const sec=b.closest('[data-sec]'),on=!sec.classList.contains('ts-folded');fold(sec,on);folded[sec.dataset.sec]=on;try{localStorage.setItem('neptune.status.folded',JSON.stringify(folded))}catch{}});
  document.addEventListener('click',async e=>{const b=e.target.closest('[data-log]');if(!b)return;const box=b.closest('[data-log-key]'),key=box.dataset.logKey,book=(window.__neptuneLogs||{})[key]||[];
   const text=book.map(([t,l])=>new Date(t*1000).toISOString().replace('T',' ').slice(0,19)+'  '+l).join('\n');
   if(b.dataset.log==='pause'){const st=(window.__neptuneLogState||(window.__neptuneLogState={}))[key]||(window.__neptuneLogState[key]={});st.paused=!st.paused;b.textContent=st.paused?'Resume scroll':'Pause scroll';if(!st.paused){const l=box.querySelector('.tc-log');l.scrollTop=l.scrollHeight}}
@@ -170,7 +175,10 @@
   const running=o.queue.filter(q=>q.state==='running'),waiting=o.queue.filter(q=>q.state==='waiting');
   window.__neptuneFast=running.length>0;
   const count=(k,t)=>{const e=status(k+'-count');if(e)e.textContent=t};
-  count('now',running.length?running.length+' active':'idle');count('helpers',online.length+' online');count('waiting',waiting.length+' waiting');
+  count('now',running.length?running.length+' active':'idle');
+  const mini=(k,t)=>{const e=status(k+'-mini');if(e)e.textContent=t};
+  mini('now',running.map(q=>{const p=(q.message||'').match(/Progress: (\d+)%/);return (q.label||q.title).replace(/^.*? — /,'')+(p?' · '+p[1]+'%':'')}).join('  ·  '));
+  mini('helpers',online.map(c=>c.name+(c.job?' · training':'')+(c.stats?.gpu?.util!=null?' · GPU '+c.stats.gpu.util+'%':'')).join('  ·  '));count('helpers',online.length+' online');count('waiting',waiting.length+' waiting');
   const ago=t=>{if(!t)return 'never';const s=Math.max(0,Date.now()/1000-t);return s<90?Math.round(s)+'s ago':s<3600?Math.round(s/60)+' min ago':Math.round(s/3600)+' h ago'};
   const meter=(label,pct,value,hot)=>`<div class="hm"><div class="hm-top"><span>${label}</span><span>${value}</span></div><div class="hm-bar"><i class="${hot?'hot':''}" style="width:${pct==null?0:Math.max(0,Math.min(100,pct))}%"></i></div></div>`;
   const pct=(u,t)=>u!=null&&t?100*u/t:null;

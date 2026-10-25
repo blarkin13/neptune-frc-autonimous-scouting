@@ -134,3 +134,14 @@
 .hc{min-height:212px;display:flex;flex-direction:column}.hc-meters{flex:1;align-content:start;min-height:96px}
 .hc-head small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 [data-slot="now"]>.hc-note{min-height:3em}
+/* Collapsible status parts */
+.ts-toggle{all:unset;display:inline-flex;align-items:center;gap:10px;cursor:pointer;font:inherit;color:inherit}
+.ts-toggle:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:4px}
+.ts-chev{font-size:.75rem;color:var(--muted);transition:transform .2s}
+.ts-folded .ts-chev{transform:rotate(-90deg)}
+.ts-folded>[data-slot]{display:none}
+.ts-mini{display:none;font-size:.8rem;font-weight:500;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.ts-folded .ts-mini{display:inline}
+.ts-h>.ts-toggle>i:first-child{color:#3fb950;width:18px;text-align:center}
+.ts-h .ts-toggle{background:none!important;border:0!important;box-shadow:none!important;padding:0!important;margin:0!important;min-height:0!important;color:var(--text,#e6edf3)!important;font-size:1.05rem!important;font-weight:700!important;width:auto!important;transform:none!important}
+.ts-folded .ts-h{margin-bottom:0}

@@ -4,12 +4,12 @@ declare(strict_types=1);
 // A pillar page: pillar_open() · pillar_summary() (what's trained, data, what's next) · its own work area · pillar_close().
 
 function pillar_open(int $season):void { ?>
-<link rel="stylesheet" href="/community/assets/train-tabs.css?v=10-dashboard">
+<link rel="stylesheet" href="/community/assets/train-tabs.css?v=11-collapse">
 <div id="pillar" data-season="<?=$season?>" data-csrf="<?=e(csrf_token())?>" data-endpoint="/autoscout/train.php">
  <div id="pillar-status" class="ts" aria-live="polite">
-  <section class="ts-sec"><h3 class="ts-h"><i class="fa-solid fa-chart-line" aria-hidden="true"></i>Running now <span class="ts-count" data-slot="now-count">…</span></h3><div data-slot="now">Checking…</div></section>
-  <section class="ts-sec"><h3 class="ts-h"><i class="fa-solid fa-desktop" aria-hidden="true"></i>Connected helpers <span class="ts-count" data-slot="helpers-count">…</span></h3><div class="hc-grid" data-slot="helpers">Checking…</div></section>
-  <section class="ts-sec ts-empty"><h3 class="ts-h"><i class="fa-solid fa-list" aria-hidden="true"></i>Queue <span class="ts-count ts-quiet" data-slot="waiting-count">…</span></h3><div data-slot="waiting"></div></section>
+  <section class="ts-sec" data-sec="now"><h3 class="ts-h"><button type="button" class="ts-toggle" aria-expanded="true"><i class="fa-solid fa-chart-line" aria-hidden="true"></i>Running now <i class="fa-solid fa-chevron-down ts-chev" aria-hidden="true"></i></button><span class="ts-count" data-slot="now-count">…</span><span class="ts-mini" data-slot="now-mini"></span></h3><div data-slot="now">Checking…</div></section>
+  <section class="ts-sec" data-sec="helpers"><h3 class="ts-h"><button type="button" class="ts-toggle" aria-expanded="true"><i class="fa-solid fa-desktop" aria-hidden="true"></i>Connected helpers <i class="fa-solid fa-chevron-down ts-chev" aria-hidden="true"></i></button><span class="ts-count" data-slot="helpers-count">…</span><span class="ts-mini" data-slot="helpers-mini"></span></h3><div class="hc-grid" data-slot="helpers">Checking…</div></section>
+  <section class="ts-sec ts-empty" data-sec="queue"><h3 class="ts-h"><button type="button" class="ts-toggle" aria-expanded="true"><i class="fa-solid fa-list" aria-hidden="true"></i>Queue <i class="fa-solid fa-chevron-down ts-chev" aria-hidden="true"></i></button><span class="ts-count ts-quiet" data-slot="waiting-count">…</span><span class="ts-mini" data-slot="waiting-mini"></span></h3><div data-slot="waiting"></div></section>
  </div>
 <?php }
 
@@ -29,5 +29,5 @@ function pillar_summary(string $part,string $how,?string $train=null):void { ?>
 
 function pillar_close():void { ?>
 </div>
-<script src="/community/assets/pillar.js?v=17" defer></script>
+<script src="/community/assets/pillar.js?v=18" defer></script>
 <?php }
