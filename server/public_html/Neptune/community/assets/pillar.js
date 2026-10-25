@@ -110,8 +110,8 @@
  function computerCard(c,job){
   const badge=c.job?'<span class="tt-badge ok">Working</span>':c.online?'<span class="tt-badge ok">Online · idle</span>':`<span class="tt-badge">Offline · seen ${ago(c.last_seen)}</span>`;
   const verdict=c.selfcheck?.summary?.verdict;
-  const facts=[c.platform||c.device,c.version&&'helper '+c.version,verdict].filter(Boolean).map(esc).join(' · ');
-  const now=c.job?job({label:kinds[c.job.kind]||c.job.kind,title:kinds[c.job.kind]||c.job.kind,message:c.job.message,started:c.job.started}):'';
+  const facts=[c.platform||c.device,c.version&&'helper '+c.version,verdict&&/ · (NVIDIA[^·]+?) · /.test(verdict)&&(c.platform||'').includes(verdict.match(/ · (NVIDIA[^·]+?) · /)[1])?verdict.replace(' · '+verdict.match(/ · (NVIDIA[^·]+?) · /)[1],''):verdict].filter(Boolean).map(esc).join(' · ');
+  const now=c.job?job({label:kinds[c.job.kind]||c.job.kind,title:kinds[c.job.kind]||c.job.kind,message:c.job.message,started:c.job.started,request:c.job.request,job:c.job.job},c):'';
   const stop=c.job?(c.job.request?`<button type="button" class="button-secondary" data-cancel="${esc(c.job.request)}">Stop</button>`:c.job.job?`<button type="button" class="button-secondary" data-stop-job="${esc(c.job.job)}">Stop after this match</button> <button type="button" class="button-secondary" data-cancel-job="${esc(c.job.job)}">Cancel now</button>`:''):'';
   const waiting=c.waiting.length?`<p class="training-note">Waiting for this computer: ${c.waiting.map(w=>`${kinds[w.kind]} <button type="button" class="button-secondary tt-cancel" data-cancel="${esc(w.request)}">Cancel</button>`).join(' ')}</p>`:'';
   const start=c.job?'':`<button type="button" data-start="train" data-computer="${esc(c.id)}">Train robot detector</button> <button type="button" data-start="train_field" data-computer="${esc(c.id)}">Train field detector</button> <a class="community-button" href="/autoscout/train.php?connect=1&amp;computer=${encodeURIComponent(c.id)}#train">Train actions…</a>`;
@@ -212,8 +212,10 @@
    // Stage progress: detector passes/batches, or matches prepared ([i/n]) plus the part of this match, from the helper's own lines.
    const k=c?.counters||{};let stage=null,stageText='';
    if(k.pass&&k.passes){stage=100*((k.pass-1)+(k.batches?k.batch/k.batches:0))/k.passes;stageText=`pass ${k.pass}/${k.passes} · batch ${k.batch}/${k.batches??'?'}${k.it_s?` · ${k.it_s} it/s`:''}`}
-   else{const all2=[...book.map(x=>x[1]),now].join('\n'),m=[...all2.matchAll(/\[(\d+)\/(\d+)\]/g)].pop();if(m){let part=0;const fr=now.match(/frames \d+\D(\d+) of (\d+)/),vs=now.match(/(\d+) of (\d+) video seconds/);if(fr)part=.3*fr[1]/fr[2];else if(vs)part=.3+.4*vs[1]/vs[2];stage=100*((m[1]-1)+part)/m[2];stageText=`match ${m[1]} of ${m[2]}${fr?` · reading frames ${fr[1]}/${fr[2]}`:vs?` · tracking ${vs[1]}/${vs[2]} s`:''}`}}
-   const ran=q.started?Date.now()/1000-q.started:null,match=matchOf(now)||matchOf(book.length?book[book.length-1][1]:'');
+   else{const all2=[...book.map(x=>x[1]),now].join('\n'),m=k.matches?[null,k.match,k.matches]:[...all2.matchAll(/\[(\d+)\/(\d+)\]/g)].pop();if(m){let part=0;const fr=now.match(/frames \d+\D(\d+) of (\d+)/),vs=now.match(/(\d+) of (\d+) video seconds/);if(fr)part=.3*fr[1]/fr[2];else if(vs)part=.3+.4*vs[1]/vs[2];stage=100*((m[1]-1)+part)/m[2];stageText=`match ${m[1]} of ${m[2]}${fr?` · reading frames ${fr[1]}/${fr[2]}`:vs?` · tracking ${vs[1]}/${vs[2]} s`:''}`}
+    else{const src=[now,...book.map(x=>x[1]).reverse()].find(l=>/frames \d+\D\d+ of \d+|\d+ of \d+ video seconds/.test(l))||'',fr=src.match(/frames \d+\D(\d+) of (\d+)/),vs=src.match(/(\d+) of (\d+) video seconds/),what=(src.match(/·\s*([A-Z][a-z]+(?: the [a-z ]+?| robot [a-z]+)?)\s*·/)||[])[1];
+     if(vs){stage=100*vs[1]/vs[2];stageText=`this match · tracking ${vs[1]}/${vs[2]} s`}else if(fr){stage=100*fr[1]/fr[2];stageText=`this match · ${(what||'reading').toLowerCase()} ${fr[1]}/${fr[2]} frames`}}}
+   const ran=(q.started||q.since)?Date.now()/1000-(q.started||q.since):null,match=matchOf(now)||matchOf(book.length?book[book.length-1][1]:'');
    const bar=(label,p,text)=>`<div class="tc-row"><span class="tc-k">${label}</span> ${tbar(p,26)} <b>${p==null?'  —':String(Math.round(p)).padStart(3)+'%'}</b>  <span class="tc-dim">${text}</span></div>`;
    const st=c?.stats||{},g=st.gpu,sys=c?.stats?[g?`GPU ${g.util??'?'}%`:'',g?.mem_used_mb!=null?`VRAM ${gb(g.mem_used_mb)}${g.mem_total_mb?'/'+gb(g.mem_total_mb):''} GB`:'',g?.temp_c!=null?g.temp_c+'°C':'',st.cpu!=null?`CPU ${st.cpu}%`:'',st.ram_total_mb?`RAM ${gb(st.ram_used_mb)}/${gb(st.ram_total_mb)} GB`:''].filter(Boolean).join('  ·  '):'';
    const logHtml=book.map(([t,l])=>`<div class="tl tl-${level(l)}"><span class="tc-t">${new Date(t*1000).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'})}</span> ${esc(l)}</div>`).join('');
@@ -227,7 +229,7 @@
   const nowSlot=status('now');
   if(nowSlot){
    // Remember where each log was scrolled; follow new lines unless scrolled up or paused.
-   for(const el of nowSlot.querySelectorAll('[data-log-key] .tc-log')){const key=el.closest('[data-log-key]').dataset.logKey,st=keep[key]||(keep[key]={});st.top=el.scrollTop;st.bottom=el.scrollHeight-el.scrollTop-el.clientHeight<8}
+   for(const el of nowSlot.querySelectorAll('[data-log-key] .tc-log')){const key=el.closest('[data-log-key]').dataset.logKey,st=keep[key]||(keep[key]={});st.top=el.scrollTop;st.bottom=el.scrollHeight-el.scrollTop-el.clientHeight<40}
    nowSlot.innerHTML=running.length?running.map(q=>job(q,runner(q))).join(''):'<p class="hc-note">Nothing running. Start a run from a pillar’s Train button or from My computers.</p>';
    for(const el of nowSlot.querySelectorAll('[data-log-key] .tc-log')){const st=keep[el.closest('[data-log-key]').dataset.logKey]||{};el.scrollTop=(st.paused||st.bottom===false)&&st.top!=null?st.top:el.scrollHeight}
   }
@@ -242,7 +244,7 @@
   fill('test','videos',(o.test_videos||[]).length?'<table class="tt-runs"><tr><th>Made</th><th>Match</th><th>Video</th></tr>'+o.test_videos.map(v=>`<tr><td>${when(v.saved_at)}</td><td>${esc(v.match_key||'')}</td><td>${video(v)}</td></tr>`).join('')+'</table>':'<p class="training-note">No match test videos yet. Run Preview a match below.</p>');
   // Helpers & settings → My computers. Not redrawn while you are using one of its controls.
   const mine=slot('helpers','computers');
-  if(mine&&!mine.contains(document.activeElement))mine.innerHTML=comps.length?comps.map(c=>computerCard(c,job)).join(''):'<p class="training-note">No computers connected yet. Install the helper below and connect it.</p>';
+  if(mine&&!mine.contains(document.activeElement))mine.innerHTML=comps.length?comps.map(c=>computerCard(c,(q0,cc)=>job(o.queue.find(x=>(q0.request&&x.request===q0.request)||(q0.job&&x.job===q0.job))||q0,cc))).join(''):'<p class="training-note">No computers connected yet. Install the helper below and connect it.</p>';
   // Helpers & settings: each helper's last GPU self-check.
   fill('helpers','selfchecks',o.helpers.some(h=>h.selfcheck)?o.helpers.filter(h=>h.selfcheck).map(h=>{const c=h.selfcheck;return `<p><strong>${esc(h.name)}</strong> · ${esc(c.summary?.verdict||'')} <small>(${when(c.checked_at)} · ${esc(c.platform||'')})</small></p><table class="tt-runs">`+(c.checks||[]).map(x=>`<tr><td>${x.ok?'✓':'⚠'}</td><td>${esc(x.check)}</td><td class="tt-msg">${esc(x.detail)}</td></tr>`).join('')+'</table>'}).join(''):'<p class="training-note">No self-check yet. It runs when a helper (version 3.2.32 / Windows 6.5.0 or newer) starts.</p>');
   testFlow(o);

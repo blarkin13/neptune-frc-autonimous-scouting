@@ -20,6 +20,9 @@ _lock = threading.Lock()
 def note(line):
     """Add a console line (also called for every helper status message)."""
     line = ' '.join(str(line).split())[:220]
+    counter = re.search(r'\[(\d+)/(\d+)\]', line)        # Actions: "[3/40] Verifying …" = match 3 of 40
+    if counter:
+        update(match=int(counter[1]), matches=int(counter[2]))
     with _lock:
         if line and (not LOG or LOG[-1][1] != line):
             LOG.append((int(time.time()), line))
@@ -78,15 +81,36 @@ def _run(command):
         return ''
 
 
+_last_gpu = [None, 0.]
+
+
+def _smi():
+    found = shutil.which('nvidia-smi')
+    if found or sys.platform != 'win32':
+        return found
+    import os
+    for folder in (os.environ.get('SystemRoot', r'C:\Windows')+r'\System32', os.environ.get('ProgramFiles', r'C:\Program Files')+r'\NVIDIA Corporation\NVSMI'):
+        if os.path.isfile(folder+r'\nvidia-smi.exe'):
+            return folder+r'\nvidia-smi.exe'
+    return None
+
+
 def nvidia():
-    if not shutil.which('nvidia-smi'):
+    """NVIDIA use, memory and temperature. nvidia-smi can be slow on a busy card: allow 15 s and reuse the last
+    good reading for up to a minute rather than dropping the meter."""
+    smi = _smi()
+    if not smi:
         return None
-    out = _run(['nvidia-smi', '--query-gpu=name,utilization.gpu,memory.used,memory.total,temperature.gpu', '--format=csv,noheader,nounits']).strip().splitlines()
     try:
+        out = subprocess.run([smi, '--query-gpu=name,utilization.gpu,memory.used,memory.total,temperature.gpu', '--format=csv,noheader,nounits'],
+                             capture_output=True, text=True, timeout=15).stdout.strip().splitlines()
         name, util, used, total, temp = [x.strip() for x in out[0].split(',')]
-        return {'name': name, 'util': int(util), 'mem_used_mb': int(used), 'mem_total_mb': int(total), 'temp_c': int(temp)}
-    except (IndexError, ValueError):
-        return None
+        num = lambda v: int(float(v)) if v.replace('.', '', 1).isdigit() else None
+        reading = {'name': name, 'util': num(util), 'mem_used_mb': num(used), 'mem_total_mb': num(total), 'temp_c': num(temp)}
+        _last_gpu[:] = [reading, time.monotonic()]
+        return reading
+    except (OSError, subprocess.SubprocessError, IndexError, ValueError):
+        return _last_gpu[0] if time.monotonic()-_last_gpu[1] < 60 else None
 
 
 def apple_gpu():
