@@ -1,3 +1,13 @@
+## 2026-10-26 — Robot detector: held-out match out of YOLO validation; failure breakdown in the check (Claude, not released)
+
+Measured: the adopted bumper detector (report on this Mac, engine robot-detector-jobs-v2) scores held-out 2026txcmp1_qm4 F1 0.814 (recall 0.821, precision 0.807; 75 frames, 554 bumpers) vs 0.784 for the detector it replaced. Wide band is weakest: F1 0.799, 87 of the 109 false positives, 53 of the 99 misses. Close-ups: F1 0.838, recall 0.793. That run's frames were cleaned up, so the misses could not be re-sorted by cause (far, occluded, people or carts).
+
+Recipe audit: training and the check both run at 1280 (no picture-size bug). Bug: `labels.build(..., holdout={holdout})` put QM4 in YOLO's validation folder, so QM4 chose best.pt and drove early stopping (patience 20). So the 0.814 is optimistic. Fix: `yolo_validation_from_training()` swaps the validation folder for every fifth labelled training frame (taken before workshop images are added) and removes the held-out images from the dataset; recipe is now `adopted-bumper-warm-start-v2-train-validation`. The held-out match is still only the adoption check; gates are unchanged (F1 +0.02, warm start refuses weights that saw the holdout, Q7 reserved).
+
+Diagnostics: the check boxes now carry alliance, and `evaluate()` reports `failures` (alliance_mixed, missed_small under 2.5% of frame height, missed_large, false_positive_wide/closeup). F1 is unchanged; `score()` still ignores alliance, so red/blue mix-ups were counted as found before and are now shown separately.
+
+Checked: 492 engine tests OK on the bundled Mac 3.2.51 Python (new tests: validation never contains the holdout, failure notes leave the score unchanged, one picture size). No retraining run yet; no F1 gain claimed. The next robot run measures it, and robot runs only get this fix after a helper release.
+
 ## 2026-10-26 — Field retraining at the checked picture size; held-out match out of training; Mac 3.2.51, Windows 6.5.22, Linux 6.6.13, engine 2.7.36 (Claude)
 
 First run scored per corner (11:27) still kept the current detector on 2026dal_qm6: new 2/6 within 0.8% (both hubs, no corners) vs current 3/6 within 4.0%. Two training bugs found in `train_field`: (1) fine-tuning ran at imgsz 960 while the shipped detector was trained, and every placement check runs, at 1280 (`fd.FRAME_WIDTH`), so small far corners were learned at 3/4 scale; now 1280, batch 4 (as robot training). (2) The held-out match's frames were YOLO's validation set, which chose best.pt; the check match now never enters the dataset and every fifth training frame is the validation set. Field runs now require engine 2.7.36 / Mac 3.2.51 / Windows 6.5.22 / Linux 6.6.13.
