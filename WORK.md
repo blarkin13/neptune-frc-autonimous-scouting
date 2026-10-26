@@ -1,3 +1,8 @@
+## 2026-10-26 — Scouting uses marked zones only; Mac 3.2.52, Windows 6.5.23, Linux 6.6.14, engine 2.7.37 (Claude; ships with the robot validation fix below)
+
+Owner decision: the field detector is deprioritized. Each event uses one fixed camera and one marked match already covers every match at that event, so the detector only mattered for unmarked events, where its guesses (both hubs, rarely corners on a new venue) could mislead scoring. `neptune_field_regions.load()` no longer falls back to detected regions by default, and match runs no longer call `detect_if_unmarked`; unmarked events run without scoring-zone hints. Train page guidance (pillar.js v22): mark one match per scouted event; field detector training is optional. Marks and the Train field detector button are kept. Robot detection, OCR, constant tracking and the action model are now separate sessions.
+
+Checked: 489 engine tests OK.
 ## 2026-10-26 — Robot detector: held-out match out of YOLO validation; failure breakdown in the check (Claude, not released)
 
 Measured: the adopted bumper detector (report on this Mac, engine robot-detector-jobs-v2) scores held-out 2026txcmp1_qm4 F1 0.814 (recall 0.821, precision 0.807; 75 frames, 554 bumpers) vs 0.784 for the detector it replaced. Wide band is weakest: F1 0.799, 87 of the 109 false positives, 53 of the 99 misses. Close-ups: F1 0.838, recall 0.793. That run's frames were cleaned up, so the misses could not be re-sorted by cause (far, occluded, people or carts).
