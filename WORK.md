@@ -1,3 +1,9 @@
+## 2026-10-26 — Constant identity: no links past an unnamed rival; crowded-frame solver rejected (Claude)
+
+A stricter hidden-OCR check reruns the roster solver without the hidden reads. It found the first version 18 wrong of 381 carried labels on QM4: a close-up scrum carried 9492 onto 10340. Now any near-equal rival tracklet blocks a link, whether named, unnamed or in contact. The check then gives 153 of 153 correct. Reviewed QM4 is 46 of 224 correct (was 70, originally 21), still 0 wrong and 0 switches. The earlier "430 of 430" was the weaker check. Tried and reverted: letting the roster solver keep three boxes in crowded frames (5 wrong reviewed boxes).
+
+Checked: 504 engine tests OK on the bundled Python. Not released or pushed.
+
 ## 2026-10-26 — Constant robot identity layer; close-up roster guesses need a read (Claude)
 
 Measured first, on the two human-reviewed matches (QM4, QM3; Q7 never used). Identity was almost never wrong but mostly missing. QM4: 21 of 224 reviewed robot boxes labeled, 0 wrong, 0 switches, 99 of 164 s lost per robot. QM3: 60 boxes the reviewer marked "not a robot" (a still close-up box) carried a team via roster elimination, so they would have fed scoring.

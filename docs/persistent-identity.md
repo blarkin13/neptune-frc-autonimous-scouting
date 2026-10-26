@@ -41,7 +41,7 @@ Next experiment: preserve the baseline's useful assignments while adding indepen
 
 - **Seeds** are existing trusted labels only: OCR-verified tracker segments, the roster solver's OCR-verified points and same-number-through-contact points. A roster-only guess seeds a tracklet only in the wide view (all six robots on screen) or when the tracklet has a number read.
 - **Tracklets** end at gaps over 1 s, jumps, scene cuts and same-alliance contact. A tracker swap during a collision therefore cannot carry a number out. A contact stretch keeps its number only if the same tracker track leaves contact with the same OCR team.
-- **Links** join an unlabeled tracklet to a labeled one that ended (or starts) within 2 s in the same camera shot. The link must pass the motion and size gate, match colour (≤ .11), agree with every number read, and have no rival within the margin. Nothing is linked across a camera cut. After a cut, only OCR or the roster can name the robot.
+- **Links** join an unlabeled tracklet to a labeled one that ended (or starts) within 2 s in the same camera shot. The link must pass the motion and size gate, match colour (≤ .11) and agree with every number read. No other tracklet may be a near-equal match, whether it is named, unnamed or in contact. Nothing is linked across a camera cut. After a cut, only OCR or the roster can name the robot.
 - **Elimination** in the wide view names the third robot of an alliance when the other two are labeled for that tracklet's whole life. The tracklet must move, with no other unlabeled same-alliance box.
 - **Exclusivity**: two tracklets claiming one team in one camera at the same time both lose the carried label.
 
@@ -53,15 +53,17 @@ Next experiment: preserve the baseline's useful assignments while adding indepen
 
 | | QM4 before | QM4 after | QM3 before | QM3 after |
 |---|---:|---:|---:|---:|
-| Reviewed robot boxes correctly labeled | 21 / 224 | **70 / 224** | 0 / 23 | 0 / 23 |
+| Reviewed robot boxes correctly labeled | 21 / 224 | **46 / 224** | 0 / 23 | 0 / 23 |
 | Wrong team | 0 | 0 | 0 | 0 |
 | Identity switches | 0 | 0 | 0 | 0 |
 | Human-excluded non-robot boxes given a team | 0 | 0 | 60 | **0** |
-| Lost-track seconds per robot (of 164 s) | 99.2 | 94.4 | 113.2 | 112.7 |
+| Lost-track seconds per robot (of 164 s) | 99.2 | 97.5 | 113.2 | 117.1 |
 
-127 of QM4's 224 reviewed boxes have no matching detection in this detector run, so 70 of the 97 matchable boxes are now labeled (was 21). QM3's 23 reviewed robot boxes are contact or unread close-up boxes the layer deliberately leaves alone.
+127 of QM4's 224 reviewed boxes have no matching detection in this detector run, so 46 of the 97 matchable boxes are now labeled (was 21). QM3's lost time rose because 60 false labels on a non-robot box no longer count as tracking. QM3's 23 reviewed robot boxes are contact or unread close-up boxes the layer deliberately leaves alone.
 
-**Hidden-OCR check.** Every other OCR tracker segment is hidden, together with the solver's verified points on the same boxes, then the layer relabels and is compared with the hidden OCR. QM4: 381 carried labels, all correct. QM3: 49 carried labels, all correct.
+**Hidden-OCR check.** Every other OCR tracker segment is hidden. Its number reads are removed from the observations, the roster solver is rerun without them, and the layer relabels and is compared with the hidden OCR. QM4: 117 carried labels, all correct. QM3: 36, all correct.
+
+An earlier version also had the rival rule ignore unnamed tracklets. It scored 430 of 430 on a weaker check, where the solver still saw the hidden reads. On this check it was 18 wrong of 381 on QM4: a scrum in the left close-up at 50–58 s carried 9492 onto 10340's track. A crowded-frame change was also tried and rejected: the roster solver kept three of the extra wide boxes instead of skipping the frame. That gave 5 wrong reviewed boxes and fewer correct ones.
 
 Lost-track time barely moved. Most of it is detection and OCR coverage, not identity carrying. In QM4 wide frames, 1,595 of 3,115 boxes sit in frames with more than three same-alliance detections, which the roster solver skips. The next lever is detector false positives and duplicate boxes in the wide view. Then come longer-gap re-ID by bumper number after cuts and a trained appearance model.
 

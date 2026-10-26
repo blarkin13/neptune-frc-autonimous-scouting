@@ -50,6 +50,13 @@ class ConstantIdentityTests(unittest.TestCase):
         out = run(a+b+c, [seed(a[0], 1)])
         self.assertIsNone(out[(b[0]['t'], 9)]); self.assertIsNone(out[(c[0]['t'], 11)])
 
+    def test_unnamed_robot_ending_nearby_blocks_the_link(self):
+        a = [obs(i/3, 7, .2) for i in range(6)]
+        other = [obs(i/3, 8, .215, look=0) for i in range(6)]
+        b = [obs(2.5+i/3, 9, .21) for i in range(6)]
+        out = run(a+other+b, [seed(a[0], 1)])
+        self.assertIsNone(out[(b[0]['t'], 9)])
+
     def test_contact_ends_tracklet_so_swap_does_not_carry(self):
         a = [obs(i/3, 7, .2+i*.01) for i in range(4)]
         b = [obs(i/3, 8, .4-i*.01) for i in range(4)]

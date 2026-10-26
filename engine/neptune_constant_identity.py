@@ -161,21 +161,21 @@ def label(tracking, roster, source_sha256=None):
     changed = True
     while changed:
         changed = False
-        pairs = []
+        every = []
         for shot in by_shot.values():
             for a in shot:
                 for b in shot:
-                    if (a['team'] is None) == (b['team'] is None) or a['contact'] or b['contact']:
-                        continue
                     score = _link_score(a, b)
                     if score is not None:
-                        pairs.append((score, a, b))
+                        every.append((score, a, b))
+        pairs = [r for r in every if (r[1]['team'] is None) != (r[2]['team'] is None) and not r[1]['contact'] and not r[2]['contact']]
         for score, a, b in sorted(pairs, key=lambda r: r[0]):
             known, unknown = (a, b) if a['team'] is not None else (b, a)
             if unknown['team'] is not None or not _reads_allow(unknown, known['team']) or _busy(nodes, unknown, known['team']):
                 continue
-            # A close rival on either end means the link is a guess.
-            rivals = [r for r in pairs if r[0] < score+RIVAL_MARGIN and r[1:] != (a, b) and (r[1] is a or r[2] is b)]
+            # A close rival on either end means the link is a guess, whether or not that
+            # rival is named or in contact: in a scrum an unnamed robot is the likelier match.
+            rivals = [r for r in every if r[0] < score+RIVAL_MARGIN and r[1:] != (a, b) and (r[1] is a or r[2] is b)]
             if rivals:
                 continue
             unknown.update(team=known['team'], how='motion_colour_link'); changed = True
