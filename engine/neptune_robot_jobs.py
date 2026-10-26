@@ -449,12 +449,15 @@ def placement(weights, frames, doc):
             near = [math.dist(c, fd.centre(t['box'])) for t in found['scoring_target'] if t['view'] == target['camera_view']]
             if near and min(near) < .1:
                 errors.append(min(near))
-        corners = fd.boundary_corners(doc)
-        if corners:
-            expected += 4
-            quad = fd.ordered_quad([fd.centre(c['box']) for c in found['field_corner']]) if len(found['field_corner']) == 4 else None
-            if quad:
-                errors += [math.dist(a, b) for a, b in zip(corners, quad) if math.dist(a, b) < .1]
+        # Each visible marked corner counts on its own: matched one-to-one to the nearest found corner within 10%,
+        # so finding three of four corners scores three rather than none.
+        corners = fd.visible_corners(doc); finds = [fd.centre(c['box']) for c in found['field_corner']]
+        expected += len(corners); matched_marks = set(); matched_finds = set()
+        for d, i, j in sorted((math.dist(a, b), i, j) for i, a in enumerate(corners) for j, b in enumerate(finds)):
+            if d >= .1:
+                break
+            if i not in matched_marks and j not in matched_finds:
+                errors.append(d); matched_marks.add(i); matched_finds.add(j)
     return {'found': len(errors), 'expected': expected, 'mean_error': round(sum(errors)/len(errors), 4) if errors else None}
 
 

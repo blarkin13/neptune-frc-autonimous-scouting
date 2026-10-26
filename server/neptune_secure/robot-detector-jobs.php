@@ -83,10 +83,11 @@ final class RobotDetectorJobs {
  }
  private function supportsFieldReference(string $computer):bool{
   $v=(string)($this->status($computer)['version']??'');
-  if(preg_match('/^engine (\d+\.\d+\.\d+)/D',$v,$m))return version_compare($m[1],'2.7.33','>=');
-  if(preg_match('/^3\./',$v))return version_compare($v,'3.2.48','>=');
-  if(preg_match('/^6\.5\./',$v))return version_compare($v,'6.5.19','>=');
-  if(preg_match('/^6\.6\./',$v))return version_compare($v,'6.6.11','>=');
+  // Field runs need helpers that skip frame-edge corners and score each corner on its own.
+  if(preg_match('/^engine (\d+\.\d+\.\d+)/D',$v,$m))return version_compare($m[1],'2.7.35','>=');
+  if(preg_match('/^3\./',$v))return version_compare($v,'3.2.50','>=');
+  if(preg_match('/^6\.5\./',$v))return version_compare($v,'6.5.21','>=');
+  if(preg_match('/^6\.6\./',$v))return version_compare($v,'6.6.12','>=');
   return false;
  }
  private function owned(array $computer,array $p):array{

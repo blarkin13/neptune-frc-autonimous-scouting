@@ -79,9 +79,12 @@
   const m=Object.entries(d.matches),ready=m.filter(([,v])=>v.targets&&v.corners);
   fill('field','data',`<dl><dt>Marked matches</dt><dd>${m.length}</dd><dt>With targets + corners</dt><dd>${ready.length}</dd><dt>Events</dt><dd>${d.events.length?d.events.map(esc).join(', '):'—'}</dd></dl>`);
   fill('field','next',next([
-   [ready.length>=2,`Mark scoring targets and all four field corners on at least 2 ${esc(d.game_key)} matches (${ready.length} so far).`],
+   [ready.length>=2,`Mark scoring targets and the field corners on at least 2 ${esc(d.game_key)} matches (${ready.length} so far). Mark corners where the field ends; a corner outside the picture is left out of training.`],
    ...(d.holdout?[[true,`Next run is checked on <strong>${esc(d.holdout)}</strong>, a match the detector in use never learned from.`]]:[]),
-   [d.events.length>=2,`Mark a match from a second event; camera angles differ between venues (${d.events.length} so far).`],
+   // Each venue films the field from its own angle; a detector learns a new angle only from marked matches like it.
+   [d.events.length>=4,`Mark matches from at least 4 events, including side-camera venues; every venue films the field from its own angle (${d.events.length} so far).`],
+   ...(d.holdout?(()=>{const ev=d.holdout.split('_')[0],same=ready.filter(([k])=>k!==d.holdout&&k.split('_')[0]===ev).length;
+     return [[same>=1,`Mark another match from <strong>${esc(ev)}</strong> so its camera angle is in training, not only in the check (${same} so far).`]];})():[]),
    [!!c,c?'A retrained field detector is in use.':d.baseline?'The built-in detector remains in use. Retrain to test an improved replacement; your saved marks are retained.':'Train the first field detector for this game.'],
   ]));
   trainButton('field',busy||ready.length<2,busy?'A field detector run is already queued or running.':ready.length<2?'Needs scoring targets and corners on 2 matches of this game first.':'Uses your saved marks and the current field detector. Runtime depends on the helper. Only a better held-out result replaces it.');

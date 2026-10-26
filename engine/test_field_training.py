@@ -50,3 +50,29 @@ class Tests(unittest.TestCase):
     result=rj.train_field({}, {'id':'test','holdout':'2026held_qm2','game_key':'2026-rebuilt'},lambda m:None)
    self.assertEqual(used,[str(base)]);self.assertFalse(result['adopted']);self.assertEqual(result['frames_per_match'],{'2026held_qm2':9,'2026train_qm1':9});self.assertEqual(len(result['evaluation_sha256']),64)
 if __name__=='__main__':unittest.main()
+
+
+class EdgeCornersAndPartialCredit(unittest.TestCase):
+ def doc(self,corners):
+  reg=lambda kind,points:{'kind':kind,'camera_view':'wide','points':points,'game_key':'2026-rebuilt'}
+  return {'regions':[reg('scoring_target',[[.2,.2],[.3,.2],[.3,.3],[.2,.3]]),reg('field_calibration',corners)]}
+ def test_corner_on_frame_edge_is_not_a_label(self):
+  d=self.doc([[.1,.2],[.8,.2],[.996,.8],[.004,.8]])
+  self.assertEqual([int(l.split()[0]) for l in fd.yolo_labels(d)],[0,1,1])
+  self.assertEqual(fd.visible_corners(d),[[.1,.2],[.8,.2]])
+ def test_three_of_four_corners_score_three(self):
+  import sys,types
+  d=self.doc([[.1,.2],[.8,.2],[.9,.8],[.05,.8]])
+  found=[[.3,.3]]+[[x+.01,y+.01] for x,y in ([.1,.2],[.8,.2],[.9,.8])]   # a target and three corners each frame
+  class Boxes:
+   def __init__(s,rows):s.xyxy=Rows([[x-.01,y-.01,x+.01,y+.01] for x,y in rows]);s.cls=Rows([0]+[1]*(len(rows)-1))
+  class Rows(list):
+   def tolist(s):return list(s)
+  class Model:
+   def __init__(s,w):pass
+   def predict(s,image,**k):return [types.SimpleNamespace(boxes=Boxes(found))]
+  frame=np.zeros((1,1,3),np.uint8)
+  with patch.dict(sys.modules,{'ultralytics':types.SimpleNamespace(YOLO=Model)}),patch.object(rj,'train_device',return_value='cpu'):
+   r=rj.placement('w.pt',[(t,frame,d) for t in range(3)],d)
+  self.assertEqual((r['found'],r['expected']),(4,5))
+

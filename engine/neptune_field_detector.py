@@ -16,6 +16,7 @@ CLASSES = ['scoring_target', 'field_corner']
 CORNER_BOX = (.035, .045)          # normalized width/height of the box drawn around each corner point
 FRAME_WIDTH = 1280                  # training/inference frame width (keeps small hubs legible)
 MIN_CONFIDENCE = .35
+EDGE_MARGIN = .01                   # a marked corner this close to the frame edge is where the picture ends, not a corner
 
 
 def model_dir():
@@ -76,6 +77,12 @@ def boundary_corners(doc):
     return None
 
 
+def visible_corners(doc):
+    """The marked corners that are real field corners in the picture. A corner marked on the frame edge means the
+    field runs out of view there; that point is not a corner, so it is never a label and never scored."""
+    return [p for p in boundary_corners(doc) or [] if EDGE_MARGIN < p[0] < 1-EDGE_MARGIN and EDGE_MARGIN < p[1] < 1-EDGE_MARGIN]
+
+
 def box_of(points):
     xs = [p[0] for p in points]; ys = [p[1] for p in points]
     return [min(xs), min(ys), max(xs), max(ys)]
@@ -88,7 +95,7 @@ def yolo_labels(doc):
         if r['kind'] == 'scoring_target':
             x0, y0, x1, y1 = box_of(r['points'])
             lines.append((0, (x0+x1)/2, (y0+y1)/2, x1-x0, y1-y0))
-    for x, y in boundary_corners(doc) or []:
+    for x, y in visible_corners(doc):
         w, h = CORNER_BOX
         x0, x1 = max(0., x-w/2), min(1., x+w/2); y0, y1 = max(0., y-h/2), min(1., y+h/2)
         lines.append((1, (x0+x1)/2, (y0+y1)/2, x1-x0, y1-y0))

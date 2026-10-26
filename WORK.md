@@ -1,3 +1,11 @@
+## 2026-10-26 — Field detector: frame-edge corners and per-corner credit; Mac 3.2.50, Windows 6.5.21, Linux 6.6.12, engine 2.7.35 (Claude)
+
+Every field run since Oct 25 kept the current detector on held-out 2026dal_qm6 (new 1/6 vs current 2/6). Cause is mainly data: two championship-camera training matches cannot teach Dallas's far side camera. Two code issues made it worse and are fixed. (1) Championship marks put the two bottom field corners on the frame edge (the field runs out of view); those points were trained as `field_corner`. `neptune_field_detector.visible_corners()` now drops marked corners within 1% of the frame edge from labels and from scoring; saved marks are unchanged. (2) The held-out check credited corners only when exactly four were found; each visible marked corner now matches one-to-one to the nearest found corner within 10%. The adoption rule itself is unchanged (more found, then closer by the margin).
+
+Server: field runs now require helpers with these fixes (engine 2.7.35 / Mac 3.2.50 / Windows 6.5.21 / Linux 6.6.12; Linux jumps past Codex's 6.6.11 bar). Train page guidance asks for corners where the field ends, at least 4 events including side-camera venues, and another marked match from the held-out match's event (pillar.js v21). Past runs were scored the old way.
+
+Checked: 489 engine tests OK on the bundled Python, including new edge-corner and three-of-four-corner tests. No detector trained or improvement claimed; the next field run measures it.
+
 ## 2026-10-26 — One-window helper dashboard: Mac 3.2.49, Windows 6.5.20, Linux 6.6.6, engine 2.7.34 (Claude)
 
 Picked up Codex's native Mac dashboard (Codex's WebKit attempt was dropped: Google sign-in refuses embedded web views). All three helpers now show one resizable window over drifting bubbles in the lighter navy: this computer's card, job and device controls, then Neptune's Running now, other helpers and queue (read from a new read-only `dashboard` action on `api/robot-detector.php`, owner's computers only), then activity and version. Mac full screen via the green button / ⌃⌘F. Gray Neptune logos ship as `engine/neptune-logo-{square,wide}.png` (listed in `neptune_engine.FILES`); no game name is hard-coded.
