@@ -523,11 +523,14 @@ def train_field(config, req, progress):
         if source_fingerprints[doc_key(d)] in HELD_OUT_SOURCES:raise ValueError('Reserved benchmark source cannot train or tune a field detector')
         frames=ft.samples(d,sample_frames(video,step=2.0 if split=='val' else 4.0),lambda t:frame(video,t))
         frame_counts[doc_key(d)]=len(frames)
-        for t, image, frame_doc in frames:
+        # The held-out match is only for the comparison below; it never reaches YOLO, not even as the validation
+        # set that picks the best pass. Every fifth training frame stands in as that validation set.
+        for i, (t, image, frame_doc) in enumerate(frames if split == 'train' else []):
             labels=fd.yolo_labels(frame_doc)
             name = '%s_%07d' % (vid, round(t*1000))
-            cv2.imwrite(str(data/'images'/split/(name+'.jpg')), image, [cv2.IMWRITE_JPEG_QUALITY, 90])
-            (data/'labels'/split/(name+'.txt')).write_text('\n'.join(labels)+'\n')
+            for folder in ('train', 'val') if i % 5 == 0 else ('train',):
+                cv2.imwrite(str(data/'images'/folder/(name+'.jpg')), image, [cv2.IMWRITE_JPEG_QUALITY, 90])
+                (data/'labels'/folder/(name+'.txt')).write_text('\n'.join(labels)+'\n')
         if split == 'val':
             held = frames[::3]
             evaluation_sha256=ft.fingerprint(held)
@@ -538,8 +541,9 @@ def train_field(config, req, progress):
     progress('Fine-tuning this game’s field detector; saved annotation intervals and evaluation match are preserved')
     model.add_callback('on_fit_epoch_end', lambda trainer: progress('Training field detector: pass %d of up to %d' % (trainer.epoch+1, epochs)))
     batch_progress(model, 'Training field detector', epochs, progress)
+    # Same picture size the detector was first trained at and is always checked at (small corners stay legible).
     with all_cores():
-        result = model.train(data=str(data/'data.yaml'), epochs=epochs, imgsz=960, batch=8, device=train_device(), workers=0, patience=8, seed=7,
+        result = model.train(data=str(data/'data.yaml'), epochs=epochs, imgsz=fd.FRAME_WIDTH, batch=4, device=train_device(), workers=0, patience=8, seed=7,
                          deterministic=True, plots=False, project=str(work/'runs'), name='field', exist_ok=True, verbose=False,
                          translate=.3, scale=.6, degrees=3, perspective=.0005, fliplr=.5, mosaic=1.0, hsv_v=.4, hsv_s=.6)
     best = Path(result.save_dir)/'weights'/'best.pt'

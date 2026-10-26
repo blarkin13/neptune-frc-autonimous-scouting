@@ -1,3 +1,9 @@
+## 2026-10-26 — Field retraining at the checked picture size; held-out match out of training; Mac 3.2.51, Windows 6.5.22, Linux 6.6.13, engine 2.7.36 (Claude)
+
+First run scored per corner (11:27) still kept the current detector on 2026dal_qm6: new 2/6 within 0.8% (both hubs, no corners) vs current 3/6 within 4.0%. Two training bugs found in `train_field`: (1) fine-tuning ran at imgsz 960 while the shipped detector was trained, and every placement check runs, at 1280 (`fd.FRAME_WIDTH`), so small far corners were learned at 3/4 scale; now 1280, batch 4 (as robot training). (2) The held-out match's frames were YOLO's validation set, which chose best.pt; the check match now never enters the dataset and every fifth training frame is the validation set. Field runs now require engine 2.7.36 / Mac 3.2.51 / Windows 6.5.22 / Linux 6.6.13.
+
+Checked: 489 engine tests OK. No end-to-end training test; the next field run is the first measurement. Labels unchanged.
+
 ## 2026-10-26 — Field detector: frame-edge corners and per-corner credit; Mac 3.2.50, Windows 6.5.21, Linux 6.6.12, engine 2.7.35 (Claude)
 
 Every field run since Oct 25 kept the current detector on held-out 2026dal_qm6 (new 1/6 vs current 2/6). Cause is mainly data: two championship-camera training matches cannot teach Dallas's far side camera. Two code issues made it worse and are fixed. (1) Championship marks put the two bottom field corners on the frame edge (the field runs out of view); those points were trained as `field_corner`. `neptune_field_detector.visible_corners()` now drops marked corners within 1% of the frame edge from labels and from scoring; saved marks are unchanged. (2) The held-out check credited corners only when exactly four were found; each visible marked corner now matches one-to-one to the nearest found corner within 10%. The adoption rule itself is unchanged (more found, then closer by the margin).
