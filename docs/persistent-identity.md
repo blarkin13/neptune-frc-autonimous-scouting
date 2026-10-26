@@ -34,3 +34,35 @@ Of 224 existing human-corrected points, 32 could be matched to assigned crops an
 Artifacts and reproduction scripts: `local/q4-persistent-identity-20261025/`. The source-native quality revision is 1920×1080 at 60 fps, with a five-second intro and eight-second result card. Tracking remains sampled at 3 fps. Video source times therefore map to journal playback time +5 seconds.
 
 Next experiment: preserve the baseline's useful assignments while adding independently checked appearance-based reconnection. Compare a trained robot-specific visual representation and selected Ollama bumper reads on unresolved tracklets; do not promote unverified proposals into training or claim off-screen actions.
+
+## Constant identity layer — October 26, 2026
+
+`engine/neptune_constant_identity.py` (`constant-identity-v1`) carries each robot's number along tracker tracklets, and its labels feed scoring attribution as `identity_method: constant_identity`. They are never training labels: `neptune_training` and `neptune_temporal` do not accept them.
+
+- **Seeds** are existing trusted labels only: OCR-verified tracker segments, the roster solver's OCR-verified points and same-number-through-contact points. A roster-only guess seeds a tracklet only in the wide view (all six robots on screen) or when the tracklet has a number read.
+- **Tracklets** end at gaps over 1 s, jumps, scene cuts and same-alliance contact. A tracker swap during a collision therefore cannot carry a number out. A contact stretch keeps its number only if the same tracker track leaves contact with the same OCR team.
+- **Links** join an unlabeled tracklet to a labeled one that ended (or starts) within 2 s in the same camera shot. The link must pass the motion and size gate, match colour (≤ .11), agree with every number read, and have no rival within the margin. Nothing is linked across a camera cut. After a cut, only OCR or the roster can name the robot.
+- **Elimination** in the wide view names the third robot of an alliance when the other two are labeled for that tracklet's whole life. The tracklet must move, with no other unlabeled same-alliance box.
+- **Exclusivity**: two tracklets claiming one team in one camera at the same time both lose the carried label.
+
+`with_roster_inferred` also changed. In a close-up, a roster-only inference now needs a number read on its track. A close-up shows only part of the field, so elimination there labeled a still box that the reviewer had marked "not a robot": 60 boxes in QM3.
+
+### Measured on the two reviewed matches (Q7 never used)
+
+`neptune_identity_metrics.evaluate` scores labels against saved human review points (corrected = expected team, excluded = not a robot). The review points are never an input. A switch is a change of assigned team between consecutive labeled sightings of one reviewed robot in one camera. Lost-track seconds are 1/3 s samples in the match window with no labeled box for that robot in any camera. They include genuinely off-screen time.
+
+| | QM4 before | QM4 after | QM3 before | QM3 after |
+|---|---:|---:|---:|---:|
+| Reviewed robot boxes correctly labeled | 21 / 224 | **70 / 224** | 0 / 23 | 0 / 23 |
+| Wrong team | 0 | 0 | 0 | 0 |
+| Identity switches | 0 | 0 | 0 | 0 |
+| Human-excluded non-robot boxes given a team | 0 | 0 | 60 | **0** |
+| Lost-track seconds per robot (of 164 s) | 99.2 | 94.4 | 113.2 | 112.7 |
+
+127 of QM4's 224 reviewed boxes have no matching detection in this detector run, so 70 of the 97 matchable boxes are now labeled (was 21). QM3's 23 reviewed robot boxes are contact or unread close-up boxes the layer deliberately leaves alone.
+
+**Hidden-OCR check.** Every other OCR tracker segment is hidden, together with the solver's verified points on the same boxes, then the layer relabels and is compared with the hidden OCR. QM4: 381 carried labels, all correct. QM3: 49 carried labels, all correct.
+
+Lost-track time barely moved. Most of it is detection and OCR coverage, not identity carrying. In QM4 wide frames, 1,595 of 3,115 boxes sit in frames with more than three same-alliance detections, which the roster solver skips. The next lever is detector false positives and duplicate boxes in the wide view. Then come longer-gap re-ID by bumper number after cuts and a trained appearance model.
+
+Scripts and outputs: `local/identity-constancy-20261026/` (`measure.py`, `holdout.py`, `before.json`, `after.json`, `holdout.json`). "Before" ran the HEAD `bdf580c` engine.

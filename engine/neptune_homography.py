@@ -42,7 +42,7 @@ def trajectories(facts,game_key,root=None):
     except ValueError:pass
  out=[]
  for p in facts.get('tracking',{}).get('localizations',[]):
-  if p.get('identity_method') not in {'direct_vote_track','yolo_botsort_ocr','human_reviewed_track','roster_inferred'} or p.get('occluded') or p.get('box_source')=='optical_flow':continue
+  if p.get('identity_method') not in {'direct_vote_track','yolo_botsort_ocr','human_reviewed_track','roster_inferred','constant_identity'} or p.get('occluded') or p.get('box_source')=='optical_flow':continue
   choices=[(r,h) for r,h in calibrations if active(r,p['t'],p.get('camera'),facts)]
   if len(choices)!=1:continue
   r,h=choices[0];x,y,w,height=p['box'];q=project(h,[x+w/2,y+height])

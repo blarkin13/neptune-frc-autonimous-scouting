@@ -1,3 +1,13 @@
+## 2026-10-26 — Constant robot identity layer; close-up roster guesses need a read (Claude)
+
+Measured first, on the two human-reviewed matches (QM4, QM3; Q7 never used). Identity was almost never wrong but mostly missing. QM4: 21 of 224 reviewed robot boxes labeled, 0 wrong, 0 switches, 99 of 164 s lost per robot. QM3: 60 boxes the reviewer marked "not a robot" (a still close-up box) carried a team via roster elimination, so they would have fed scoring.
+
+New `engine/neptune_constant_identity.py` carries trusted OCR and roster labels along tracker tracklets. Tracklets end at gaps, jumps, cuts and contact. Linking across short gaps in one shot needs the motion gate, colour, number reads and no rival. A contact stretch is kept when the same track leaves with the same number. The third robot is named by elimination in the wide view. Its labels go to scoring attribution (`constant_identity`; events, scouting rules, field regions, homography), never to training. `with_roster_inferred` now needs a number read on the track before a close-up roster guess is used. New `engine/neptune_identity_metrics.py` does the measuring. Details and the table are in `docs/persistent-identity.md`.
+
+Result: QM4 21 → 70 reviewed boxes correctly labeled (70 of the 97 that have a detection), 0 wrong, 0 switches. QM3 non-robot labels 60 → 0. Lost seconds per robot: QM4 99.2 → 94.4, QM3 113.2 → 112.7. The rest is detection and OCR coverage. Hidden-OCR check: 430 of 430 carried labels match hidden OCR.
+
+Checked: 502 engine tests OK on the bundled Python (13 new). Not released, pushed or deployed; no fresh video run.
+
 ## 2026-10-26 — Field retraining at the checked picture size; held-out match out of training; Mac 3.2.51, Windows 6.5.22, Linux 6.6.13, engine 2.7.36 (Claude)
 
 First run scored per corner (11:27) still kept the current detector on 2026dal_qm6: new 2/6 within 0.8% (both hubs, no corners) vs current 3/6 within 4.0%. Two training bugs found in `train_field`: (1) fine-tuning ran at imgsz 960 while the shipped detector was trained, and every placement check runs, at 1280 (`fd.FRAME_WIDTH`), so small far corners were learned at 3/4 scale; now 1280, batch 4 (as robot training). (2) The held-out match's frames were YOLO's validation set, which chose best.pt; the check match now never enters the dataset and every fifth training frame is the validation set. Field runs now require engine 2.7.36 / Mac 3.2.51 / Windows 6.5.22 / Linux 6.6.13.

@@ -187,6 +187,11 @@ def refresh_cached_facts(path,facts,match,game,source_sha,video=None,progress=la
     return replayed
 
 
+def roster_of(facts):
+    identities=(facts.get('bumpers') or {}).get('identities') or {}
+    return {c:[int(t) for t,v in identities.items() if v.get('alliance')==c] for c in ('red','blue')}
+
+
 def ensure_tracking(video,facts,game,work,progress=lambda s:None):
     from neptune_tracking import track_match,TRACKING_VERSION,FRAME_DECODER_REVISION
     from neptune_yolo import fingerprint,CONTINUITY_REVISION
@@ -204,7 +209,8 @@ def ensure_tracking(video,facts,game,work,progress=lambda s:None):
             tracking['identity_review']=reconcile(tracking['observations'],roster,facts['source']['sha256'],association=association)
             tracking['association_sha']=digest(association)
         from neptune_identity import with_roster_inferred
-        facts=dict(facts,tracking=with_roster_inferred(tracking))
+        from neptune_constant_identity import with_constant_identity
+        facts=dict(facts,tracking=with_constant_identity(with_roster_inferred(tracking),roster_of(facts)))
         from neptune_review_learning import apply_to_facts
         return apply_to_facts(facts)
     profile=game.get('layout_profiles',{}).get(facts.get('layout',{}).get('profile'))
@@ -222,7 +228,8 @@ def ensure_tracking(video,facts,game,work,progress=lambda s:None):
         facts=dict(facts,tracking={'status':'unavailable','reason':str(error)[:300]})
     if facts['tracking'].get('status')=='measured':
         from neptune_identity import with_roster_inferred
-        facts=dict(facts,tracking=with_roster_inferred(facts['tracking']))
+        from neptune_constant_identity import with_constant_identity
+        facts=dict(facts,tracking=with_constant_identity(with_roster_inferred(facts['tracking']),roster_of(facts)))
     from neptune_review_learning import apply_to_facts
     return apply_to_facts(facts)
 
