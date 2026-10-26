@@ -61,7 +61,7 @@
   const m=Object.entries(d.matches),ready=m.filter(([,n])=>n>=d.min_frames),frames=m.reduce((a,[,n])=>a+n,0);
   // Frames per match, fewest first: which matches still need frames before training can use them.
   const rows=(d.rows||[]).map(r=>`<tr${r.frames<d.min_frames?' class="tt-short"':''}><td>${r.match_id?`<a href="/autoscout/robot-labels.php?match_id=${r.match_id}">${esc(r.match_key||r.video_id)}</a>`:esc(r.match_key||r.video_id)}${r.match_key===d.holdout?' <small>(held out)</small>':''}</td><td>${r.frames}</td><td>${r.frames<d.min_frames?`needs ${d.min_frames-r.frames} more`:'✓ used'}</td></tr>`).join('');
-  fill('robot','data',`<dl><dt>Labelled frames</dt><dd>${frames}</dd><dt>Matches</dt><dd>${m.length} (${ready.length} with ${d.min_frames}+ frames)</dd><dt>Events</dt><dd>${d.events.length?d.events.map(esc).join(', '):'—'}</dd></dl>`+(rows?`<details class="tt-runs-more" open><summary>Frames per match</summary><table class="tt-runs"><tr><th>Match</th><th>Frames</th><th></th></tr>${rows}</table></details>`:''));
+  fill('robot','data',`<dl><dt>Labelled frames</dt><dd>${frames}</dd>${d.external?.images?`<dt>Imported training images</dt><dd>${d.external.images} (${d.external.synthetic_images||0} variations)</dd><dt>Imported bumper boxes</dt><dd>${d.external.boxes}</dd>`:''}<dt>Matches</dt><dd>${m.length} (${ready.length} with ${d.min_frames}+ frames)</dd><dt>Events</dt><dd>${d.events.length?d.events.map(esc).join(', '):'—'}</dd></dl>`+(rows?`<details class="tt-runs-more" open><summary>Frames per match</summary><table class="tt-runs"><tr><th>Match</th><th>Frames</th><th></th></tr>${rows}</table></details>`:''));
   fill('robot','next',next([
    [ready.length>=2,`Label ${d.min_frames}+ frames in at least 2 matches (${ready.length} so far). One is held back for checking: never one the detector in use learned from.`],
    ...(d.holdout?[[true,`Next run is checked on <strong>${esc(d.holdout)}</strong>.`]]:[]),
@@ -74,7 +74,7 @@
  }
  function field(d,busy){
   const c=d.current,rep=c?.report||{};
-  fill('field','current',c?`<dl><dt>Adopted</dt><dd>${when(c.adopted_at)}</dd><dt>Held-out match</dt><dd>${esc(rep.holdout_match||'—')}</dd><dt>Targets & corners</dt><dd>${placed(rep.new)}</dd><dt>Learned from</dt><dd>${rep.matches??'—'} matches</dd></dl>`:`<p>No field detector has been trained for ${esc(d.game_key)} here yet.</p>`);
+  fill('field','current',c?`<dl><dt>Adopted</dt><dd>${when(c.adopted_at)}</dd><dt>Held-out match</dt><dd>${esc(rep.holdout_match||'—')}</dd><dt>Targets & corners</dt><dd>${placed(rep.new)}</dd><dt>Learned from</dt><dd>${rep.trained_on?.length??rep.matches??'—'} matches</dd></dl>`:d.baseline?`<p>The helper’s built-in ${esc(d.game_key)} field detector is in use. No retrained replacement has passed the held-out check yet.</p>`:`<p>No field detector is available for ${esc(d.game_key)} yet.</p>`);
   rollback('field',d.history);
   const m=Object.entries(d.matches),ready=m.filter(([,v])=>v.targets&&v.corners);
   fill('field','data',`<dl><dt>Marked matches</dt><dd>${m.length}</dd><dt>With targets + corners</dt><dd>${ready.length}</dd><dt>Events</dt><dd>${d.events.length?d.events.map(esc).join(', '):'—'}</dd></dl>`);
@@ -82,9 +82,9 @@
    [ready.length>=2,`Mark scoring targets and all four field corners on at least 2 ${esc(d.game_key)} matches (${ready.length} so far).`],
    ...(d.holdout?[[true,`Next run is checked on <strong>${esc(d.holdout)}</strong>, a match the detector in use never learned from.`]]:[]),
    [d.events.length>=2,`Mark a match from a second event; camera angles differ between venues (${d.events.length} so far).`],
-   [!!c,c?'A trained detector is in use. New events get scoring areas without marking.':'Train the first field detector.'],
+   [!!c,c?'A retrained field detector is in use.':d.baseline?'The built-in detector remains in use. Retrain to test an improved replacement; your saved marks are retained.':'Train the first field detector for this game.'],
   ]));
-  trainButton('field',busy||ready.length<2,busy?'A field detector run is already queued or running.':ready.length<2?'Needs scoring targets and corners on 2 matches of this game first.':'About 20–40 minutes on a helper. It only switches if targets and corners land closer.');
+  trainButton('field',busy||ready.length<2,busy?'A field detector run is already queued or running.':ready.length<2?'Needs scoring targets and corners on 2 matches of this game first.':'Uses your saved marks and the current field detector. Runtime depends on the helper. Only a better held-out result replaces it.');
   fill('field','runs',runs(d.runs,r=>`${placed(r.new)} vs ${r.current?placed(r.current):'none'}`));
   return !c||ready.length<2;
  }
@@ -238,6 +238,11 @@
   if(qs){qs.closest('.ts-sec')?.classList.toggle('ts-empty',!waiting.length);
    qs.innerHTML=waiting.map((q,i)=>{const target=q.target&&comps.find(c=>c.id===q.target);const who=target?esc(target.name)+' (chosen)':online.length?online.map(c=>esc(c.name)).join(', '):'the next helper that opens';
     return `<div class="tq"><b>#${i+1}</b> ${esc(q.label||q.title)}<small>waiting since ${when(q.since)} · can run on ${who}</small></div>`}).join('')}
+  for(const part of ['robot','field','actions']){
+   const el=slot(part,'training-status');if(!el)continue;
+   const active=running.filter(q=>q.part===part);
+   el.textContent=active.length?'Training in progress'+(active.length>1?' · '+active.length+' runs':'')+'.':'Not currently training.';
+  }
   const busy=k=>o.queue.some(q=>q.part===k);
   const needs={robot:robot(o.robot,busy('robot')),field:field(o.field,busy('field')),actions:actions(o.actions,o,busy('actions'))};
   for(const [part,need] of Object.entries(needs)){const f=document.querySelector(`[data-part="${part}"] .tt-sum-flag`);if(f)f.hidden=!need;if(!picked[part])sumTab(part,need?'next':'current')}

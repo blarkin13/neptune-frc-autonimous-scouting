@@ -38,7 +38,7 @@ final class RobotDetectorJobs {
   $body=['kind'=>$kind];if($kind==='train_field')$body['game_key']=self::game((string)($p['game_key']??''));
   if(in_array($kind,['train','train_field'],true)&&preg_match('/^[A-Za-z0-9_-]{1,100}$/D',(string)($p['holdout']??'')))$body['holdout']=$p['holdout'];   // chosen by autoscout_holdout()
   if(preg_match('/^[a-f0-9]{32}$/D',(string)($p['computer']??'')))$body['target']=$p['computer'];   // only this helper may claim it
-  if($kind==='prepare'){$body['video_id']=self::video((string)($p['video_id']??''));$body['match_key']=(string)($p['match_key']??'');if(!preg_match('/^\d{4}[A-Za-z0-9_-]{1,95}$/D',$body['match_key']))throw new InvalidArgumentException('Invalid match');}
+  if($kind==='prepare'){$body['source_stills']=true;$body['video_id']=self::video((string)($p['video_id']??''));$body['match_key']=(string)($p['match_key']??'');if(!preg_match('/^\d{4}[A-Za-z0-9_-]{1,95}$/D',$body['match_key']))throw new InvalidArgumentException('Invalid match');}
   foreach($this->requests() as $r)if(in_array($r['state'],['queued','claimed'],true)&&$r['kind']===$kind&&($r['video_id']??null)===($body['video_id']??null)&&($r['game_key']??null)===($body['game_key']??null))return $r;
   $r=$body+['id'=>bin2hex(random_bytes(12)),'state'=>'queued','created_at'=>time(),'created_by'=>$user,'message'=>empty($body['target'])?'Waiting for a connected helper':'Waiting for the chosen computer'];
   self::write($this->dir('requests').'/'.$r['id'].'.json',$r);return $r;
@@ -55,11 +55,39 @@ final class RobotDetectorJobs {
    // Another helper takes over after 4 h of silence; the same helper takes its own run back at once (it restarted).
    $stale=$r['state']==='claimed'&&($quiet>4*3600||(($r['computer_id']??null)===$computer['id']&&$quiet>60));
    if($r['state']!=='queued'&&!$stale)continue;
+   if(!empty($r['source_stills'])&&!$this->supportsSourceStills((string)$computer['id']))continue;
+   if($r['kind']==='train'&&is_file(dirname($this->root,2).'/external-bumper-training/'.basename($this->root).'/6962-workshop-v1.json')&&!$this->supportsWorkshop((string)$computer['id']))continue;
+   if($r['kind']==='train_field'&&!$this->supportsFieldReference((string)$computer['id']))continue;
    if(!empty($r['target'])&&$r['target']!==$computer['id'])continue;   // sent to another computer
    $r=array_replace($r,['state'=>'claimed','claimed_at'=>time(),'heartbeat_at'=>time(),'computer_id'=>$computer['id'],'lease'=>bin2hex(random_bytes(16)),'message'=>($r['state']==='claimed'?'Restarted on the helper':'Started on a helper')]);
    self::write($this->dir('requests').'/'.$r['id'].'.json',$r);return $r;
   }
   return null;
+ }
+ /** Old helpers upload guesses only; source-still requests must wait for a compatible release. */
+ private function supportsSourceStills(string $computer):bool{
+  $v=(string)($this->status($computer)['version']??'');
+  if(preg_match('/^engine (\d+\.\d+\.\d+)/D',$v,$m))return version_compare($m[1],'2.7.28','>=');
+  if(preg_match('/^3\./',$v))return version_compare($v,'3.2.43','>=');
+  if(preg_match('/^6\.5\./',$v))return version_compare($v,'6.5.16','>=');
+  if(preg_match('/^6\.6\./',$v))return version_compare($v,'6.6.8','>=');
+  return false;
+ }
+ private function supportsWorkshop(string $computer):bool{
+  $v=(string)($this->status($computer)['version']??'');
+  if(preg_match('/^engine (\d+\.\d+\.\d+)/D',$v,$m))return version_compare($m[1],'2.7.32','>=');
+  if(preg_match('/^3\./',$v))return version_compare($v,'3.2.47','>=');
+  if(preg_match('/^6\.5\./',$v))return version_compare($v,'6.5.18','>=');
+  if(preg_match('/^6\.6\./',$v))return version_compare($v,'6.6.10','>=');
+  return false;
+ }
+ private function supportsFieldReference(string $computer):bool{
+  $v=(string)($this->status($computer)['version']??'');
+  if(preg_match('/^engine (\d+\.\d+\.\d+)/D',$v,$m))return version_compare($m[1],'2.7.33','>=');
+  if(preg_match('/^3\./',$v))return version_compare($v,'3.2.48','>=');
+  if(preg_match('/^6\.5\./',$v))return version_compare($v,'6.5.19','>=');
+  if(preg_match('/^6\.6\./',$v))return version_compare($v,'6.6.11','>=');
+  return false;
  }
  private function owned(array $computer,array $p):array{
   $id=(string)($p['request_id']??'');if(!preg_match('/^[a-f0-9]{24}$/D',$id))throw new InvalidArgumentException('Invalid request');
@@ -156,6 +184,11 @@ final class RobotDetectorJobs {
  }
  public function selfcheck(string $computer):?array{$f=$this->root.'/selfchecks/'.preg_replace('/[^A-Za-z0-9_-]/','',$computer).'.json';return is_file($f)?json_decode((string)file_get_contents($f),true):null;}
  /** Detector guesses for Robot labels frames: {t_ms: [{alliance,x,y,w,h}]} plus the frame times. */
+ public function putLabelFrame(array $computer,array $p):array{
+  $r=$this->owned($computer,$p);$v=self::video((string)($p['video_id']??''));
+  if(($r['kind']??'')!=='prepare'||($r['state']??'')!=='claimed'||($r['video_id']??'')!==$v)throw new InvalidArgumentException('Frame does not belong to this preparation request');
+  return (new RobotLabelFrames(dirname($this->root,2),(int)basename($this->root)))->put($v,(int)($p['t_ms']??-1),(string)($p['image_b64']??''),(string)($p['source_sha256']??''));
+ }
  public function putPrefill(array $computer,array $p):array{
   $this->owned($computer,$p);$v=self::video((string)($p['video_id']??''));$frames=[];
   foreach(($p['frames']??[]) as $t=>$boxes){

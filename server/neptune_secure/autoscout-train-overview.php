@@ -54,7 +54,8 @@ function autoscout_train_overview(PDO $pdo,array $panel,int $org,int $user,strin
   if($key===''&&preg_match('/^[A-Za-z0-9_-]{11}$/D',$vid)){$q=$pdo->prepare('SELECT match_key FROM community_matches WHERE source_url LIKE ? LIMIT 1');$q->execute(['%'.$vid.'%']);$key=(string)($q->fetchColumn()?:'');}
   if($key==='')$key=$vid?:basename($f,'.json');
   if($vid!=='')$fieldVideo[$vid]=$key;
-  $fieldMatches[$key]=['targets'=>count(array_keys($kinds,'scoring_target')),'corners'=>in_array('field_calibration',$kinds,true)];
+  $regions=array_filter($d['regions']??[],fn($r)=>($r['game_key']??'')===$game);$hasCorners=false;foreach($regions as $r)if(in_array($r['kind']??'', ['field_calibration','field_boundary'],true)&&($r['camera_view']??'')==='wide'&&count($r['points']??[])===4)$hasCorners=true;
+  $fieldMatches[$key]=['targets'=>count(array_keys($kinds,'scoring_target')),'corners'=>$hasCorners];
  }
  $event=fn($k)=>preg_match('/^(\d{4}[a-z0-9]+)_/',(string)$k,$m)?$m[1]:'';
  $robot=$jobs->current('skip-weights')['detector'];$field=$jobs->currentField('skip-weights',$game)['detector'];
@@ -77,6 +78,7 @@ function autoscout_train_overview(PDO $pdo,array $panel,int $org,int $user,strin
   'test'=>['Test & release','']];
  foreach($queue as &$q){[$q['label'],$q['about']]=$about[$q['part']]??['1 · Robots — '.$q['title'],''];if(!empty($q['holdout']))$q['about']=preg_replace('/checking on \S+/','checking on '.$q['holdout'],$q['about']);}unset($q);
  usort($queue,fn($a,$b)=>[$a['state']!=='running',$a['since']]<=>[$b['state']!=='running',$b['since']]);
+ $externalFile=$secure.'/external-bumper-training/'.$org.'/_summary.json';$externalSummary=is_file($externalFile)&&filesize($externalFile)<8192?json_decode((string)file_get_contents($externalFile),true):null;
  return [
   // A helper on a detector job reports to that queue, not the action-training one, so its last_seen goes stale.
   'helpers'=>array_map(function($c)use($requests,$jobs){
@@ -87,8 +89,8 @@ function autoscout_train_overview(PDO $pdo,array $panel,int $org,int $user,strin
   'computers'=>autoscout_computers($pdo,$jobs,$panel['computers'],$requests),
   'queue'=>$queue,
   'test_videos'=>$jobs->testVideos(),
-  'robot'=>['rows'=>$robotRows,'holdout'=>$heldRobot,'current'=>$robot,'history'=>count($jobs->history('robot')),'matches'=>$robotMatches,'events'=>array_values(array_unique(array_filter(array_map($event,array_keys($robotMatches))))),'min_frames'=>8,'runs'=>array_values(array_filter($requests,fn($r)=>$r['kind']==='train'))],
-  'field'=>['holdout'=>$heldField,'game_key'=>$game,'current'=>$field,'history'=>count($jobs->history('field',$game)),'matches'=>$fieldMatches,'events'=>array_values(array_unique(array_filter(array_map($event,array_keys($fieldMatches))))),'runs'=>array_values(array_filter($requests,fn($r)=>$r['kind']==='train_field'&&($r['game_key']??RobotDetectorJobs::defaultGame())===$game))],
+  'robot'=>['external'=>$externalSummary,'rows'=>$robotRows,'holdout'=>$heldRobot,'current'=>$robot,'history'=>count($jobs->history('robot')),'matches'=>$robotMatches,'events'=>array_values(array_unique(array_filter(array_map($event,array_keys($robotMatches))))),'min_frames'=>8,'runs'=>array_values(array_filter($requests,fn($r)=>$r['kind']==='train'))],
+  'field'=>['baseline'=>($shippedField&&is_file($engine.'/field-detector/model.pt'))?['kind'=>'bundled','trained_on'=>$shippedField]:null,'holdout'=>$heldField,'game_key'=>$game,'current'=>$field,'history'=>count($jobs->history('field',$game)),'matches'=>$fieldMatches,'events'=>array_values(array_unique(array_filter(array_map($event,array_keys($fieldMatches))))),'runs'=>array_values(array_filter($requests,fn($r)=>$r['kind']==='train_field'&&($r['game_key']??RobotDetectorJobs::defaultGame())===$game))],
   'actions'=>['models'=>$panel['models'],'latest'=>$latest?['id'=>$latest['id'],'created_at'=>$latest['created_at']]:null,'released'=>$panel['released'],'counts'=>$panel['counts']],
  ];
 }

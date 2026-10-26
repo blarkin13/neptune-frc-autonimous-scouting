@@ -44,7 +44,7 @@
   slot('robot','current').innerHTML=c?`<dl><dt>Adopted</dt><dd>${when(c.adopted_at)}</dd><dt>Held-out match</dt><dd>${esc(rep.holdout_match||'—')}</dd><dt>Bumpers found</dt><dd>${pct(rep.new?.recall)} (precision ${pct(rep.new?.precision)})</dd><dt>Learned from</dt><dd>${rep.train_frames??'—'} frames, ${(rep.matches||[]).length} matches</dd></dl>`:'<p>The built-in detector that came with the helper. It has not been retrained here yet.</p>';
   part('robot').querySelector('[data-rollback]').hidden=!d.history;
   const m=Object.entries(d.matches),ready=m.filter(([,n])=>n>=d.min_frames),frames=m.reduce((a,[,n])=>a+n,0);
-  slot('robot','data').innerHTML=`<dl><dt>Labelled frames</dt><dd>${frames}</dd><dt>Matches</dt><dd>${m.length} (${ready.length} with ${d.min_frames}+ frames)</dd><dt>Events</dt><dd>${d.events.length?d.events.map(esc).join(', '):'—'}</dd></dl>`;
+  slot('robot','data').innerHTML=`<dl><dt>Labelled frames</dt><dd>${frames}</dd>${d.external?.images?`<dt>Imported training images</dt><dd>${d.external.images} (${d.external.synthetic_images||0} variations)</dd><dt>Imported bumper boxes</dt><dd>${d.external.boxes}</dd>`:''}<dt>Matches</dt><dd>${m.length} (${ready.length} with ${d.min_frames}+ frames)</dd><dt>Events</dt><dd>${d.events.length?d.events.map(esc).join(', '):'—'}</dd></dl>`;
   const newer=c&&d.runs.length&&!d.runs.some(r=>r.state==='done'&&r.finished_at>c.adopted_at);
   slot('robot','next').innerHTML=next([
    [ready.length>=2,`Label ${d.min_frames}+ frames in at least 2 matches (${ready.length} so far). The newest match is held back for checking.`],
@@ -58,14 +58,14 @@
  }
  function field(d,busy){
   const c=d.current,rep=c?.report||{};
-  slot('field','current').innerHTML=c?`<dl><dt>Adopted</dt><dd>${when(c.adopted_at)}</dd><dt>Held-out match</dt><dd>${esc(rep.holdout_match||'—')}</dd><dt>Targets & corners</dt><dd>${placed(rep.new)}</dd><dt>Learned from</dt><dd>${rep.matches??'—'} matches</dd></dl>`:`<p>No field detector has been trained for ${esc(d.game_key)} here yet.</p>`;
+  slot('field','current').innerHTML=c?`<dl><dt>Adopted</dt><dd>${when(c.adopted_at)}</dd><dt>Held-out match</dt><dd>${esc(rep.holdout_match||'—')}</dd><dt>Targets & corners</dt><dd>${placed(rep.new)}</dd><dt>Learned from</dt><dd>${rep.trained_on?.length??rep.matches??'—'} matches</dd></dl>`:d.baseline?`<p>The helper’s built-in ${esc(d.game_key)} field detector is in use. No retrained replacement has passed the held-out check yet.</p>`:`<p>No field detector is available for ${esc(d.game_key)} yet.</p>`;
   part('field').querySelector('[data-rollback]').hidden=!d.history;
   const m=Object.entries(d.matches),ready=m.filter(([,v])=>v.targets&&v.corners);
   slot('field','data').innerHTML=`<dl><dt>Marked matches</dt><dd>${m.length}</dd><dt>With targets + corners</dt><dd>${ready.length}</dd><dt>Events</dt><dd>${d.events.length?d.events.map(esc).join(', '):'—'}</dd></dl>`;
   slot('field','next').innerHTML=next([
    [ready.length>=2,`Mark scoring targets and all four field corners on at least 2 ${esc(d.game_key)} matches (${ready.length} so far).`],
    [d.events.length>=2,`Mark a match from a second event; camera angles differ between venues (${d.events.length} so far).`],
-   [!!c,c?'A trained detector is in use. New events get scoring areas without marking.':'Train the first field detector.'],
+   [!!c,c?'A retrained field detector is in use.':d.baseline?'The built-in detector remains in use. Retrain to test an improved replacement; your saved marks are retained.':'Train the first field detector for this game.'],
   ]);
   const btn=part('field').querySelector('[data-train]');btn.disabled=busy||ready.length<2;
   slot('field','train-note').textContent=busy?'A field detector run is already queued or running.':ready.length<2?'Needs scoring targets and corners on 2 matches of this game first.':'Takes about 20–40 minutes on a helper. It only switches if targets and corners land closer.';

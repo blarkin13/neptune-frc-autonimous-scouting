@@ -15,6 +15,25 @@ import time
 LOG = collections.deque(maxlen=14)            # (unix time, line)
 STATE = {}                                    # pass, passes, batch, batches, it_s, step: set by the running job
 _lock = threading.Lock()
+_listeners = []
+
+
+def subscribe(callback):
+    """Deliver the same local meter/job snapshot shown on Neptune to a desktop view."""
+    with _lock:
+        _listeners.append(callback)
+    def remove():
+        with _lock:
+            if callback in _listeners: _listeners.remove(callback)
+    return remove
+
+
+def notify(payload):
+    with _lock:
+        listeners = list(_listeners)
+    for callback in listeners:
+        try: callback(payload)
+        except Exception: pass   # a display problem must never affect a running job
 
 
 def note(line):
@@ -151,8 +170,10 @@ class Reporter(threading.Thread):
         while not self.closing.is_set():
             base = self.payload()
             state, log = snapshot()
+            payload = dict(base, stats=system(), counters=state, log=log)
+            notify(payload)
             try:
-                self.on_reply(self.send(dict(base, stats=system(), counters=state, log=log)))
+                self.on_reply(self.send(payload))
             except Exception:
                 pass
             pause = time.monotonic()+(5 if base.get('busy') else 15)

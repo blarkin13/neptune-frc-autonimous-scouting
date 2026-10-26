@@ -14,6 +14,7 @@ neptune_helper.py
 neptune_homography.py
 neptune_housekeeping.py
 neptune_identity.py
+neptune_persistent_identity.py
 neptune_identity_review.py
 neptune_learning.py
 neptune_ocr.py
@@ -40,3 +41,7 @@ requirements-yolo.txt
 requirements.json
 season_rules.json
 server_run.py
+neptune_external_bumpers.py
+neptune_image_folder.py
+image-folder-labeler.html
+neptune_field_training.py

@@ -19,6 +19,8 @@ find "${E:?}" -maxdepth 1 -type f \( -name 'neptune_*.py' -o -name 'requirements
 for s in "$R"/engine/*; do n=$(basename "$s")
   if [ -f "$s" ] && { { [ "${n##*.}" = py ] && [ "${n#test_}" = "$n" ]; } || [ "$n" = requirements.json ] || [ "$n" = requirements-yolo.txt ] || [ "$n" = requirements-videomae.txt ] || [ "$n" = season_rules.json ]; }; then cp -p "$s" "$E/$n"; fi
 done
+# Non-Python engine files (labeler page, logos) listed in neptune_engine.FILES.
+for n in $(cd "$R/engine" && python3 -c "import neptune_engine as e;print(' '.join(e.FILES))"); do cp -p "$R/engine/$n" "$E/$n"; done
 # The Mac app's worker (starts the engine, runs the self-check) lives with the app source.
 cp -p "$R/trainer-app/macos/NeptuneTrainingHelper/native_worker.py" "$E/native_worker.py"
 # Shipped detectors and region data live in folders next to the engine files.

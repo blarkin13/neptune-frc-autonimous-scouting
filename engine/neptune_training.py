@@ -193,6 +193,10 @@ def ensure_tracking(video,facts,game,work,progress=lambda s:None):
     if facts.get('tracking',{}).get('version')==TRACKING_VERSION and facts.get('tracking',{}).get('model_fingerprint')==fingerprint() and facts.get('tracking',{}).get('camera_engine')=='independent-camera-views-v4' and facts.get('tracking',{}).get('decoder_revision')==FRAME_DECODER_REVISION and facts.get('tracking',{}).get('continuity_revision')==CONTINUITY_REVISION:
         from neptune_identity import VERSION as identity_revision,reconcile
         tracking=facts['tracking']
+        from neptune_persistent_identity import build,VERSION as persistent_revision
+        if tracking.get('observations') and tracking.get('persistent_identity',{}).get('version')!=persistent_revision:
+            roster={c:[int(t) for t,v in facts['bumpers']['identities'].items() if v['alliance']==c] for c in ('red','blue')}
+            tracking['persistent_identity']=build(tracking['observations'],roster,facts['source']['sha256'])
         from neptune_review_learning import active_association
         association=active_association()
         if tracking.get('observations') and (tracking.get('identity_review',{}).get('solver')!=identity_revision or tracking.get('association_sha')!=digest(association)):

@@ -1,0 +1,100 @@
+{
+  "channel_id": "UCE6AdQni69dVftWxBxEjApA",
+  "channel": "@NeptuneModelTraining",
+  "entries": [
+    {
+      "entry": 1,
+      "revision": 2,
+      "name": "q4-baseline-hq",
+      "youtube_id": "8ZcIyoHJQMg",
+      "privacy": "unlisted",
+      "channel_id": "UCE6AdQni69dVftWxBxEjApA",
+      "title": "Neptune Journal #001 | Q4 Tracking Baseline & Action Readiness | 1080p60",
+      "description": "Native-HD quality revision: 1920x1080 at 60 fps, high-bitrate encoding, larger labels and a compact inset HUD. Match footage is preserved at source resolution and frame rate. Tracking itself is still sampled at 3 fps. Includes a five-second introduction and eight-second result card. Supersedes the earlier 720p/12 fps draft.\n\nNeptune Auto Scout development journal \u2014 Entry 001, recorded October 25, 2026.\n\nPurpose: establish what the current pipeline actually understands before adding persistent robot identities. Match: 2026 FIRST in Texas District Championship, Mercury Division, Qualification 4 (2026txcmp1_qm4).\n\nWhat this video shows:\n- Fresh robot detection and identity tracking across three broadcast camera views.\n- Green: OCR-supported team assignments. Amber: roster/motion inference. Gray: a detection without an assigned team.\n- The side panel distinguishes a detected robot, a team identity, and continuity sufficient for a four-second action clip.\n\nMeasured results:\n- Identity assigned at 380 of 966 sampled team-times.\n- An action clip was available near 261 of 966 samples (27%). Team 6377 had none.\n- The newest compatible saved local action model had zero usable action classifiers. The real prediction call emitted zero learned actions and 12 separate stationary-rule flags.\n- The video exposes missed identities and non-robot detections; it is not a demonstration of accurate autonomous scouting.\n\nChapters:\n00:00 Experiment introduction\n00:13 Autonomous tracking\n00:37 Teleop tracking\n01:19 Assignment-change inspection interval\n02:30 Late-match continuity\n\nMethod: current adopted detector and existing Apple OCR; source-bound clock/roster facts reused. CPU tracking at 3 fps; journal video at 60 fps. These availability counts are not accuracy or independent action counts. Q4 is a development match. Reserved benchmark Q7 was not used. No labels, saved corrections, released models or AWS application code were changed by this diagnostic.\n\nMatch footage: FIRST Robotics Competition broadcast. Annotations and pipeline analysis: Neptune Auto Scout.",
+      "sha256": "595a4de85f665158fc83bdc9f235eba8cc3621a46ac53f0a182b3107aabcae17",
+      "url": "https://www.youtube.com/watch?v=8ZcIyoHJQMg",
+      "render": {
+        "width": 1920,
+        "height": 1080,
+        "fps": 60,
+        "duration_seconds": 187,
+        "intro_seconds": 5,
+        "outro_seconds": 8,
+        "source_scaled": false
+      },
+      "uploaded_at": "2026-10-25T05:55:51Z",
+      "verified_title": "Neptune Journal #001 | Q4 Tracking Baseline & Action Readiness | 1080p60",
+      "upload_status": "processed",
+      "processing_status": "succeeded",
+      "definition": "hd",
+      "video_streams": [
+        {
+          "widthPixels": 1920,
+          "heightPixels": 1080,
+          "frameRateFps": 60,
+          "aspectRatio": 1.7777777777777777,
+          "codec": "h264",
+          "bitrateBps": "995444",
+          "vendor": "[0][0][0][0]"
+        }
+      ],
+      "verified_at": "2026-10-25T05:59:41+00:00",
+      "local_video": "local/q4-pipeline-audit-20261025/q4-baseline-1080p60.mp4",
+      "visibility_requested": "unlisted",
+      "quality_verified": "YouTube processed HD; owner stream reports 1920x1080 at 60 fps"
+    },
+    {
+      "entry": 2,
+      "revision": 2,
+      "name": "q4-persistent-hq",
+      "youtube_id": "arnKuPCP3-g",
+      "privacy": "unlisted",
+      "channel_id": "UCE6AdQni69dVftWxBxEjApA",
+      "title": "Neptune Journal #002 | Persistent Robot IDs: Q4 Reappearance Test | 1080p60",
+      "description": "Native-HD quality revision: 1920x1080 at 60 fps, high-bitrate encoding, larger labels and a compact inset HUD. Match footage is preserved at source resolution and frame rate. Tracking itself is still sampled at 3 fps. Includes a five-second introduction and eight-second result card. Supersedes the earlier 720p/12 fps draft.\n\nNeptune Auto Scout development journal \u2014 Entry 002, recorded October 25, 2026.\n\nQuestion: can a match-level identity system retain the same robot record when an identified robot disappears and returns?\n\nImplementation: six source-bound roster identity records, continuous tracklets, OCR-supported reconnection, camera-local appearance proposals, duplicate-identity/conflicting-read checks, and explicit unknown states during missing intervals. Reuses the exact Q4 detector observations from Journal #001. This test does not use Ollama or a newly trained robot-specific appearance network.\n\nActual results:\n- 28 OCR-supported reconnections after gaps across all assigned camera views. This describes system evidence, not 28 independently verified correct returns.\n- 26 OCR-supported returns to individual cameras and 17 camera-return proposals based on simple appearance descriptors.\n- Long gaps include 5417 returning near 165s after 130s without a supported identity; 6377 returns near 106s after 63s. A robot can still be visible but unidentified during these gaps.\n- The layer is conservative: supported identity availability is lower than the baseline solver. It does not yet provide reliable whole-match identity coverage.\n- Existing saved human corrections were withheld from matching. 32 of 224 reference points could be assigned and agreed; 192 remained unassigned. This nonrandom development check is not a full-match accuracy benchmark.\n\nVideo overlays:\nGreen = OCR-supported tracklet. Amber = appearance-based proposal that needs checking. Gray = detection without an assigned persistent identity. Stable identity IDs remain in the side panel during gaps. No hidden position or action is invented. Offline analysis can use later observations.\n\nChapters:\n00:00 Experiment introduction\n00:13 Autonomous identity records\n00:37 Teleop and reappearances\n01:49 Team 6377 return near source 106s\n02:30 Late-match identity records\n02:47 Team 5417 return near source 165s\n\nThis is an engine-source prototype, not a deployed helper release. Baseline training localizations and release gates remain unchanged. There are still no usable learned action classifiers in the latest saved local model. Q4 is a development match; reserved benchmark Q7 was not used.\n\nBaseline journal: https://www.youtube.com/watch?v=a7Ou42zo_Yc\nNext experiment: strengthen appearance evidence and compare selective Ollama bumper-number reads on unresolved returns.\n\nMatch footage: FIRST Robotics Competition broadcast. Annotations and development analysis: Neptune Auto Scout.",
+      "sha256": "8c912ecbfc8806d346db5d4e7621de0f9a9d24f2e84ac567aa33d5dfd98ca761",
+      "url": "https://www.youtube.com/watch?v=arnKuPCP3-g",
+      "render": {
+        "width": 1920,
+        "height": 1080,
+        "fps": 60,
+        "duration_seconds": 187,
+        "intro_seconds": 5,
+        "outro_seconds": 8,
+        "source_scaled": false
+      },
+      "uploaded_at": "2026-10-25T05:55:52Z",
+      "verified_title": "Neptune Journal #002 | Persistent Robot IDs: Q4 Reappearance Test | 1080p60",
+      "upload_status": "processed",
+      "processing_status": "succeeded",
+      "definition": "hd",
+      "video_streams": [
+        {
+          "widthPixels": 1920,
+          "heightPixels": 1080,
+          "frameRateFps": 60,
+          "aspectRatio": 1.7777777777777777,
+          "codec": "h264",
+          "bitrateBps": "1004208",
+          "vendor": "[0][0][0][0]"
+        }
+      ],
+      "verified_at": "2026-10-25T05:59:41+00:00",
+      "local_video": "local/q4-persistent-identity-20261025/q4-persistent-1080p60.mp4",
+      "visibility_requested": "unlisted",
+      "quality_verified": "YouTube processed HD; owner stream reports 1920x1080 at 60 fps"
+    }
+  ],
+  "superseded_drafts": [
+    {
+      "entry": 1,
+      "youtube_id": "a7Ou42zo_Yc",
+      "reason": "720p/12 fps quality replaced by native 1080p60 revision"
+    },
+    {
+      "entry": 2,
+      "youtube_id": "OBsQRvbufqs",
+      "reason": "720p/12 fps quality replaced by native 1080p60 revision"
+    }
+  ]
+}

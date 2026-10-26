@@ -40,6 +40,18 @@ def main():
         neptune_setup.video_js_runtime=lambda:{'quickjs':{'path':str(tools/'qjs')}}
         choose(Path.home()/'.neptune-trainer/jobs',Path.home()/'.neptune-trainer/identity-reviews',closing,lambda url:emit('review_url',url=url),connection=config)
         return
+    if command.get('command')=='image_folder':
+        from neptune_image_folder import serve
+        folder=Path(command.get('folder','')).expanduser()
+        base=Path.home()/'.neptune-trainer'/'image-label-reviews'
+        output=base/(time.strftime('%Y%m%d-%H%M%S')+'-'+__import__('secrets').token_hex(4));resume=None
+        try:
+            saved=json.loads((base/'last-session.json').read_text());prior=Path(saved['output']).resolve()
+            if Path(saved['folder']).resolve()==folder.resolve() and prior.is_relative_to(base.resolve()) and (prior/'review-state.json').is_file():output=prior;resume=saved
+        except (OSError,ValueError,KeyError):pass
+        with contextlib.redirect_stdout(sys.stderr):
+            serve(folder,output,closing,lambda url:emit('image_folder_url',url=url),resume=resume)
+        return
     if not config:raise ValueError('Connect your Neptune account first.')
     import neptune_trainer as trainer
     import neptune_setup
@@ -90,6 +102,8 @@ def main():
     hardware.update(label_contracts=['game-builder-moments-v1'],action_features=VERSION,robot_detector_sha256=fingerprint(),robot_tracking='yolo-botsort-1',engine_version=identity()['version'],engine_sha256=identity()['sha256'],training_protocol='page-v2',outside_adapters=['viper-2026-activity-v1','mapped-actions-v1','viper-2026-points-v1'])
     os.environ['NEPTUNE_TRACKING_DEVICE']='0' if hardware['device']=='cuda' else hardware['device']
     os.environ['NEPTUNE_TRAIN_DEVICE']=hardware['device']   # clip features in match tests too, not only in training
+    import neptune_telemetry
+    neptune_telemetry.subscribe(lambda payload:emit('telemetry',payload=payload))
     trainer.watch_jobs(config,hardware,execute,progress,closing,pause,
         busy=lambda value:emit('busy',value=value),
         connection=lambda value:emit('connection',connected=value),

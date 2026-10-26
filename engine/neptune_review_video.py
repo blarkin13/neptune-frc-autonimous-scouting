@@ -120,12 +120,15 @@ def field_video(out, frames, new_weights, doc, report):
     intro = card(['Field detector training run · %s' % report.get('game_key', ''), 'Held-out match: %s' % report.get('holdout_match', '?')],
                  ['New: %s' % fmt(report.get('new')), 'In use: %s' % (fmt(report.get('current')) if report.get('current') else 'none'),
                   'Result: %s' % ('switched to the new detector' if report.get('adopted') else 'kept the detector in use'),
-                  'Learned from %s marked matches; this match was never trained on.' % report.get('matches', '?')])
+                  'Learned from %s marked matches; this match was never trained on.' % len(report.get('trained_on') or [])])
     for _ in range(FPS*4):
         w.write(intro)
     marked = [fd.box_of(r['points']) for r in doc.get('regions', []) if r['kind'] == 'scoring_target']
     corners = fd.boundary_corners(doc) or []
-    for k, (t, image) in enumerate(frames[:40]):
+    for k, item in enumerate(frames[:40]):
+        t,image=item[:2];frame_doc=item[2] if len(item)>2 else doc
+        marked=[fd.box_of(r['points']) for r in frame_doc.get('regions',[]) if r['kind']=='scoring_target']
+        corners=fd.boundary_corners(frame_doc) or []
         h, wd = image.shape[:2]
         r = model.predict(image, imgsz=fd.FRAME_WIDTH, conf=fd.MIN_CONFIDENCE, verbose=False, device='cpu')[0]
         img = fit(image)

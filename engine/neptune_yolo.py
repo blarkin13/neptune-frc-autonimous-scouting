@@ -572,4 +572,7 @@ def track_match(video,facts,profile,backend,work,fps=6.,width=960,read_every=.5,
         out['identity_review']=reconcile(all_observations,roster,facts['source']['sha256'],association=association)
     out['reacquisition_proposals']=[p for r in results for p in r.get('reacquisition_proposals',[])]
     out['observations']=all_observations
+    if all_observations:
+        from neptune_persistent_identity import build
+        out['persistent_identity']=build(all_observations,roster,facts['source']['sha256'])
     return out

@@ -56,7 +56,7 @@ def box_xywh(b):
     return [(x0+x1)/2, (y0+y1)/2, x1-x0, y1-y0]
 
 
-def build(docs, out, holdout=(), download=None, progress=print):
+def build(docs, out, holdout=(), download=None, progress=print, snapshot_download=None):
     """Write <out>/manifest.json + images for every completed frame. `holdout` match keys become validation.
 
     download(video_id, path) fetches a video that is not already on this computer; without it those matches
@@ -80,7 +80,14 @@ def build(docs, out, holdout=(), download=None, progress=print):
         source = hashlib.sha256(video.read_bytes()).hexdigest()
         for t, f in sorted(frames.items()):
             image = out/'images'/('%s_%08d.jpg' % (vid, t))
-            if not image.is_file():
+            saved_sha=f.get('frame_sha256')
+            if saved_sha:
+                if not isinstance(saved_sha,str) or len(saved_sha)!=64 or any(c not in '0123456789abcdef' for c in saved_sha):raise ValueError('Invalid saved training-frame checksum')
+                if not image.is_file() or hashlib.sha256(image.read_bytes()).hexdigest()!=saved_sha:
+                    if snapshot_download is None:raise ValueError('This frame requires the updated source-still training helper')
+                    snapshot_download(vid,t,saved_sha,image)
+                if hashlib.sha256(image.read_bytes()).hexdigest()!=saved_sha:raise ValueError('Training image does not match the image that was labelled')
+            elif not image.is_file():
                 subprocess.run([ffmpeg(), '-v', 'error', '-y', '-ss', '%.3f' % (t/1000), '-i', str(video), '-frames:v', '1', '-q:v', '2', str(image)], check=True)
             boxes = [{'class_id': 0 if b['alliance'] == 'red' else 1, 'xywh': xywh} for b in f['boxes'] if (xywh := box_xywh(b))]
             rows.append({'match_key': match, 'source_sha256': source, 'split': 'val' if match in holdout else 'train', 'reviewed': True,

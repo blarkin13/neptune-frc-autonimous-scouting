@@ -6,6 +6,7 @@ require_once dirname(__DIR__,3).'/neptune_secure/platform-security.php';
 require_once dirname(__DIR__,3).'/neptune_secure/community-analysis-install.php';
 require_once dirname(__DIR__,3).'/neptune_secure/community-video-tags.php';
 require_once dirname(__DIR__,3).'/neptune_secure/robot-detector-jobs.php';
+require_once dirname(__DIR__,3).'/neptune_secure/robot-label-frames.php';
 $u=require_role(['owner','admin']);
 if((int)$u['organization_id']!==(int)($config['app']['platform_organization_id']??1))access_denied('Auto Scout is for admins of the owner organization.');
 
@@ -47,6 +48,14 @@ function robot_prefill(PDO $pdo,int $org,string $video,int $tms):array{
  return ['boxes'=>$out,'times'=>$times,'source'=>'tracking_review'];
 }
 $robotJobs=new RobotDetectorJobs(dirname(__DIR__,3).'/neptune_secure',(int)$u['organization_id']);
+$labelFrames=new RobotLabelFrames(dirname(__DIR__,3).'/neptune_secure',(int)$u['organization_id']);
+if($_SERVER['REQUEST_METHOD']==='GET'&&isset($_GET['frame_index']))robot_reply(200,['frames'=>$labelFrames->index(robot_video((string)$_GET['frame_index']))]);
+if($_SERVER['REQUEST_METHOD']==='GET'&&isset($_GET['frame_image'])){
+ try{$image=$labelFrames->get(robot_video((string)$_GET['frame_image']),(int)($_GET['t_ms']??-1),isset($_GET['sha256'])?(string)$_GET['sha256']:null);}
+ catch(InvalidArgumentException){robot_reply(422,['error'=>'Invalid frame']);}
+ if(!$image)robot_reply(404,['error'=>'Prepare source frames for this match first.']);
+ header('Content-Type: image/jpeg');header('X-Content-Type-Options: nosniff');echo $image['bytes'];exit;
+}
 if($_SERVER['REQUEST_METHOD']==='GET'&&isset($_GET['detector_status'])){
  $cur=$robotJobs->current('skip-weights');robot_reply(200,['requests'=>array_map(fn($r)=>array_diff_key($r,['lease'=>1]),array_slice($robotJobs->requests(),0,8)),'current'=>$cur['detector']]);
 }
@@ -54,9 +63,16 @@ if($_SERVER['REQUEST_METHOD']==='GET'&&isset($_GET['labels'])){$v=robot_video((s
 if($_SERVER['REQUEST_METHOD']==='GET'&&isset($_GET['prefill'])){$v=robot_video((string)$_GET['prefill']);robot_reply(200,robot_prefill($pdo,(int)$u['organization_id'],$v,max(0,(int)($_GET['t_ms']??0))));}
 if($_SERVER['REQUEST_METHOD']==='POST'){
  if(!hash_equals($csrf,(string)($_SERVER['HTTP_X_ROBOT_LABELS_CSRF']??'')))robot_reply(403,['error'=>'Refresh this page before saving']);
- $raw=file_get_contents('php://input',false,null,0,262145);if(strlen($raw)>262144)robot_reply(413,['error'=>'Too large']);
+ $limit=isset($_GET['import_frames'])?64*1024*1024:262144;
+ $raw=file_get_contents('php://input',false,null,0,$limit+1);if(strlen($raw)>$limit)robot_reply(413,['error'=>'Too large']);
  try{
   $p=json_decode($raw,true,16,JSON_THROW_ON_ERROR);
+  if(isset($_GET['import_frames'])&&($p['action']??'')==='import_frames'){
+   $v=robot_video((string)($p['video_id']??''));$rows=$p['frames']??[];if(!is_array($rows)||count($rows)>180)throw new RuntimeException('Too many source frames');
+   foreach($rows as $row){if(!is_int($row['t_ms']??null))throw new RuntimeException('Invalid timestamp');$labelFrames->put($v,$row['t_ms'],(string)($row['image_b64']??''),(string)($row['source_sha256']??''));}
+   robot_reply(200,['ok'=>true,'frames'=>count($rows)]);
+  }
+
   if(in_array($p['action']??'',['queue_prepare','queue_train'],true))robot_reply(200,['request'=>$robotJobs->queue($p['action']==='queue_prepare'?'prepare':'train',$p,(int)$u['id'])]);
   $v=robot_video((string)($p['video_id']??''));$tms=$p['t_ms']??null;
   if(!is_int($tms)||$tms<0||$tms>36000000)throw new RuntimeException('Invalid video time');
@@ -68,16 +84,29 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
    if($vals['w']<=0||$vals['h']<=0||$vals['w']>1||$vals['h']>1)continue;
    $boxes[]=['alliance'=>$b['alliance']]+$vals;
   }
+  $frameSha=(string)($p['frame_sha256']??'');
+  if(!empty($p['source_still'])&&empty($p['delete'])&&empty($p['skipped'])){
+   if($frameSha===''||!$labelFrames->get($v,$tms,$frameSha))throw new RuntimeException('Load the exact source frame before saving boxes.');
+  }
   if(count($boxes)>60)throw new RuntimeException('Too many boxes in one frame');
   if(!is_dir($store)&&!mkdir($store,0700,true))throw new RuntimeException('Label storage unavailable');
   $doc=robot_doc($store,$v);$doc['match_key']=$match;
   if(!empty($p['delete']))unset($doc['frames'][(string)$tms]);
-  else $doc['frames'][(string)$tms]=['boxes'=>$boxes,'complete'=>!empty($p['complete'])&&empty($p['skipped']),'skipped'=>!empty($p['skipped']),'saved_at'=>time(),'saved_by'=>(int)$u['id']];
+  else $doc['frames'][(string)$tms]=['boxes'=>$boxes,'complete'=>!empty($p['complete'])&&empty($p['skipped']),'skipped'=>!empty($p['skipped']),'saved_at'=>time(),'saved_by'=>(int)$u['id'],'frame_sha256'=>$frameSha];
   $tmp=tempnam($store,'pending-');if($tmp===false||file_put_contents($tmp,json_encode($doc,JSON_THROW_ON_ERROR),LOCK_EX)===false)throw new RuntimeException('Could not save');
   chmod($tmp,0600);if(!rename($tmp,$store.'/'.$v.'.json'))throw new RuntimeException('Could not commit save');
   robot_reply(200,['ok'=>true,'frames'=>count($doc['frames']),'complete'=>count(array_filter($doc['frames'],fn($f)=>!empty($f['complete'])))]);
  }catch(Throwable $e){robot_reply(422,['error'=>$e->getMessage()]);}
 }
+// Owner maintenance import: no training, labels or model changes.
+if(isset($_GET['import_frames'])){header('Content-Type: text/html; charset=utf-8');?>
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Import prepared source stills</title><h1>Import prepared source stills</h1>
+<p>Imports caption-free source images into private preview storage. Existing labels remain unchanged.</p>
+<input type="file" id="source-file" accept="application/json"><button id="import-source">Import source stills</button><p id="import-status" role="status">Choose prepared source-frame JSON.</p>
+<script>
+document.getElementById('import-source').onclick=async()=>{const out=document.getElementById('import-status');try{const f=document.getElementById('source-file').files[0];if(!f)throw Error('Choose a file first');if(f.size>64*1024*1024)throw Error('File too large');const d=JSON.parse(await f.text());d.action='import_frames';out.textContent='Importing source stills…';const r=await fetch('robot-labels.php?import_frames=1',{method:'POST',headers:{'Content-Type':'application/json','X-Robot-Labels-CSRF':<?=json_encode($csrf)?>},body:JSON.stringify(d)});const reply=await r.json();if(!r.ok)throw Error(reply.error||'Import failed');out.textContent='Imported '+reply.frames+' source stills. Existing labels preserved.'}catch(e){out.textContent=e.message}};
+</script></html>
+<?php exit;}
 // Year -> event -> match, from the same catalog as Train & test (events by start date).
 if($_SERVER['REQUEST_METHOD']==='GET'&&(isset($_GET['events'])||isset($_GET['event_matches']))){
  require_once dirname(__DIR__,3).'/neptune_secure/community-catalog.php';
@@ -95,6 +124,7 @@ if((int)($_GET['match_id']??0)>0){
  $q=$pdo->prepare('SELECT id,match_key,title,source_url FROM community_matches WHERE id=?');$q->execute([(int)$_GET['match_id']]);$m=$q->fetch(PDO::FETCH_ASSOC);
  if($m&&($video=CommunityVideoTags::videoId((string)$m['source_url'])))$selected=$m+['video_id'=>$video];
 }
+$sourceMode=$selected&&count($labelFrames->index($selected['video_id']))>0;
 // Progress across all labelled videos.
 $counts=[];foreach(glob($store.'/*.json')?:[] as $f){$d=json_decode((string)file_get_contents($f),true);$counts[basename($f,'.json')]=count(array_filter($d['frames']??[],fn($x)=>!empty($x['complete'])));}
 $total=array_sum($counts);
@@ -104,18 +134,18 @@ pillar_summary('robot','Finds every robot’s bumpers in a frame, in wide and cl
 ?>
 <link rel="stylesheet" href="../community/assets/match-picker/match-picker.css?v=1">
 <link rel="stylesheet" href="../community/assets/field-regions/style.css?v=4-site-layout">
-<link rel="stylesheet" href="../community/assets/robot-labels/robot-labels.css?v=1">
+<link rel="stylesheet" href="../community/assets/robot-labels/<?= $sourceMode?'robot-labels-stills.css?v=4-source-stills':'robot-labels.css?v=1' ?>">
 <div class="field-regions robot-labels" id="robot-labels-app" data-csrf="<?=e($csrf)?>"<?php if($selected):?> data-youtube="<?=e($selected['video_id'])?>" data-match-key="<?=e($selected['match_key'])?>"<?php endif?>>
 <div class="fr-actions"><p>Training data for the robot detector: box <strong>every</strong> visible bumper, including robots the current detector misses. <?=$total?> frames complete across <?=count(array_filter($counts))?> matches.</p></div>
 <div class="workspace"><section class="viewer"><div class="toolbar"><div class="step">01 <b>Choose a match</b></div><div class="sources"><div class="match-picker-v2" data-match-picker data-endpoint="robot-labels.php" data-selected="<?=e($selected['match_key']??'')?>"></div></div></div>
-<div id="frame" class="rl-frame"><div id="zoomer" class="rl-zoomer"><div id="stage" class="stage"><video id="video" playsinline></video><canvas id="canvas" aria-label="Bumper boxes. Drag to draw; click to select."></canvas></div></div><div id="empty"><div class="empty-icon">▣</div><h2>Choose a match to start labeling.</h2><p>It plays from YouTube, like Watch &amp; tag.</p></div><div class="framebadge" id="framebadge">NO MATCH</div></div>
+<div id="frame" class="rl-frame"><div id="zoomer" class="rl-zoomer"><div id="stage" class="stage"><video id="video" playsinline></video><img id="training-frame" alt="Exact source image used for training" hidden><canvas id="canvas" aria-label="Bumper boxes. Drag to draw; click to select."></canvas></div></div><div id="empty"><div class="empty-icon">▣</div><h2>Choose a match to start labeling.</h2><p>Label exact source stills without YouTube captions or playback overlays.</p></div><div class="framebadge" id="framebadge">NO MATCH</div></div>
 <div class="transport"><button id="prevframe" title="Previous frame to label (←)">◀ Frame</button><button id="play">Play</button><button id="nextframe" title="Next frame to label (→)">Frame ▶</button><span id="clock">00:00.00</span><span id="framecount" class="rl-count"></span></div>
-<div class="tips"><span>PAUSE → BOX EVERY BUMPER → ENTER</span><p>Dashed boxes are the detector's guesses (from your tracking review); fix, delete or keep them and draw the ones it missed. Scroll to zoom, Space+drag to pan, 0 to fit.</p></div></section>
+<div id="frame-source-status" role="status"<?=$sourceMode?'':' hidden'?>>Loading source-frame availability…</div><div class="tips"><span>PAUSE → BOX EVERY BUMPER → ENTER</span><p>Dashed boxes are the detector's guesses (from your tracking review); fix, delete or keep them and draw the ones it missed. Scroll to zoom, Space+drag to pan, 0 to fit.</p></div></section>
 <aside><div class="step">02 <b>Box the bumpers</b></div><div class="shape-picker"><button id="red" class="rl-red active" aria-pressed="true">Red (1)</button><button id="blue" class="rl-blue" aria-pressed="false">Blue (2)</button></div>
 <p class="hint">Drag on empty space: new box · Click: select · Drag: move · Corner: resize · <b>X</b> flips color · <b>Delete</b> removes.</p>
 <div class="rl-stats"><div><span id="boxcount">0</span><small>boxes in this frame</small></div><div><span id="donecount">0</span><small>frames complete in this match</small></div></div>
 <button id="complete" class="primary save">All bumpers boxed ↵</button><button id="skip" class="save rl-secondary">Skip frame (replay, graphic, blurry)</button>
 <div id="status" role="status" aria-live="polite">Choose a match.</div>
-<div class="note rl-detector"><b>Robot detector</b><p>Prepare frames: your helper finds bumpers in this match so you only fix its boxes.</p><button id="prepare" class="save rl-secondary"<?=$selected?'':' disabled'?>>Prepare frames for this match</button><div id="requests" class="rl-requests"></div><div id="current" class="rl-current"></div></div><div class="note"><b>What makes good labels</b><p>Every bumper you can see, red or blue, even partly hidden or far away. Box just the bumper, not the whole robot. Skip frames that aren't live match footage.</p></div></aside></div></div>
-<script src="../community/assets/match-picker/match-picker.js?v=1"></script><script src="../community/assets/field-regions/youtube-source.js?v=3-generic"></script><script src="../community/assets/robot-labels/robot-labels.js?v=1"></script>
+<div class="note rl-detector"><b>Robot detector</b><p>Prepare frames: your updated helper supplies clear source images and bumper guesses. When preparation finishes, refresh this page to label without YouTube captions. Play is only for watching context.</p><button id="prepare" class="save rl-secondary"<?=$selected?'':' disabled'?>>Prepare frames for this match</button><div id="requests" class="rl-requests"></div><div id="current" class="rl-current"></div></div><div class="note"><b>What makes good labels</b><p>Every bumper you can see, red or blue, even partly hidden or far away. Box just the bumper, not the whole robot. Skip frames that aren't live match footage.</p></div></aside></div></div>
+<script src="../community/assets/match-picker/match-picker.js?v=1"></script><script src="../community/assets/field-regions/youtube-source.js?v=3-generic"></script><script src="../community/assets/robot-labels/<?= $sourceMode?'robot-labels-stills.js?v=4-source-stills':'robot-labels.js?v=1' ?>"></script>
 <?php pillar_close();community_page_end(); ?>

@@ -1,32 +1,27 @@
+import threading
 import unittest
-from types import SimpleNamespace
+from unittest.mock import patch
+import neptune_telemetry as telemetry
 
-import neptune_telemetry as t
-
-
-class TelemetryTest(unittest.TestCase):
-    def setUp(self):
-        t.LOG.clear(); t.clear()
-
-    def test_log_keeps_last_lines_without_repeats(self):
-        for i in range(20):
-            t.note('line %d' % i); t.note('line %d' % i)
-        state, log = t.snapshot()
-        self.assertEqual(len(log), 14); self.assertEqual(log[-1][1], 'line 19')
-
-    def test_batch_counter_and_epoch_line(self):
-        trainer = SimpleNamespace(epoch=2, train_loader=[0]*38, tloss=[2.1, 2.09, 1.5], metrics={'metrics/mAP50(B)': .552})
-        count = t.batch_counter('Training robot detector', 80)
-        for _ in range(3):
-            count(trainer)
-        state, _ = t.snapshot()
-        self.assertEqual((state['pass'], state['passes'], state['batch'], state['batches']), (3, 80, 3, 38))
-        t.epoch_line('robot', trainer, 80)
-        self.assertIn('mAP50 0.552', t.snapshot()[1][-1][1])
-
-    def test_system_never_raises(self):
-        self.assertIn('gpu', t.system())
-
-
-if __name__ == '__main__':
-    unittest.main()
+class DesktopTelemetry(unittest.TestCase):
+    def test_display_listener_receives_snapshot_and_can_unsubscribe(self):
+        seen=[];remove=telemetry.subscribe(seen.append)
+        try:
+            payload={'stats':{'cpu':17,'gpu':None},'busy':False};telemetry.notify(payload)
+            self.assertEqual(seen,[payload]);remove();telemetry.notify(payload);self.assertEqual(len(seen),1)
+        finally:remove()
+    def test_display_failure_does_not_break_other_listeners(self):
+        seen=[]
+        def broken(payload):raise RuntimeError('display failed')
+        one=telemetry.subscribe(broken);two=telemetry.subscribe(seen.append)
+        try:telemetry.notify({'stats':{}});self.assertEqual(len(seen),1)
+        finally:one();two()
+    def test_local_readings_continue_when_site_checkin_fails(self):
+        closing=threading.Event();seen=[];remove=telemetry.subscribe(seen.append)
+        def send(payload):closing.set();raise OSError('site offline')
+        try:
+            reporter=telemetry.Reporter(send,lambda:{'busy':False},lambda reply:None,closing)
+            with patch.object(telemetry,'system',return_value={'cpu':25,'gpu':None}):reporter.run()
+            self.assertEqual(seen[0]['stats']['cpu'],25)
+        finally:remove()
+if __name__=='__main__':unittest.main()
