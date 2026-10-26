@@ -28,7 +28,7 @@ from pathlib import Path
 import neptune_ocr
 import neptune_games
 
-PIPELINE_VERSION = 'facts-4.1-clock-context'
+PIPELINE_VERSION = 'facts-4.2-roster-sides'
 RULES = json.loads(Path(__file__).with_name('season_rules.json').read_text())
 CLOCK = re.compile(r'^(\d{1,2}):([0-5]\d)$')
 TITLE = re.compile(r'\b(Qualification|Practice|Playoff|Semifinal|Quarterfinal|Final|Upper Bracket|Lower Bracket|Einstein|Match)\s*(?:Match\s*)?(\d+)', re.I)
@@ -132,9 +132,28 @@ def save_raw(path, frames, texts, root):
 
 # ---------------------------------------------------------------- stage 1: overlay
 
+def split_numbers(items):
+    """Items like "5025 10147 2584" (a reader joining a row of team numbers) -> one item per number, placed by
+    character offset. Other items are unchanged."""
+    out = []
+    for i in items:
+        words = i['t'].split()
+        if len(words) < 2 or not all(re.fullmatch(r'\d{1,5}', w) for w in words):
+            out.append(i)
+            continue
+        per = i['w'] / max(1, len(i['t']))
+        at = 0
+        for w in words:
+            k = i['t'].index(w, at)
+            out.append(dict(i, t=w, x=i['x'] + k * per, w=len(w) * per))
+            at = k + len(w)
+    return out
+
+
 def parse_overlay(items, profile):
     """One overlay frame -> raw readings (items, not yet accepted)."""
     R = profile['regions']
+    items = split_numbers(items)
 
     def pick(region, pattern):
         found = [i for i in items if in_region(i, R[region]) and re.fullmatch(pattern, i['t'].strip())]
@@ -168,29 +187,90 @@ def parse_overlay(items, profile):
     return out
 
 
+def parse_overlay_generic(items, roster=None):
+    """Scoreboard read without a layout profile, for broadcasts no profile matches.
+
+    The clock is the tallest M:SS text; each alliance score is the nearest 1-3 digit number of similar height
+    on the clock's row, one on each side. Which side is red comes from where the match's own roster numbers
+    (or the words RED and BLUE) appear on the overlay; when neither shows, the scores stay unread. Returns
+    None without a clock. Game-independent: nothing here names a season or an overlay design."""
+    clocks = [i for i in items if CLOCK.match(i['t'].strip().replace('O', '0').replace('o', '0'))]
+    if not clocks:
+        return None
+    clock = max(clocks, key=lambda i: i['h'])
+    m = CLOCK.match(clock['t'].strip().replace('O', '0').replace('o', '0'))
+    cx, cy = clock['x'] + clock['w'] / 2, clock['y'] + clock['h'] / 2
+    out = {'clock': clock, 'clock_value': int(m.group(1)) * 60 + int(m.group(2)), 'red': None, 'blue': None,
+           'red_value': None, 'blue_value': None, 'sides': None}
+    near = [i for i in items if re.fullmatch(r'\d{1,3}', i['t'].strip()) and i['h'] >= 0.6 * clock['h']
+            and abs(i['y'] + i['h'] / 2 - cy) <= 0.5 * clock['h'] and abs(i['x'] + i['w'] / 2 - cx) <= 4 * clock['w']]
+    left = max((i for i in near if i['x'] + i['w'] / 2 < cx), key=lambda i: i['x'], default=None)
+    right = min((i for i in near if i['x'] + i['w'] / 2 > cx), key=lambda i: i['x'], default=None)
+    vote = 0   # > 0: red on the left
+    if roster:
+        for side, sign in (('red', 1), ('blue', -1)):
+            for t in roster.get(side, []):
+                for i in items:
+                    if i['t'].strip() == str(t):
+                        vote += sign if i['x'] + i['w'] / 2 < cx else -sign
+    if vote == 0:
+        for i in items:
+            word = i['t'].strip().upper()
+            if word in ('RED', 'BLUE'):
+                vote += (1 if word == 'RED' else -1) * (1 if i['x'] + i['w'] / 2 < cx else -1)
+    if vote:
+        red, blue = (left, right) if vote > 0 else (right, left)
+        out.update(red=red, blue=blue, sides='red-left' if vote > 0 else 'blue-left',
+                   red_value=int(red['t']) if red else None, blue_value=int(blue['t']) if blue else None)
+    return out
+
+
 def overlay_clock_context(reading,profile):
     return reading['labels'] or (profile.get('label_mode')=='roster-and-title'
              and reading['marker'] and all(reading['roster'][side] for side in ('red','blue')))
 
 
-def detect_layout(frames, texts, season, layouts=None):
-    """Returns (profile id, profile, stats). Raises FactsError for an unsupported layout."""
+def roster_sides(reading, roster):
+    """(numbers in each roster region that belong to that alliance, numbers that belong to the other one)."""
+    own = cross = 0
+    for side, other in (('red', 'blue'), ('blue', 'red')):
+        seen = {i['t'].strip() for i in reading['roster'][side]}
+        own += sum(str(t) in seen for t in roster.get(side, []))
+        cross += sum(str(t) in seen for t in roster.get(other, []))
+    return own, cross
+
+
+def detect_layout(frames, texts, season, layouts=None, roster=None):
+    """Returns (profile id, profile, stats). Raises FactsError for an unsupported layout.
+
+    With the match roster, a profile whose roster regions show the other alliance's teams more often than their
+    own is skipped: two overlays can share one geometry with red and blue on opposite sides, and the wrong one
+    would swap every score."""
     layouts=LAYOUTS if layouts is None else layouts
     report = {}
     for pid, profile in layouts.items():
-        overlay = marker = 0
+        overlay = marker = own = cross = 0
         for t, p in frames:
             r = parse_overlay(texts.get(str(p), []), profile)
             if overlay_clock_context(r,profile) and r['clock'] is not None:
                 overlay += 1
                 marker += r['marker']
+                if roster:
+                    a, b = roster_sides(r, roster)
+                    own += a
+                    cross += b
         report[pid] = {'overlay_frames': overlay, 'marker_frames': marker, 'season': profile['season']}
+        if roster:
+            report[pid]['roster_numbers_on_own_side'], report[pid]['roster_numbers_on_other_side'] = own, cross
+            if cross > own:
+                continue
         if overlay >= MIN_LAYOUT_FRAMES and marker >= 0.3 * overlay:
             if profile['season'] != season:
                 raise FactsError('The video uses the %d broadcast layout but the match is from %d. Wrong video or season.' % (profile['season'], season))
             return pid, profile, report[pid]
     raise FactsError('Unsupported broadcast layout: no known overlay profile matched (%s). The facts pipeline needs a layout profile for this broadcast.' % ', '.join(
-        '%s: %d overlay frames, %d with the %s marker' % (k, v['overlay_frames'], v['marker_frames'], layouts[k]['marker']) for k, v in report.items()))
+        '%s: %d overlay frames, %d with the %s marker%s' % (k, v['overlay_frames'], v['marker_frames'], layouts[k]['marker'],
+            ', red and blue on the other sides' if v.get('roster_numbers_on_other_side', 0) > v.get('roster_numbers_on_own_side', 0) else '') for k, v in report.items()))
 
 
 def overlay_samples(band, texts, profile, rules, root):
@@ -921,7 +1001,7 @@ def analyze_video(video, match, work, stage=None, duration=None, metadata_title=
     band = frames_at(folder, 'ov_*.jpg', 0.0, 1.0)
     texts = recognize_with_progress(backend,[p for _, p in band],stage,'Reading the scoreboard')
     save_raw(work / 'raw-overlay.jsonl', band, texts, work)
-    layout_id, profile, layout_stats = detect_layout(band, texts, season, layouts)
+    layout_id, profile, layout_stats = detect_layout(band, texts, season, layouts, roster)
     facts['layout'] = dict(layout_stats, profile=layout_id,camera_top=profile['camera_top'])
     samples, clock_rejects = overlay_samples(band, texts, profile, rules, work)
     clocked = [s for s in samples if 'clock' in s]
@@ -1148,7 +1228,7 @@ def replay_alliance_layout(previous, match, rules, source_sha256):
     if not raw.is_file():return None
     rows=[json.loads(line) for line in raw.read_text().splitlines() if line.strip()]
     frames=[(r['t'],previous.parent/r['frame']) for r in rows];texts={str(previous.parent/r['frame']):r['items'] for r in rows}
-    pid,profile,stats=detect_layout(frames,texts,2026,rules['layout_profiles'])
+    pid,profile,stats=detect_layout(frames,texts,2026,rules['layout_profiles'],match.get('roster'))
     if pid not in ('frc-2026-age-blue-left-v1',old['layout']['profile']) or profile['camera_top']!=old['layout']['camera_top']:return None
     facts=copy.deepcopy(old);samples,rejects=overlay_samples(frames,texts,profile,rules,previous.parent)
     facts['layout']=dict(stats,profile=pid,camera_top=profile['camera_top']);facts['pipeline']=PIPELINE_VERSION
