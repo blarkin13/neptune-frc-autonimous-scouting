@@ -1,3 +1,38 @@
+## 2026-10-26 — Action model measured; no new model (Claude)
+
+Measured on this Mac's prepared cache (`prepared/97384b0b…`, R3D-18 512-d clips: 73k robot clips, 50 matches, 249 robot score targets; Q7 absent), with the training's own match-held-out checks. Gates unchanged.
+
+| Action | Positives (matches) | Held-out AUC | Stand-in AUC | Recall at ≤35% flag rate | Result |
+|---|---|---|---|---|---|
+| gb:score_1_fuel | 1603 (3) | 0.678 | 0.625 | 0.49 | passes by 0.003 |
+| gb:score_2_fuel | 402 (3) | 0.652 | 0.287 | 0.54 | passes |
+| scoring | 304 (18) | 0.569 | — | — | no signal |
+| climb, defense, feed, auto_* | 2–18 (1–2) | — | — | — | too few matches |
+
+Robot points (leave one match out): mean absolute error (MAE) 48.3 points with video vs 61.1 when every robot gets the training mean. The newest local model (20261024T025723) has no action heads (score_1 fell to its stand-in, score_2 had AUC 0.47), and its robot-point MAE was 65.4 vs 74.8 on 12 robots. Precision can't be measured: none of these actions has confirmed negatives (only end_* do), and there is no complete six-robot benchmark, so `evaluate_benchmark` can't run.
+
+Error sources:
+- Data coverage. The fuel labels all come from three txcmp1 matches, and the other actions from one or two matches each.
+- Label noise. ViperScout `scoring` positives rank below chance on unseen matches (AUC 0.448); hand labels reach 0.649. The hand labels cover only 2 matches, so a hand-only head can't be validated (needs 3). Weighting the imports at 0.25 or 0 moved hand-label AUC by at most 0.015.
+- Duplicate rows per click. One click becomes up to 12 rows from neighbouring sightings and tracks.
+- Robot and camera confound. The no-video stand-in nearly matches score_1_fuel.
+
+Tried, not shipped, because none was a consistent win:
+
+| Change | score_1 AUC / stand-in | score_2 AUC / stand-in | scoring AUC |
+|---|---|---|---|
+| none (current) | .678 / .625 | .652 / .287 | .569 |
+| one weight per click | .679 / .632 (fails) | .614 | .551 |
+| references matched to positives' camera | .668 / .732 (fails) | .723, recall .79 | .583 |
+| references matched to positives' robot | .680 / .428 | .640 / .586 | .570 |
+| shrunk variance in the linear head | .668 / .615 | .654 | .574 |
+
+With three matches these are noise-level differences, and picking among them on the same folds would be tuning against the evaluation. Robot-point kernel width and ridge settings also changed MAE by less than 1 point (47.4–48.4).
+
+Added `engine/evaluation/evaluate_actions.py` (reproduces these numbers from any prepared cache and refuses the reserved Q7) and `engine/test_evaluate_actions.py` (3 tests). No engine module, gate or label changed. Checked: 492 engine tests OK on the bundled Python 3.13.
+
+Next: hand-label score_1, score_2, climb and defense in at least 3 more matches from other events. The robot-matched references look worth re-testing once there are about 8 matches.
+
 ## 2026-10-26 — Field retraining at the checked picture size; held-out match out of training; Mac 3.2.51, Windows 6.5.22, Linux 6.6.13, engine 2.7.36 (Claude)
 
 First run scored per corner (11:27) still kept the current detector on 2026dal_qm6: new 2/6 within 0.8% (both hubs, no corners) vs current 3/6 within 4.0%. Two training bugs found in `train_field`: (1) fine-tuning ran at imgsz 960 while the shipped detector was trained, and every placement check runs, at 1280 (`fd.FRAME_WIDTH`), so small far corners were learned at 3/4 scale; now 1280, batch 4 (as robot training). (2) The held-out match's frames were YOLO's validation set, which chose best.pt; the check match now never enters the dataset and every fifth training frame is the validation set. Field runs now require engine 2.7.36 / Mac 3.2.51 / Windows 6.5.22 / Linux 6.6.13.
