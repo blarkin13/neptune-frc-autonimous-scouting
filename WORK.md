@@ -1,3 +1,7 @@
+## 2026-10-27 — Robots page: black-and-white picture toggle (Claude)
+
+Owner request: red boxes on red bumpers are hard to see. `autoscout/robot-labels.php` gets a "Black & white" button next to the clock (and the **G** key) that greys only the frame picture (video or source still); the boxes stay coloured because they are drawn on the canvas above it. The choice is remembered per browser (localStorage, wrapped in try/catch). Checked in a local copy of the frame stage on a QM1 still: grayscale on the picture only, toggles back with G. One-file server deploy, no helper release.
+
 ## 2026-10-27 — Helper Recent runs showed the oldest runs (Claude)
 
 The owner saw Oct 23–24 runs under Recent runs on the helper's Robots and Field pages. `autoscout_helper_models()` reversed `RobotDetectorJobs::requests()`, which is already newest first, before taking eight, so it showed the eight oldest of the last 50. It now takes the first eight. The test fixture made the same oldest-first assumption, so it passed; it now lists runs newest first, as `requests()` does. The fix is server-side only, so no helper release is needed.
