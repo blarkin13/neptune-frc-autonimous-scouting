@@ -74,11 +74,11 @@ The owner reviewed QM1 on October 26: 951 corrected robot boxes and 1,589 boxes 
 | v2 (1.5 s) | QM4 | QM3 | QM1 before | QM1 after |
 |---|---:|---:|---:|---:|
 | Reviewed robot boxes correctly labeled | 46 / 224 | 0 / 23 | 151 / 951 | **175 / 951** |
-| Wrong team | 0 | 0 | 11 | 11 |
-| Identity switches | 0 | 0 | 6 | 6 |
+| Wrong team | 0 | 0 | 0 | 0 |
+| Identity switches | 0 | 0 | 0 | 0 |
 | Non-robot boxes given a team | 0 | 0 | 3 | 3 |
 | Lost-track seconds per robot | 94.2 | 117.0 | 83.9 | 82.2 |
 
-QM1's remaining 11 wrong boxes and 6 switches all come from existing labels: 10 from OCR tracker segments in the wide view and 1 from the roster solver. The constant layer adds none. The hidden-OCR check is now 128 of 128 on QM4, 36 of 36 on QM3 and 145 of 145 on QM1. "Before" here is the same engine without the constant layer.
+QM1 first appeared to have 11 wrong boxes and 6 switches from existing labels: 10 from wide-view OCR segments and 1 from the roster solver. All of them were metric errors. The metric searched only labeled boxes, so a reviewed robot with no label of its own was matched to an overlapping, correctly labeled neighbour. `evaluate` now takes every tracker detection (`detections=observations`), so each reviewed box matches its own detection. The hidden-OCR check is now 128 of 128 on QM4, 36 of 36 on QM3 and 145 of 145 on QM1. "Before" here is the same engine without the constant layer.
 
 Scripts and outputs: `local/identity-constancy-20261026/` (also `sweep.py`, `with-qm1.json`) (`measure.py`, `holdout.py`, `before.json`, `after.json`, `holdout.json`). "Before" ran the HEAD `bdf580c` engine.

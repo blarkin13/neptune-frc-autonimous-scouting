@@ -135,6 +135,13 @@ class IdentityMetricTests(unittest.TestCase):
         self.assertEqual((m['correct'], m['wrong'], m['identity_switches'], m['labeled_non_robots']), (2, 1, 2, 1))
         self.assertEqual(m['lost_track_seconds']['4'], 2.3)
 
+    def test_reviewed_box_matches_its_own_unlabeled_detection(self):
+        # QM1: an unlabeled box overlapping a correctly labeled neighbour was scored "wrong".
+        mine, near = obs(0, 1, .20, w=.08), obs(0, 2, .23, w=.08)
+        review = {'roster': R, 'points': [dict(mine, team=2, identity_status='corrected')]}
+        m = evaluate([dict(near, team=1)], review, 0, 0, detections=[mine, near])
+        self.assertEqual((m['wrong'], m['unlabeled']), (0, 1))
+
 
 if __name__ == '__main__':
     unittest.main()

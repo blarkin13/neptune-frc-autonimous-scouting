@@ -24,17 +24,20 @@ def match(truth, labeled, max_dt=.09, min_iou=.3):
     for p in rows:
         if abs(p['t']-truth['t']) <= max_dt:
             score = iou(p['box'], truth['box'])
-            if score >= min_iou and (best is None or score > best[0]):
+            # A labeled box wins a tie with its own unlabeled observation.
+            if score >= min_iou and (best is None or score > best[0] or (score == best[0] and p.get('team') is not None)):
                 best = (score, p)
     return best[1] if best else None
 
 
-def evaluate(labeled_points, review, start, end):
-    """labeled_points: dicts with t, camera, box, team (None = unlabeled)."""
+def evaluate(labeled_points, review, start, end, detections=()):
+    """labeled_points: dicts with t, camera, box, team (None = unlabeled).
+    detections: every tracker box (e.g. observations); those not labeled count as unlabeled."""
     index = collections.defaultdict(list)
-    for p in labeled_points:
-        if p.get('team') is not None:
-            index[(p['camera'], round(p['t'], 2))].append(p)
+    # Unlabeled boxes are indexed too: a reviewed box must match its own detection,
+    # not an overlapping labeled neighbour.
+    for p in list(labeled_points)+[dict(d, team=None) for d in detections]:
+        index[(p['camera'], round(p['t'], 2))].append(p)
     rows = []
     for truth in review.get('points', []):
         status = truth.get('identity_status')
@@ -42,7 +45,7 @@ def evaluate(labeled_points, review, start, end):
             continue
         p = match(truth, index)
         rows.append({'t': truth['t'], 'camera': truth['camera'], 'expected': truth.get('team') if status == 'corrected' else None,
-                     'assigned': p['team'] if p else None})
+                     'assigned': p.get('team') if p else None})
     robots = [r for r in rows if r['expected'] is not None]
     switches = 0
     by_robot = collections.defaultdict(list)
