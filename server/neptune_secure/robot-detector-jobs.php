@@ -99,11 +99,12 @@ final class RobotDetectorJobs {
  }
  private function supportsRobotValidation(string $computer):bool{
   $v=(string)($this->status($computer)['version']??'');
-  // Robot runs need helpers that keep the held-out match out of YOLO's validation set.
-  if(preg_match('/^engine (\d+\.\d+\.\d+)/D',$v,$m))return version_compare($m[1],'2.7.37','>=');
-  if(preg_match('/^3\./',$v))return version_compare($v,'3.2.52','>=');
-  if(preg_match('/^6\.5\./',$v))return version_compare($v,'6.5.23','>=');
-  if(preg_match('/^6\.6\./',$v))return version_compare($v,'6.6.14','>=');
+  // Robot runs need helpers that keep the held-out match out of YOLO's validation set and score it after
+  // the same nested-box cleanup tracking uses, so every candidate and the detector in use are checked alike.
+  if(preg_match('/^engine (\d+\.\d+\.\d+)/D',$v,$m))return version_compare($m[1],'2.7.44','>=');
+  if(preg_match('/^3\./',$v))return version_compare($v,'3.2.59','>=');
+  if(preg_match('/^6\.5\./',$v))return version_compare($v,'6.5.30','>=');
+  if(preg_match('/^6\.6\./',$v))return version_compare($v,'6.6.21','>=');
   return false;
  }
  private function supportsHardFrames(string $computer):bool{

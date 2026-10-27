@@ -1,10 +1,10 @@
-## 2026-10-27 — Robot check uses tracking's duplicate-box cleanup (Claude, not released)
+## 2026-10-27 — Robot check uses tracking's duplicate-box cleanup; Mac 3.2.59, Windows 6.5.30, Linux 6.6.21, engine 2.7.44 (Claude)
 
 Run 57512e23 (1,010 training frames) kept the current detector: QM4 F1 0.830 vs 0.814 (+0.016 < 0.02). Wide improved on both counts (F1 0.799→0.853, false positives 87→71); close-ups lost precision (false positives 22→61). Misses are mostly large (57) not small (10); alliance mix-ups 4. The owner's review-video screenshots show many yellow "extra" boxes nested on a bumper already found, plus a few QM4 answer boxes that cover the robot top as well as the bumper.
 
 Cause: tracking already removes nested same-colour boxes (`neptune_yolo.unique_bumpers`, overlap 0.85), but `neptune_robot_jobs.detect()` (QM4 check, review video, labelling guesses) did not, so the check counted duplicates tracking never sees. `detect()` now applies `unique_bumpers` unchanged: no new threshold, nothing tuned on QM4. Gates unchanged.
 
-Measured, current detector only, on the local Oct 26 QM4 audit copy (75 frames, 601 boxes; legacy labels and re-extracted images, so absolute numbers are lower than the server's 554-box check): F1 0.672→0.728, false positives 229→126 (close-up 117→80, wide 112→46), recall 0.699→0.692. The new candidate's weights stayed on the Windows PC, so the two detectors were not compared here; the next run compares both with the cleanup. 520 engine tests OK.
+Measured, current detector only, on the local Oct 26 QM4 audit copy (75 frames, 601 boxes; legacy labels and re-extracted images, so absolute numbers are lower than the server's 554-box check): F1 0.672→0.728, false positives 229→126 (close-up 117→80, wide 112→46), recall 0.699→0.692. The new candidate's weights stayed on the Windows PC, so the two detectors were not compared here; the next run compares both with the cleanup. Robot runs now need these helpers (engine 2.7.44 / Mac 3.2.59 / Windows 6.5.30 / Linux 6.6.21), so the candidate and the detector in use are always scored the same way. 520 engine tests OK.
 
 ## 2026-10-27 — Release: constant robot identity; Mac 3.2.58, Windows 6.5.29, Linux 6.6.20, engine 2.7.43 (Claude)
 
