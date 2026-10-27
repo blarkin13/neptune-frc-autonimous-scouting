@@ -42,6 +42,17 @@ class RobotJobs(unittest.TestCase):
         source = Path(rj.__file__).read_text()
         self.assertIn('imgsz=1280, batch=4', source); self.assertIn("predict(image, imgsz=1280", source)
 
+    def test_check_drops_a_box_nested_in_a_stronger_one_like_tracking(self):
+        import numpy as np
+        class Boxes:
+            xyxy=SimpleNamespace(tolist=lambda:[[100, 100, 300, 160], [120, 110, 280, 155], [500, 100, 700, 160]])
+            cls=SimpleNamespace(tolist=lambda:[0, 0, 1]); conf=SimpleNamespace(tolist=lambda:[.9, .6, .8])
+        class Model:
+            def predict(self, *a, **k): return [SimpleNamespace(boxes=Boxes, names={0: 'red', 1: 'blue'})]
+        with patch.object(rj, 'train_device', return_value='cpu'):
+            out = rj.detect(Model(), np.zeros((1000, 1000, 3)))
+        self.assertEqual([(b['alliance'], round(b['x'], 2)) for b in out], [('red', .1), ('blue', .5)])
+
     def test_picked_hard_frames_join_the_grid(self):
         self.assertEqual(rj.frame_times(9, {5000}, [6100, 6100, -1, 9000, '7']), [0, 4000, 5000, 6100, 8000])
 

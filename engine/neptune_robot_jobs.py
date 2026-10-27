@@ -201,14 +201,18 @@ def frame(video, t):
 def detect(model, image, conf=.25):
     """Bumper boxes {alliance,x,y,w,h} normalized to the full frame."""
     h, w = image.shape[:2]
+    from neptune_yolo import unique_bumpers
     r = model.predict(image, imgsz=1280, conf=conf, verbose=False, device=train_device())[0]
-    out = []
-    for (x0, y0, x1, y1), cls in zip(r.boxes.xyxy.tolist(), r.boxes.cls.tolist()):
+    found = []
+    for box, cls, score in zip(r.boxes.xyxy.tolist(), r.boxes.cls.tolist(), r.boxes.conf.tolist()):
         name = str(r.names[int(cls)]).lower()
         alliance = 'red' if 'red' in name else 'blue' if 'blue' in name else None
         if alliance:
-            out.append({'alliance': alliance, 'x': x0/w, 'y': y0/h, 'w': (x1-x0)/w, 'h': (y1-y0)/h})
-    return out
+            found.append({'alliance': alliance, 'box': box, 'confidence': float(score)})
+    # The same containment cleanup tracking uses: a smaller box nested in a stronger one on the same bumper
+    # is one bumper, not two, in the held-out check and in the labelling guesses.
+    return [{'alliance': d['alliance'], 'x': d['box'][0]/w, 'y': d['box'][1]/h, 'w': (d['box'][2]-d['box'][0])/w, 'h': (d['box'][3]-d['box'][1])/h}
+            for d in unique_bumpers(found)]
 
 
 def match_video(video_id, folder):
