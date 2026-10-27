@@ -99,7 +99,7 @@ function autoscout_train_overview(PDO $pdo,array $panel,int $org,int $user,strin
 function autoscout_helper_models(array $o):array {
  $runs=fn(array $rs)=>array_map(fn($r)=>array_intersect_key($r,array_flip(['id','state','created_at','finished_at','message','holdout','computer_id']))
   +['new'=>$r['report']['new']??null,'current'=>$r['report']['current']??null,'adopted'=>$r['report']['adopted']??null,'review'=>is_array($r['review']??null)?array_intersect_key($r['review'],array_flip(['youtube_id','status'])):null],
-  array_slice(array_reverse($rs),0,8));
+  array_slice($rs,0,8)); // requests() is already newest first
  $current=fn($c)=>$c?['adopted_at'=>$c['adopted_at']??null,'holdout'=>$c['report']['holdout_match']??null,'new'=>$c['report']['new']??null]:null;
  $robot=$o['robot']??[];$field=$o['field']??[];$actions=$o['actions']??[];
  $usable=array_filter($robot['matches']??[],fn($n)=>$n>=($robot['min_frames']??8));
