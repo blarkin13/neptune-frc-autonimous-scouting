@@ -1,3 +1,12 @@
+## 2026-10-26 — Fort Worth broadcast layout (engine-side, game pack unchanged) (Claude)
+
+The owner's match test on FIT District Fort Worth qm10 (https://www.youtube.com/watch?v=JfrWE1N9Dmw) stopped with "Unsupported broadcast layout". The overlay is FIRST AGE with blue on the left, but drawn at full height: the clock and scores sit in the lower half of the band, where `frc-2026-age-blue-left-v1` doesn't look. OCR also reads its "AGE" logo as "AGLO".
+
+- Added `frc-2026-age-large-v1` in `neptune_facts.EXTRA_LAYOUTS`. It is tried after the game pack's profiles. It isn't in the pack, so the game fingerprint and every model trained on it (including the Oct 26 one) stay valid. The marker is the REBUILT logo on the right.
+- `team_token`: a roster number with one or two logo symbols read in front of it ("* 3676") now counts as that team. Nothing else is accepted.
+
+Checked: the full facts pipeline on qm10 on this Mac gives layout `frc-2026-age-large-v1` on 252/252 overlay frames, auto 12.95–32.95 s and teleop 37–177 s, and match number, all six roster stations and event all `match`. Final displayed scores: blue 219, red 57. The results screen wasn't found (status unknown). New `test_age_large_layout.py` (4 tests); the engine suite is OK on the bundled Python. Not released: helpers need the new engine before the Train page match test can use it.
+
 ## 2026-10-26 — Action model measured; no new model (Claude)
 
 Measured on this Mac's prepared cache (`prepared/97384b0b…`, R3D-18 512-d clips: 73k robot clips, 50 matches, 249 robot score targets; Q7 absent), with the training's own match-held-out checks. Gates unchanged.

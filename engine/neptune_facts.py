@@ -47,6 +47,19 @@ LAYOUTS = {
                     'red_label': (0.33, 0.46, 0.24, 0.52), 'blue_label': (0.54, 0.67, 0.24, 0.52),
                     'shift': (0.42, 0.58, 0.20, 0.52), 'marker': (0.70, 1.0, 0.0, 0.32)}},
 }
+# Tried after the game pack's own profiles. They live in the engine, not the pack, so adding one leaves the
+# game fingerprint (and every model trained on it) unchanged.
+EXTRA_LAYOUTS = {
+    # The FIRST AGE overlay at full height (FIT District Fort Worth, 2026): blue left, RED/BLUE words over the
+    # scores, the clock in the lower half of the band and the shift above it. Measured on Fort Worth qm10.
+    'frc-2026-age-large-v1': {
+        'season': 2026, 'band': 0.30, 'camera_top': 0.235, 'closeup_top': 0.63, 'marker': 'REBUILT',
+        'regions': {'clock': (0.44, 0.56, 0.50, 0.80), 'red_score': (0.58, 0.66, 0.50, 0.80),
+                    'blue_score': (0.34, 0.42, 0.50, 0.80), 'title': (0.38, 0.62, 0.02, 0.22),
+                    'red_roster': (0.68, 0.99, 0.28, 0.48), 'blue_roster': (0.02, 0.32, 0.28, 0.48),
+                    'red_label': (0.58, 0.66, 0.28, 0.48), 'blue_label': (0.34, 0.42, 0.28, 0.48),
+                    'shift': (0.44, 0.56, 0.25, 0.48), 'marker': (0.82, 0.96, 0.0, 0.25)}},
+}
 MIN_LAYOUT_FRAMES = 20
 # Bumper tiles over the camera area (fractions of the area below camera_top); they overlap so a number
 # on a tile edge is still whole in one tile. Overlapping reads of one frame count once.
@@ -132,6 +145,12 @@ def save_raw(path, frames, texts, root):
 
 # ---------------------------------------------------------------- stage 1: overlay
 
+def team_token(item):
+    """A roster number, also when OCR reads a team logo as one or two symbols in front of it ("* 3676")."""
+    m = re.fullmatch(r'(?:[^\w\s]{1,2}\s*)?(\d{1,5})', item['t'].strip())
+    return (item if m.group(1) == item['t'].strip() else dict(item, t=m.group(1))) if m else None
+
+
 def parse_overlay(items, profile):
     """One overlay frame -> raw readings (items, not yet accepted)."""
     R = profile['regions']
@@ -147,7 +166,7 @@ def parse_overlay(items, profile):
            'title': next((i for i in items if in_region(i, R['title']) and TITLE.search(i['t'])), None),
            'labels': word('red_label', 'RED') and word('blue_label', 'BLUE'),
            'marker': any(in_region(i, R['marker']) and difflib.SequenceMatcher(None, re.sub(r'[^A-Z]', '', i['t'].upper())[:len(profile['marker'])], profile['marker']).ratio() >= 0.8 for i in items),
-           'roster': {side: sorted([i for i in items if in_region(i, R[side + '_roster']) and re.fullmatch(r'\d{1,5}', i['t'].strip())], key=lambda i: i['x'])
+           'roster': {side: sorted([team_token(i) for i in items if in_region(i, R[side + '_roster']) and team_token(i)], key=lambda i: i['x'])
                       for side in ('red', 'blue')},
            'shift': None}
     # Week 0's compact overlay has coloured score blocks but no RED/BLUE words.
@@ -914,6 +933,7 @@ def analyze_video(video, match, work, stage=None, duration=None, metadata_title=
     stage[0] = 'Extracting scoreboard frames'
     layouts=rules.get('layout_profiles',LAYOUTS)
     if not layouts:raise FactsError('%s rules are configured, but its broadcast reader needs a validated layout profile. Import a calibrated game pack; another season’s layout will not be reused.' % rules['game'])
+    layouts=dict(layouts,**{k:v for k,v in EXTRA_LAYOUTS.items() if v['season']==season and k not in layouts})
     band_crop = max(p['band'] for p in layouts.values())
     folder = work / 'overlay'
     clear(folder, 'ov_*.jpg')
