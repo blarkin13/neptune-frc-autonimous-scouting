@@ -1,3 +1,7 @@
+## 2026-10-27 — Tracking review: a box can be named with the other alliance's team (Claude, not released)
+
+Owner hit a 6800 bumper inside a box the detector called red; the review list offered only red's three teams, so the only choices were Unknown or a wrong label. The Robot number list now also offers the other alliance's teams ("6800 (blue: the colour is wrong)"). `apply_corrections` accepts any team on the match roster and moves the corrected interval's boxes to that team's alliance (`alliance_corrected`); the rest of the track and the saved original review are unchanged. Teams not in the match are still refused. Engine 2.7.44. Checked: engine suite OK on the bundled Python (new `test_other_alliance_team_fixes_the_box_colour`).
+
 ## 2026-10-27 — Robot check uses tracking's duplicate-box cleanup; Mac 3.2.59, Windows 6.5.30, Linux 6.6.21, engine 2.7.44 (Claude)
 
 Run 57512e23 (1,010 training frames) kept the current detector: QM4 F1 0.830 vs 0.814 (+0.016 < 0.02). Wide improved on both counts (F1 0.799→0.853, false positives 87→71); close-ups lost precision (false positives 22→61). Misses are mostly large (57) not small (10); alliance mix-ups 4. The owner's review-video screenshots show many yellow "extra" boxes nested on a bumper already found, plus a few QM4 answer boxes that cover the robot top as well as the bumper.

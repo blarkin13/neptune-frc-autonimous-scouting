@@ -245,8 +245,12 @@ def apply_corrections(review,corrections):
         if not selected:raise ValueError('Correction does not match a visible track interval')
         team=edit['team']
         if edit.get('ignored') and team is not None:raise ValueError('Excluded boxes cannot carry an identity')
-        if team is not None and (type(team)!=int or any(team not in review['roster'][p['alliance']] for p in selected)):raise ValueError('Correction team is not in this alliance')
-        for p in selected:manual[p['point_id']]={'team':team,'ignored':edit.get('ignored',False)}
+        if team is not None and (type(team)!=int or not any(team in review['roster'][c] for c in ('red','blue'))):raise ValueError('Correction team is not in this match')
+        # Naming a team from the other alliance also fixes a box the detector gave the wrong colour.
+        alliance=next((c for c in ('red','blue') if team in review['roster'][c]),None)
+        for p in selected:
+            manual[p['point_id']]={'team':team,'ignored':edit.get('ignored',False)}
+            if alliance and p['alliance']!=alliance:p['alliance']=alliance;p['alliance_corrected']=True
     frames=collections.defaultdict(dict)
     for p in points:
         m=manual.get(p['point_id'])
