@@ -1,3 +1,11 @@
+## 2026-10-27 — Hard-frame picker: tracking reviews choose frames to box on the Robots page (Claude, not released)
+
+Audit first: saved tracking reviews cannot train the bumper detector. Their boxes are `crop_box`-widened chassis crops; "corrected" fixes the team number, not the box, so every box is one the detector already found; a missed robot leaves no trace, so only 1 QM1 wide frame (0 in QM3) is provably complete. Of the 1,589 QM1 "not a robot" boxes, 1,563 are in the close-up insets and 685 are one track.
+
+So instead `engine/neptune_hard_frames.py` picks timestamps from a review: first/middle/last of each "not a robot" track, and the middle of any gap of 1 s or more in a reviewed robot's track within one camera view. Picks are a second apart, capped at 40, and refused for Q7 (reserved) and the held-out match. A prepare request may carry `times_ms` (at most 60). The helper adds them to the 4 s grid (`frame_times`), so the owner boxes every visible bumper there under the normal rules. The server holds such requests for helpers at engine 2.7.42 / Mac 3.2.57 / Windows 6.5.28 / Linux 6.6.19 or later, which must be the release that ships this. A queued prepare for the same video is still reused as before, so its picks are not added.
+
+Current picks: QM1 38 frames (37 false positive, 1 lost robot), QM3 4; QM4 refused. List: side-session notes `hard-frames-qm1-qm3.jsonl`. Checked: 519 engine tests and tests/server/my-computers.php OK on the bundled Python. Not released or queued.
+
 ## 2026-10-27 — Storage cleanup on AWS and this Mac; deploys now prune (Claude)
 
 The owner reported the Mac using a lot of storage and AWS at 93%. The server disk was at 94%: 27 of 29 GB used, 2 GB free. Each release left a ~313 MB Mac zip in `community/downloads/mac` and a ~480 MB backup in `/root`.
