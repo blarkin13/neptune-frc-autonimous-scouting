@@ -17,6 +17,34 @@ class RobotJobs(unittest.TestCase):
         self.assertEqual(out['wide'], [1, 1, 3])          # one match; a duplicate and a stray stay unmatched
         self.assertEqual(out['closeup'], [0, 1, 0])
 
+    def test_failure_notes_leave_the_score_unchanged(self):
+        red = [.40, .40, .44, .44, 'red']; far = [.10, .30, .12, .31, 'blue']
+        notes = {}
+        out = rj.score([red, far], [[.40, .40, .44, .44, 'blue'], [.7, .3, .72, .32, 'red']], notes)
+        self.assertEqual(out, rj.score([red[:4], far[:4]], [[.40, .40, .44, .44], [.7, .3, .72, .32]]))
+        self.assertEqual(notes, {'alliance_mixed': 1, 'missed_small': 1, 'false_positive_wide': 1})
+
+    def test_yolo_validation_never_uses_the_held_out_match(self):
+        with tempfile.TemporaryDirectory() as folder:
+            data = Path(folder)
+            for split in ('train', 'val'):
+                (data/'images'/split).mkdir(parents=True); (data/'labels'/split).mkdir(parents=True)
+            for i in range(10):
+                (data/('images/train/t%d.jpg' % i)).write_bytes(b'%d' % i); (data/('labels/train/t%d.txt' % i)).write_text('0 .5 .5 .1 .1\n')
+            (data/'images/val/held.jpg').write_bytes(b'held'); (data/'labels/val/held.txt').write_text('')
+            self.assertEqual(rj.yolo_validation_from_training(data), 2)
+            self.assertEqual(sorted(p.name for p in (data/'images/val').iterdir()), ['t0.jpg', 't5.jpg'])
+            self.assertEqual(sorted(p.name for p in (data/'labels/val').iterdir()), ['t0.txt', 't5.txt'])
+            self.assertFalse(any('held' in p.name for p in data.rglob('*')))
+            self.assertEqual(len(list((data/'images/train').iterdir())), 10)
+
+    def test_detector_trains_and_checks_at_one_picture_size(self):
+        source = Path(rj.__file__).read_text()
+        self.assertIn('imgsz=1280, batch=4', source); self.assertIn("predict(image, imgsz=1280", source)
+
+    def test_picked_hard_frames_join_the_grid(self):
+        self.assertEqual(rj.frame_times(9, {5000}, [6100, 6100, -1, 9000, '7']), [0, 4000, 5000, 6100, 8000])
+
     def test_adoption_needs_a_clear_margin(self):
         self.assertGreater(rj.ADOPT_MARGIN, 0)
         new, old = {'f1': .70}, {'f1': .69}
@@ -76,7 +104,7 @@ class RobotJobs(unittest.TestCase):
             manifest.write_text(json.dumps({'frames': rows}))
             bestdir = root/'fit'; (bestdir/'weights').mkdir(parents=True)
             (bestdir/'weights/best.pt').write_bytes(b'candidate')
-            used = []
+            used = []; validated = []
             class Model:
                 names = {0: 'red', 1: 'blue'}
                 def __init__(self, weights): used.append(weights)
@@ -88,6 +116,7 @@ class RobotJobs(unittest.TestCase):
             with patch.dict(sys.modules, {'ultralytics': SimpleNamespace(YOLO=Model)}), \
                  patch.object(rj, 'HOME', root), patch.object(labels, 'sync', return_value=docs), \
                  patch.object(labels, 'build', return_value=built), patch.object(dataset, 'prepare', return_value=root/'data.yaml'), \
+                 patch.object(rj, 'yolo_validation_from_training', side_effect=lambda d: validated.append(d)), \
                  patch.object(rj, 'training_base', return_value=parent), patch.object(rj, 'batch_progress'), \
                  patch.object(rj, 'all_cores', return_value=nullcontext()), patch.object(rj, 'train_device', return_value='cpu'), \
                  patch.object(rj, 'current_wide_weights', return_value=parent), \
@@ -96,7 +125,8 @@ class RobotJobs(unittest.TestCase):
                 report = rj.train({}, {'id': 'test', 'holdout': '2026held_qm2'}, lambda message: None)
             self.assertEqual(used, [str(parent)])
             self.assertFalse(report['adopted'])
-            self.assertEqual(report['training_recipe'], 'adopted-bumper-warm-start-v1')
+            self.assertEqual(report['training_recipe'], 'adopted-bumper-warm-start-v2-train-validation')
+            self.assertEqual(validated, [root])
             self.assertEqual(report['trained_on'], ['2026few_qm1'])
             self.assertEqual(len(report['starting_weights_sha256']), 64)
 

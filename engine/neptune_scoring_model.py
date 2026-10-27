@@ -361,10 +361,11 @@ def run_trial(config,season,match_id,progress,job=None,transport=None):
         facts=training.refresh_cached_facts(facts_file,facts,match,game,sha)
         facts=training.ensure_tracking(video,facts,game,work,status)
         training.write(facts_file,facts)
-        from neptune_field_regions import sync,sync_events,event_key,match_key_of,detect_if_unmarked
+        from neptune_field_regions import sync,sync_events,event_key,match_key_of,load as load_regions
         field_sync=sync(config,video,facts)
         field_sync['event']=sync_events(config,[event_key(match_key_of(facts))])
-        field_sync['detection']=detect_if_unmarked(video,facts,game['game_key'],status)
+        # Zones come only from marks (this video or its event); the field detector's guesses are not used.
+        field_sync['detection']={'status':'marked_regions_available' if load_regions(facts,game['game_key']) else 'unmarked_event'}
         status('Predicting robot action tags')
         tags=training.predict(video,facts,model,game)
         from neptune_scouting_rules import summarize

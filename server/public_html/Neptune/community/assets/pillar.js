@@ -81,11 +81,10 @@
   fill('field','next',next([
    [ready.length>=2,`Mark scoring targets and the field corners on at least 2 ${esc(d.game_key)} matches (${ready.length} so far). Mark corners where the field ends; a corner outside the picture is left out of training.`],
    ...(d.holdout?[[true,`Next run is checked on <strong>${esc(d.holdout)}</strong>, a match the detector in use never learned from.`]]:[]),
-   // Each venue films the field from its own angle; a detector learns a new angle only from marked matches like it.
-   [d.events.length>=4,`Mark matches from at least 4 events, including side-camera venues; every venue films the field from its own angle (${d.events.length} so far).`],
-   ...(d.holdout?(()=>{const ev=d.holdout.split('_')[0],same=ready.filter(([k])=>k!==d.holdout&&k.split('_')[0]===ev).length;
-     return [[same>=1,`Mark another match from <strong>${esc(ev)}</strong> so its camera angle is in training, not only in the check (${same} so far).`]];})():[]),
-   [!!c,c?'A retrained field detector is in use.':d.baseline?'The built-in detector remains in use. Retrain to test an improved replacement; your saved marks are retained.':'Train the first field detector for this game.'],
+   // One marked match covers its whole event (the camera is fixed); unmarked events get no guessed zones.
+   [true,`Mark one match at each event you scout; its marks apply to every match at that event. Events marked so far: ${d.events.length}.`],
+   [true,'Scouting at an event with no marked match runs without scoring-zone hints; the field detector’s guesses are not used.'],
+   [true,'Training the field detector is optional; scouting uses your marks, not the detector.'],
   ]));
   trainButton('field',busy||ready.length<2,busy?'A field detector run is already queued or running.':ready.length<2?'Needs scoring targets and corners on 2 matches of this game first.':'Uses your saved marks and the current field detector. Runtime depends on the helper. Only a better held-out result replaces it.');
   fill('field','runs',runs(d.runs,r=>`${placed(r.new)} vs ${r.current?placed(r.current):'none'}`));

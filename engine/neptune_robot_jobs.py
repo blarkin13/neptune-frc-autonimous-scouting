@@ -21,6 +21,7 @@ HOME = Path.home()/'.neptune-trainer'
 SHARED = HOME/'robot-detector'
 FIELD_ADOPT_MARGIN = .002         # mean placement error must improve by this much (fraction of frame width)
 FRAME_STEP_S = 4.0
+SMALL_BUMPER_H = .025             # bumpers shorter than this (of frame height) are far-field robots
 WIDE_BAND = (.24, .6506)          # 2026 broadcast wide-camera band (normalized y)
 ADOPT_MARGIN = .02                # new detector must beat the current one's held-out F1 by this much
 MIN_FRAMES_PER_MATCH = 8
@@ -222,6 +223,12 @@ def match_video(video_id, folder):
     return video
 
 
+def frame_times(length_s, labelled=(), picked=None):
+    """The regular grid, frames already labelled, and hard frames picked from tracking reviews (neptune_hard_frames)."""
+    extra = {t for t in picked or [] if type(t) is int and 0 <= t < length_s*1000}
+    return sorted(set(range(0, int(length_s*1000), int(FRAME_STEP_S*1000))) | set(labelled) | extra)
+
+
 def prepare(config, req, progress):
     """Detector guesses on frames every FRAME_STEP_S seconds of the match video, uploaded for Robot labels."""
     import os
@@ -237,7 +244,7 @@ def prepare(config, req, progress):
     source_sha=hashlib.sha256(video.read_bytes()).hexdigest()
     from neptune_robot_labels import sync
     labelled={int(t) for d in sync(config) if d.get('video_id')==req['video_id'] for t in d.get('frames',{})}
-    times = sorted(set(range(0, int(length*1000), int(FRAME_STEP_S*1000))) | labelled)
+    times = frame_times(length, labelled, req.get('times_ms'))
     for i, t in enumerate(times):
         still=work/('%08d.jpg'%t)
         subprocess.run([ffmpeg(),'-v','error','-y','-ss','%.3f'%(t/1000),'-i',str(video),'-frames:v','1','-q:v','2',str(still)],check=True,timeout=120)
@@ -262,17 +269,28 @@ def iou(a, b):
     return w*h/u if u > 0 else 0.
 
 
-def score(truth, pred):
-    """One-to-one matches at IoU >= 0.3, split into the wide band and close-ups: {band: [matched, truth, pred]}."""
+def score(truth, pred, diagnose=None):
+    """One-to-one matches at IoU >= 0.3, split into the wide band and close-ups: {band: [matched, truth, pred]}.
+
+    Boxes are [x0, y0, x1, y1] with an optional fifth alliance. diagnose (a dict) collects where the
+    detector fails without changing the score: red/blue mix-ups and missed far (small) bumpers.
+    """
     band = lambda b: 'wide' if WIDE_BAND[0] <= (b[1]+b[3])/2 <= WIDE_BAND[1] else 'closeup'
-    out = {'wide': [0, 0, 0], 'closeup': [0, 0, 0]}; used = set()
+    out = {'wide': [0, 0, 0], 'closeup': [0, 0, 0]}; used = set(); notes = diagnose if diagnose is not None else {}
     for t in truth:
         out[band(t)][1] += 1
         best = max(((iou(t, p), i) for i, p in enumerate(pred) if i not in used), default=(0, None))
         if best[0] >= .3:
             used.add(best[1]); out[band(t)][0] += 1
-    for p in pred:
+            if len(t) > 4 and len(pred[best[1]]) > 4 and t[4] != pred[best[1]][4]:
+                notes['alliance_mixed'] = notes.get('alliance_mixed', 0)+1
+        else:
+            key = 'missed_small' if t[3]-t[1] < SMALL_BUMPER_H else 'missed_large'
+            notes[key] = notes.get(key, 0)+1
+    for i, p in enumerate(pred):
         out[band(p)][2] += 1
+        if i not in used:
+            notes['false_positive_'+band(p)] = notes.get('false_positive_'+band(p), 0)+1
     return out
 
 
@@ -280,18 +298,18 @@ def evaluate(weights, frames):
     """frames: [(image path, truth xyxy boxes)] -> recall/precision/F1 overall and per band."""
     import cv2
     from ultralytics import YOLO
-    model = YOLO(str(weights)); tot = {'wide': [0, 0, 0], 'closeup': [0, 0, 0]}
+    model = YOLO(str(weights)); tot = {'wide': [0, 0, 0], 'closeup': [0, 0, 0]}; notes = {}
     for path, truth in frames:
         image = cv2.imread(str(path))
-        pred = [[b['x'], b['y'], b['x']+b['w'], b['y']+b['h']] for b in detect(model, image)]
-        for k, v in score(truth, pred).items():
+        pred = [[b['x'], b['y'], b['x']+b['w'], b['y']+b['h'], b['alliance']] for b in detect(model, image)]
+        for k, v in score(truth, pred, notes).items():
             tot[k] = [a+b for a, b in zip(tot[k], v)]
     def summary(m, t, p):
         r = m/t if t else 0.; pr = m/p if p else 0.
         return {'recall': round(r, 3), 'precision': round(pr, 3), 'f1': round(2*r*pr/(r+pr), 3) if r+pr else 0., 'bumpers': t, 'detections': p,
                 'matched': m, 'missed': t-m, 'false_positives': p-m}
     all_ = [sum(v[i] for v in tot.values()) for i in range(3)]
-    return dict(summary(*all_), wide=summary(*tot['wide']), closeup=summary(*tot['closeup']))
+    return dict(summary(*all_), wide=summary(*tot['wide']), closeup=summary(*tot['closeup']), failures=notes)
 
 
 def external_training_datasets(config):
@@ -301,6 +319,25 @@ def external_training_datasets(config):
     for item in packages:
         datasets.extend(api(config,'training_supplements',{'id':item['id'],'sha256':item['sha256']}).get('datasets',[]))
     return datasets
+
+
+def yolo_validation_from_training(dataset, every=5):
+    """Point YOLO's validation folder at every fifth training frame instead of the held-out match.
+
+    YOLO picks best.pt and stops early by its validation score, so the held-out match must never be that
+    set: it is only for the comparison that decides adoption. Its images are removed from the dataset.
+    """
+    dataset = Path(dataset)
+    for kind in ('images', 'labels'):
+        shutil.rmtree(dataset/kind/'val', ignore_errors=True); (dataset/kind/'val').mkdir(parents=True)
+    picked = sorted((dataset/'images'/'train').iterdir())[::every]
+    if not picked:
+        raise ValueError('Detector training needs labelled training frames.')
+    for image in picked:
+        shutil.copy2(image, dataset/'images'/'val'/image.name)
+        label = dataset/'labels'/'train'/(image.stem+'.txt')
+        shutil.copy2(label, dataset/'labels'/'val'/label.name)
+    return len(picked)
 
 
 def train(config, req, progress):
@@ -326,6 +363,7 @@ def train(config, req, progress):
         path.write_bytes(raw)
     built = labels.build(docs, work/'frames', holdout={holdout}, download=labels.youtube_download, progress=progress,snapshot_download=snapshot_download)
     config_yaml = prepare_dataset(Path(built['manifest']), work/'dataset')
+    yolo_validation_from_training(config_yaml.parent)   # before workshop images join training
     from neptune_external_bumpers import append_workshop
     supplemental = append_workshop(external_training_datasets(config), work/'dataset')
     if supplemental['frames']:
@@ -349,8 +387,8 @@ def train(config, req, progress):
     best = Path(result.save_dir)/'weights'/'best.pt'
     manifest = json.loads(Path(built['manifest']).read_text())
     audit = dataset_audit(manifest, holdout)
-    check = [(work/'frames'/f['image'], [[b['xywh'][0]-b['xywh'][2]/2, b['xywh'][1]-b['xywh'][3]/2, b['xywh'][0]+b['xywh'][2]/2, b['xywh'][1]+b['xywh'][3]/2]
-              for b in f['boxes']]) for f in manifest['frames'] if f['split'] == 'val']
+    check = [(work/'frames'/f['image'], [[b['xywh'][0]-b['xywh'][2]/2, b['xywh'][1]-b['xywh'][3]/2, b['xywh'][0]+b['xywh'][2]/2, b['xywh'][1]+b['xywh'][3]/2,
+               'red' if b['class_id'] == 0 else 'blue'] for b in f['boxes']]) for f in manifest['frames'] if f['split'] == 'val']
     progress('Comparing new and current detector on %s' % holdout)
     new = evaluate(best, check)
     current = current_wide_weights(); old = evaluate(current, check) if current else None
@@ -358,7 +396,7 @@ def train(config, req, progress):
     report = {'engine': VERSION, 'holdout_match': holdout, 'trained_on': audit['trained_on'], 'external_training': supplemental, 'frames': built['frames']+supplemental['frames'], 'train_frames': built['train']+supplemental['frames'], 'check_frames': built['val'],
               'bumpers': built['boxes']+supplemental['boxes'], 'matches': audit['matches'], 'frames_per_match': audit['frames_per_match'],
               'evaluation_sha256': audit['evaluation_sha256'], 'starting_weights_sha256': base_sha256,
-              'training_recipe': 'adopted-bumper-warm-start-v1', 'new': new, 'current': old, 'adopted': adopt, 'margin': ADOPT_MARGIN, 'skipped': built['skipped']}
+              'training_recipe': 'adopted-bumper-warm-start-v2-train-validation', 'new': new, 'current': old, 'adopted': adopt, 'margin': ADOPT_MARGIN, 'skipped': built['skipped']}
     progress('Making the review video')
     report['review'] = send_review(config, req, report, lambda out: __import__('neptune_review_video').robot_video(out, check, best, current, report))
     if adopt:

@@ -94,3 +94,19 @@ function autoscout_train_overview(PDO $pdo,array $panel,int $org,int $user,strin
   'actions'=>['models'=>$panel['models'],'latest'=>$latest?['id'=>$latest['id'],'created_at'=>$latest['created_at']]:null,'released'=>$panel['released'],'counts'=>$panel['counts']],
  ];
 }
+
+/** The Train page overview trimmed for a connected helper's model pages: each model's status, data and last runs. */
+function autoscout_helper_models(array $o):array {
+ $runs=fn(array $rs)=>array_map(fn($r)=>array_intersect_key($r,array_flip(['id','state','created_at','finished_at','message','holdout','computer_id']))
+  +['new'=>$r['report']['new']??null,'current'=>$r['report']['current']??null,'adopted'=>$r['report']['adopted']??null,'review'=>is_array($r['review']??null)?array_intersect_key($r['review'],array_flip(['youtube_id','status'])):null],
+  array_slice($rs,0,8)); // requests() is already newest first
+ $current=fn($c)=>$c?['adopted_at'=>$c['adopted_at']??null,'holdout'=>$c['report']['holdout_match']??null,'new'=>$c['report']['new']??null]:null;
+ $robot=$o['robot']??[];$field=$o['field']??[];$actions=$o['actions']??[];
+ $usable=array_filter($robot['matches']??[],fn($n)=>$n>=($robot['min_frames']??8));
+ $marked=array_filter($field['matches']??[],fn($m)=>!empty($m['targets'])&&!empty($m['corners']));
+ return [
+  'robot'=>['current'=>$current($robot['current']??null),'holdout'=>$robot['holdout']??null,'matches'=>count($usable),'frames'=>array_sum($usable),'events'=>$robot['events']??[],'ready'=>count($usable)>=2,'runs'=>$runs($robot['runs']??[])],
+  'field'=>['current'=>$current($field['current']??null),'baseline'=>!empty($field['baseline']),'game_key'=>$field['game_key']??null,'holdout'=>$field['holdout']??null,'marked'=>count($marked),'events'=>$field['events']??[],'ready'=>count($marked)>=2,'runs'=>$runs($field['runs']??[])],
+  'actions'=>['latest'=>$actions['latest']??null,'released'=>$actions['released']??null,'models'=>count($actions['models']??[]),'counts'=>$actions['counts']??[]],
+ ];
+}

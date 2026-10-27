@@ -23,6 +23,143 @@ New `engine/neptune_constant_identity.py` carries trusted OCR and roster labels 
 Result: QM4 21 → 70 reviewed boxes correctly labeled (70 of the 97 that have a detection), 0 wrong, 0 switches. QM3 non-robot labels 60 → 0. Lost seconds per robot: QM4 99.2 → 94.4, QM3 113.2 → 112.7. The rest is detection and OCR coverage. Hidden-OCR check: 430 of 430 carried labels match hidden OCR.
 
 Checked: 502 engine tests OK on the bundled Python (13 new). Not released, pushed or deployed; no fresh video run.
+## 2026-10-27 — Robots page: black-and-white picture toggle (Claude)
+
+Owner request: red boxes on red bumpers are hard to see. `autoscout/robot-labels.php` gets a "Black & white" button next to the clock (and the **G** key) that greys only the frame picture (video or source still); the boxes stay coloured because they are drawn on the canvas above it. The choice is remembered per browser (localStorage, wrapped in try/catch). Checked in a local copy of the frame stage on a QM1 still: grayscale on the picture only, toggles back with G. One-file server deploy, no helper release.
+
+## 2026-10-27 — Helper Recent runs showed the oldest runs (Claude)
+
+The owner saw Oct 23–24 runs under Recent runs on the helper's Robots and Field pages. `autoscout_helper_models()` reversed `RobotDetectorJobs::requests()`, which is already newest first, before taking eight, so it showed the eight oldest of the last 50. It now takes the first eight. The test fixture made the same oldest-first assumption, so it passed; it now lists runs newest first, as `requests()` does. The fix is server-side only, so no helper release is needed.
+
+Checked: `tests/server/helper-models.php` 6 PASS.
+## 2026-10-27 — Hard-frame picker: tracking reviews choose frames to box on the Robots page; Mac 3.2.57, Windows 6.5.28, Linux 6.6.19, engine 2.7.42 (Claude)
+
+Audit first: saved tracking reviews cannot train the bumper detector. Their boxes are `crop_box`-widened chassis crops; "corrected" fixes the team number, not the box, so every box is one the detector already found; a missed robot leaves no trace, so only 1 QM1 wide frame (0 in QM3) is provably complete. Of the 1,589 QM1 "not a robot" boxes, 1,563 are in the close-up insets and 685 are one track.
+
+So instead `engine/neptune_hard_frames.py` picks timestamps from a review: first/middle/last of each "not a robot" track, and the middle of any gap of 1 s or more in a reviewed robot's track within one camera view. Picks are a second apart, capped at 40, and refused for Q7 (reserved) and the held-out match. A prepare request may carry `times_ms` (at most 60). The helper adds them to the 4 s grid (`frame_times`), so the owner boxes every visible bumper there under the normal rules. The server holds such requests for helpers at engine 2.7.42 / Mac 3.2.57 / Windows 6.5.28 / Linux 6.6.19 or later, which must be the release that ships this. A queued prepare for the same video is still reused as before, so its picks are not added.
+
+Released 2026-10-27: Mac 3.2.57, Windows 6.5.28, Linux 6.6.19, engine 2.7.42, all on GitHub. The first Windows/Linux/Mac builds from this worktree had no `bumper_wide.pt` or field `model.pt` (both git-ignored, only in the main checkout). They were caught before publishing; the weights were copied, their hashes checked against the manifests, and everything rebuilt. Build releases from a checkout that has the weights. Deployed through AWS SSM command 74eedfab (owner ran it) with the previous release's manifest-driven deploy script: 60 files fetched and verified, 64 changed, backup /root/hard-frames-release-backup-20261027, then pruned. The public Windows latest.json, Mac appcast and apt Packages show 6.5.28 / 3.2.57 / 6.6.19. Queuing QM1 (T1K71dqCJA4) and QM3 (ZlnweItn8ww) with their picks: `local/deploy-hard-frames/queue-ssm.json` (owner runs it).
+
+Current picks: QM1 38 frames (37 false positive, 1 lost robot), QM3 4; QM4 refused. List: side-session notes `hard-frames-qm1-qm3.jsonl`. Checked: 519 engine tests and tests/server/my-computers.php OK on the bundled Python. Not released or queued.
+
+
+## 2026-10-27 — Storage cleanup on AWS and this Mac; deploys now prune (Claude)
+
+The owner reported the Mac using a lot of storage and AWS at 93%. The server disk was at 94%: 27 of 29 GB used, 2 GB free. Each release left a ~313 MB Mac zip in `community/downloads/mac` and a ~480 MB backup in `/root`.
+
+AWS, as the owner asked:
+- Removed Mac zips 3.2.33–3.2.54; 3.2.55 and 3.2.56 are kept. The appcast points only at 3.2.56, and every version is still on GitHub Releases.
+- Trimmed the journal to 100 MB (freed 231 MB).
+- Removed every `/root/*backup-2026*` folder except `fort-worth-layout-release-backup-20261026`. That pattern also matched about 60 older code-deploy backups from Sept 17–Oct 25 (autoscout-section, neptune-*, rc-*, windows-*), not just the 13 release backups listed to the owner. They were copies of replaced files, and the live site does not use them.
+- Kept the SQL dump `/root/scouting_before_utc_20261016-124944.sql` and the backup folders without a date in their name.
+- Result: 62% used, 11 GB free. Mac appcast, 3.2.56 zip, DMG and Windows latest.json all return 200.
+
+Mac:
+- Removed the pip, Sublime Text, Homebrew, Movavi and Raspberry Pi caches.
+- Removed Windows 6.5.11–6.5.26 and Linux 6.6.4–6.6.17 build folders. Kept Windows 6.5.27 and 6.4.2, Linux 6.6.18, and the Linux 6.5 base.
+- Free space went from 27 to 38 GB.
+
+Deploys now prune: `trainer-app/scripts/prune-release-server.sh`, installed on the server as `/usr/local/sbin/neptune-prune-releases`, with the AGENTS.md rule 10 addition.
+- Keeps the two newest Mac zips and Windows update zips, plus anything a feed points at, and the two newest dated `/root` backups.
+- Vacuums the journal and never touches `.sql` dumps.
+- The dry run listed only Windows update zips 6.3–6.5.25 to remove (2 MB each); the real run is not done yet, pending the owner's OK.
+
+## 2026-10-26 — Fort Worth layout release: Mac 3.2.56, Windows 6.5.27, Linux 6.6.18, engine 2.7.41 (Claude)
+
+Ships the full-height FIRST AGE overlay (`frc-2026-age-large-v1`, entry below) so match tests on FIT District Fort Worth videos can read the clock and roster. The game pack is unchanged, so trained action models stay valid. The owner approved the release.
+
+Deployed through AWS SSM (62 files: engine, downloads, update feeds, apt; backup /root/fort-worth-layout-release-backup-20261026). Public Windows latest.json, Mac appcast, apt Packages show the new versions; downloaded update archives match local SHA-256.
+
+Checked: Mac build ran 513 engine tests OK on its bundled Python, Sparkle signature verified, DMG verified; package sizes match 3.2.55/6.5.26/6.6.17.
+
+Build note: the worktree had no `engine/robot-detector/bumper_wide.pt` or `engine/field-detector/model.pt` (kept out of git). The first Windows/Linux builds came out 0.5 MB against the usual 10 MB, so I discarded them, copied both files from the main checkout (hashes match the manifest and the installed 3.2.55), and rebuilt. Build releases from a worktree only after copying those files.
+
+## 2026-10-26 — Fort Worth broadcast layout (engine-side, game pack unchanged) (Claude)
+
+The owner's match test on FIT District Fort Worth qm10 (https://www.youtube.com/watch?v=JfrWE1N9Dmw) stopped with "Unsupported broadcast layout". The overlay is FIRST AGE with blue on the left, but drawn at full height: the clock and scores sit in the lower half of the band, where `frc-2026-age-blue-left-v1` doesn't look. OCR also reads its "AGE" logo as "AGLO".
+
+- Added `frc-2026-age-large-v1` in `neptune_facts.EXTRA_LAYOUTS`. It is tried after the game pack's profiles. It isn't in the pack, so the game fingerprint and every model trained on it (including the Oct 26 one) stay valid. The marker is the REBUILT logo on the right.
+- `team_token`: a roster number with one or two logo symbols read in front of it ("* 3676") now counts as that team. Nothing else is accepted.
+
+Checked: the full facts pipeline on qm10 on this Mac gives layout `frc-2026-age-large-v1` on 252/252 overlay frames, auto 12.95–32.95 s and teleop 37–177 s, and match number, all six roster stations and event all `match`. Final displayed scores: blue 219, red 57. The results screen wasn't found (status unknown). New `test_age_large_layout.py` (4 tests); the engine suite is OK on the bundled Python. Not released: helpers need the new engine before the Train page match test can use it.
+
+## 2026-10-26 — Action model measured; no new model (Claude)
+
+Measured on this Mac's prepared cache (`prepared/97384b0b…`, R3D-18 512-d clips: 73k robot clips, 50 matches, 249 robot score targets; Q7 absent), with the training's own match-held-out checks. Gates unchanged.
+
+| Action | Positives (matches) | Held-out AUC | Stand-in AUC | Recall at ≤35% flag rate | Result |
+|---|---|---|---|---|---|
+| gb:score_1_fuel | 1603 (3) | 0.678 | 0.625 | 0.49 | passes by 0.003 |
+| gb:score_2_fuel | 402 (3) | 0.652 | 0.287 | 0.54 | passes |
+| scoring | 304 (18) | 0.569 | — | — | no signal |
+| climb, defense, feed, auto_* | 2–18 (1–2) | — | — | — | too few matches |
+
+Robot points (leave one match out): mean absolute error (MAE) 48.3 points with video vs 61.1 when every robot gets the training mean. The newest local model (20261024T025723) has no action heads (score_1 fell to its stand-in, score_2 had AUC 0.47), and its robot-point MAE was 65.4 vs 74.8 on 12 robots. Precision can't be measured: none of these actions has confirmed negatives (only end_* do), and there is no complete six-robot benchmark, so `evaluate_benchmark` can't run.
+
+Error sources:
+- Data coverage. The fuel labels all come from three txcmp1 matches, and the other actions from one or two matches each.
+- Label noise. ViperScout `scoring` positives rank below chance on unseen matches (AUC 0.448); hand labels reach 0.649. The hand labels cover only 2 matches, so a hand-only head can't be validated (needs 3). Weighting the imports at 0.25 or 0 moved hand-label AUC by at most 0.015.
+- Duplicate rows per click. One click becomes up to 12 rows from neighbouring sightings and tracks.
+- Robot and camera confound. The no-video stand-in nearly matches score_1_fuel.
+
+Tried, not shipped, because none was a consistent win:
+
+| Change | score_1 AUC / stand-in | score_2 AUC / stand-in | scoring AUC |
+|---|---|---|---|
+| none (current) | .678 / .625 | .652 / .287 | .569 |
+| one weight per click | .679 / .632 (fails) | .614 | .551 |
+| references matched to positives' camera | .668 / .732 (fails) | .723, recall .79 | .583 |
+| references matched to positives' robot | .680 / .428 | .640 / .586 | .570 |
+| shrunk variance in the linear head | .668 / .615 | .654 | .574 |
+
+With three matches these are noise-level differences, and picking among them on the same folds would be tuning against the evaluation. Robot-point kernel width and ridge settings also changed MAE by less than 1 point (47.4–48.4).
+
+Added `engine/evaluation/evaluate_actions.py` (reproduces these numbers from any prepared cache and refuses the reserved Q7) and `engine/test_evaluate_actions.py` (3 tests). No engine module, gate or label changed. Checked: 492 engine tests OK on the bundled Python 3.13.
+
+Next: hand-label score_1, score_2, climb and defense in at least 3 more matches from other events. The robot-matched references look worth re-testing once there are about 8 matches.
+## 2026-10-26 — Helper: larger logo, no bubbles, Running now as the website's console (Codex, finished by Claude): Mac 3.2.55, Windows 6.5.26, Linux 6.6.17, engine 2.7.40
+
+Owner asked for a larger logo, no moving bubbles, and Running now showing what the website's console shows. Codex removed both platforms' bubble animation, enlarged the sidebar mark, and labelled this Mac "Tracking review"/"Image review" on Computers (live readings pause while a local review is open; Codex closed the review on the installed 3.2.54 and the Mac reconnected with readings). Claude replaced the logo with the wide NEPTUNE wordmark across the sidebar (Mac and Tk) and rebuilt Running now as a console on both platforms: part label and helper with GPU, step and match key, GPU/VRAM/°C/CPU/RAM line, stage bar (passes/batches, match counters, or the log's [i/n]), overall bar with elapsed and time left, next steps, last six log lines colour-coded. Fixed from Codex's draft: action jobs name their helper in `target`, not `computer_id`, so their readings were missing. Server: the dashboard queue now carries each job's `label` and `started` time.
+
+Checked: Mac and Tk previews with an Actions job fixture matching the owner's example; 506 engine tests OK; server tests OK; no whitespace errors.
+
+## 2026-10-26 — Helper redesign: sidebar pages, model pages with Train; Mac 3.2.54, Windows 6.5.25, Linux 6.6.16, engine 2.7.39 (Claude)
+
+Owner asked for a modern, less redundant helper that shows and works on the models. Mac (`App.swift`) and Windows/Linux (`neptune_ui.Shell`, `neptune_trainer.main`) now share one layout: a sidebar (Overview, Robots, Field, Actions, Computers, Activity; Tools: Review tracking, Label image folder; connection/version/updates/Reconnect at the foot) beside a header and a page of cards over the bubbles. Overview: this computer's card with readings and device, this computer's job only while busy, Running now elsewhere with progress and last log line, three clickable model tiles, queue. Robot/Field pages: model in use with held-out score, holdout match, data counts, last eight runs (result, new vs in use, review video, message) and a Train button with a computer picker (confirms first). Actions page: release state, tagged matches/tags, guidance; training opens Neptune. Removed: duplicate logos and this-Mac cards, the button bar, the empty Running now card.
+
+Server: `api/robot-detector.php` adds `models` (owner's Train overview trimmed by `autoscout_helper_models()`) and `queue_training` (robot/field run, optional target among the owner's own computers, holdout chosen as on the Train page). Ships with the OCR work (2.7.38) not yet deployed until now.
+
+Checked: Mac and Tk previews of every page with fixture data (fixed an NSNull "Training" state and an over-wide picker); 506 engine tests OK; `tests/server/helper-models.php` 6 PASS, `my-computers.php` OK. Not exercised against live data before deploy; Tk previewed on macOS only.
+
+## 2026-10-26 — OCR release: Mac 3.2.53, Windows 6.5.24, Linux 6.6.15, engine 2.7.38 (Claude)
+
+Ships the roster-constrained bumper reads and the scoreboard side check (entry below) to every helper. Saved match facts re-parse and saved tracking reruns on first use.
+
+## 2026-10-26 — Scouting uses marked zones only; Mac 3.2.52, Windows 6.5.23, Linux 6.6.14, engine 2.7.37 (Claude; ships with the robot validation fix below)
+
+Owner decision: the field detector is deprioritized. Each event uses one fixed camera and one marked match already covers every match at that event, so the detector only mattered for unmarked events, where its guesses (both hubs, rarely corners on a new venue) could mislead scoring. `neptune_field_regions.load()` no longer falls back to detected regions by default, and match runs no longer call `detect_if_unmarked`; unmarked events run without scoring-zone hints. Train page guidance (pillar.js v22): mark one match per scouted event; field detector training is optional. Marks and the Train field detector button are kept. Robot detection, OCR, constant tracking and the action model are now separate sessions.
+
+Checked: 489 engine tests OK.
+## 2026-10-26 — Robot detector: held-out match out of YOLO validation; failure breakdown in the check (Claude, not released)
+
+Measured: the adopted bumper detector (report on this Mac, engine robot-detector-jobs-v2) scores held-out 2026txcmp1_qm4 F1 0.814 (recall 0.821, precision 0.807; 75 frames, 554 bumpers) vs 0.784 for the detector it replaced. Wide band is weakest: F1 0.799, 87 of the 109 false positives, 53 of the 99 misses. Close-ups: F1 0.838, recall 0.793. That run's frames were cleaned up, so the misses could not be re-sorted by cause (far, occluded, people or carts).
+
+Recipe audit: training and the check both run at 1280 (no picture-size bug). Bug: `labels.build(..., holdout={holdout})` put QM4 in YOLO's validation folder, so QM4 chose best.pt and drove early stopping (patience 20). So the 0.814 is optimistic. Fix: `yolo_validation_from_training()` swaps the validation folder for every fifth labelled training frame (taken before workshop images are added) and removes the held-out images from the dataset; recipe is now `adopted-bumper-warm-start-v2-train-validation`. The held-out match is still only the adoption check; gates are unchanged (F1 +0.02, warm start refuses weights that saw the holdout, Q7 reserved).
+
+Diagnostics: the check boxes now carry alliance, and `evaluate()` reports `failures` (alliance_mixed, missed_small under 2.5% of frame height, missed_large, false_positive_wide/closeup). F1 is unchanged; `score()` still ignores alliance, so red/blue mix-ups were counted as found before and are now shown separately.
+
+Checked: 492 engine tests OK on the bundled Mac 3.2.51 Python (new tests: validation never contains the holdout, failure notes leave the score unchanged, one picture size). No retraining run yet; no F1 gain claimed. The next robot run measures it, and robot runs only get this fix after a helper release.
+## 2026-10-26 — OCR: measured benchmark, bumper crops read against the roster, scoreboard side check (Claude)
+
+Built `tools/ocr-benchmark/`: 160 bumper boxes (2026txcmp1 Q3/Q4 robot-label frames; 73 fully legible, 39 partly, 48 no number) and the clock and scores on 88 overlay frames from 4 events, all read by eye; images stay in `local/`, checked by SHA-256. No Q7, no official results. Settings were tuned on this set, so it is a development benchmark, not a held-out test.
+
+Bumpers (`neptune_ocr.bumper_window/white_rows/read_team`, used by `neptune_yolo` sampled reads and `neptune_tracking.track_reads`): tight window around the strip enlarged to ~160 px tall; the reader sees a white-digit map first and the colour crop only when there is no exact read; digit fragments joined; answers limited to the match roster (corrections only within the bumper's alliance, 4+ digits). Fully legible boxes read correctly: Apple Vision 36 → 57 of 73 (wrong 1 → 0), RapidOCR 57 → 67 (wrong 2 → 0); false reads on no-number boxes RapidOCR 4 → 1, Apple Vision 0 → 0. Identity gates unchanged (two exact moments, conflicts still drop a track). `CONTINUITY_REVISION` → `bumper-window-roster-reads-v8`.
+
+Scoreboard: Week 0 (red left) and AGE (blue left) profiles share one geometry; a ctwat frame matched the wrong one and swapped red and blue. `detect_layout` now takes the roster and skips a profile whose roster regions show the other alliance's teams more than their own; joined roster rows ("5025 10147 2584") are split. Apple Vision scores 162 right / 2 wrong / 12 unread → 168 / 0 / 8 (rest: single-digit scores Apple Vision does not detect); RapidOCR 176/176 before and after; clocks 88/88. `PIPELINE_VERSION` → `facts-4.2-roster-sides` (saved facts are reparsed from raw OCR on next use). `parse_overlay_generic` (roster-anchored, layout-free) is added and tested but not wired into production.
+
+Found, not changed: this Mac's `~/.neptune-helper/games/2026.json` (Oct 18, from the server's game pack) replaces the built-in layouts and lacks the AGE and Week 0 profiles, so capoh/ctwat-style overlays fail here until the server pack is updated.
+
+Checked: 503 engine tests OK on the bundled Python (new `test_ocr_reads.py`, side-check and split tests). Q4 tracker (YOLO, Apple Vision, CPU), HEAD engine vs this change: exact bumper anchors 1028 → 1243, identified points 1265 → 1330, coverage 4734 0.27 → 0.36, 9444 0.31 → 0.32, 6377 0.06 → 0.07, 10340 0.31 → 0.32, 9492 0.80 and 5417 0.04 unchanged; time 329 → 480 s (second colour pass). Q4 has no per-track truth, so identity errors are not measured there. Not released, pushed or deployed.
 
 ## 2026-10-26 — Field retraining at the checked picture size; held-out match out of training; Mac 3.2.51, Windows 6.5.22, Linux 6.6.13, engine 2.7.36 (Claude)
 

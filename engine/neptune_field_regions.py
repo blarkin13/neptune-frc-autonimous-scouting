@@ -88,9 +88,10 @@ def event_document(facts,game_key,docs):
     return None
 
 
-def load(facts,game_key,root=None,allow_detected=True):
-    """Regions marked on this exact video, else the event's marked regions, else (when allowed) regions the
-    field detector found in this video, else None."""
+def load(facts,game_key,root=None,allow_detected=False):
+    """Regions marked on this exact video, else the event's marked regions, else (only when asked for) regions the
+    field detector found in this video, else None. Scouting does not use detected regions: an unmarked event runs
+    without scoring-zone hints until one of its matches is marked."""
     sha=facts.get('source',{}).get('sha256','')
     if len(sha)!=64 or any(c not in '0123456789abcdef' for c in sha):return None
     folder=Path(root) if root else Path.home()/'.neptune-trainer/field-regions'
