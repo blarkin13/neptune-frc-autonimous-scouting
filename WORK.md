@@ -1,6 +1,6 @@
 ## 2026-10-27 — Tracking review keyboard shortcuts; Mac 3.2.61, Windows 6.5.32, Linux 6.6.23, engine 2.7.46 (Claude)
 
-Owner request. On the review page: 1–3 pick the selected box's alliance teams, Enter saves, Delete/Backspace hides the selected box as "not a robot" only when it is Unknown (named boxes need the menu, so a slip cannot erase a real robot), Z undoes the last save. Keys are ignored while typing in a field. Script syntax checked with node; review tests OK.
+Owner request. On the review page: 1–3 pick the selected box's alliance teams, Enter saves, Delete/Backspace hides the selected box as "not a robot" only when it is Unknown (named boxes need the menu, so a slip cannot erase a real robot), Z undoes the last save. Keys are ignored while typing in a field. Script syntax checked with node; review tests OK. Deployed via SSM d6de4f06 (owner ran it): 60 files verified, 64 changed, backup /root/review-keys-release-backup-20261027, pruned (disk 35%); public feeds show Windows 6.5.32, Mac 3.2.61, apt 6.6.23.
 
 ## 2026-10-27 — Tracking review: a box can be named with the other alliance's team; Mac 3.2.60, Windows 6.5.31, Linux 6.6.22, engine 2.7.45 (Claude)
 
