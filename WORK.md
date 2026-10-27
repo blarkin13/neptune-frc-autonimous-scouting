@@ -1,3 +1,7 @@
+## 2026-10-27 — Release: constant robot identity; Mac 3.2.58, Windows 6.5.29, Linux 6.6.20, engine 2.7.43 (Claude)
+
+Ships constant-identity-v2 (PR #1). Built from this worktree with `bumper_wide.pt` and field `model.pt` copied from the main checkout and hash-checked. Deployed by the owner through AWS SSM with the manifest-driven deploy script, ending with `neptune-prune-releases`.
+
 ## 2026-10-27 — Look-based re-ID and 12 fps tracking tested (Claude)
 
 Look-matching (handcrafted bumper shade and chassis features, our detector's backbone, DINOv2 ViT-S/14) cannot name same-alliance robots with zero wrong labels. DINOv2 is best, at 62% in the wide view and chance in the close-ups, so nothing was added to tracking. QM1 at 12 fps: 0 wrong, lost time 82.2 → 76.5 s per robot, and twice the detections; the default stays at 6 fps. The metric fix in 1f90dd5 covers QM1's earlier "wrong" labels. Tables are in `docs/persistent-identity.md`; scripts are in `local/appearance-reid-20261027/`. The owner approved the DINOv2 download (88 MB, PyTorch cache, not in git).
