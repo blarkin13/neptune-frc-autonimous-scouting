@@ -58,6 +58,7 @@ final class RobotDetectorJobs {
    if(!empty($r['source_stills'])&&!$this->supportsSourceStills((string)$computer['id']))continue;
    if($r['kind']==='train'&&is_file(dirname($this->root,2).'/external-bumper-training/'.basename($this->root).'/6962-workshop-v1.json')&&!$this->supportsWorkshop((string)$computer['id']))continue;
    if($r['kind']==='train_field'&&!$this->supportsFieldReference((string)$computer['id']))continue;
+   if($r['kind']==='train'&&!$this->supportsRobotValidation((string)$computer['id']))continue;
    if(!empty($r['target'])&&$r['target']!==$computer['id'])continue;   // sent to another computer
    $r=array_replace($r,['state'=>'claimed','claimed_at'=>time(),'heartbeat_at'=>time(),'computer_id'=>$computer['id'],'lease'=>bin2hex(random_bytes(16)),'message'=>($r['state']==='claimed'?'Restarted on the helper':'Started on a helper')]);
    self::write($this->dir('requests').'/'.$r['id'].'.json',$r);return $r;
@@ -89,6 +90,15 @@ final class RobotDetectorJobs {
   if(preg_match('/^3\./',$v))return version_compare($v,'3.2.51','>=');
   if(preg_match('/^6\.5\./',$v))return version_compare($v,'6.5.22','>=');
   if(preg_match('/^6\.6\./',$v))return version_compare($v,'6.6.13','>=');
+  return false;
+ }
+ private function supportsRobotValidation(string $computer):bool{
+  $v=(string)($this->status($computer)['version']??'');
+  // Robot runs need helpers that keep the held-out match out of YOLO's validation set.
+  if(preg_match('/^engine (\d+\.\d+\.\d+)/D',$v,$m))return version_compare($m[1],'2.7.37','>=');
+  if(preg_match('/^3\./',$v))return version_compare($v,'3.2.52','>=');
+  if(preg_match('/^6\.5\./',$v))return version_compare($v,'6.5.23','>=');
+  if(preg_match('/^6\.6\./',$v))return version_compare($v,'6.6.14','>=');
   return false;
  }
  private function owned(array $computer,array $p):array{

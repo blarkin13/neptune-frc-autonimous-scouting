@@ -35,32 +35,6 @@ func loadCredential() -> Data? {
     }
 }
 
-// Faint moving dots behind the native helper controls, matching Neptune's dashboard.
-@MainActor final class AmbientBubbles: NSView {
-    private var timer: Timer?
-    override init(frame frameRect: NSRect) {
-        super.init(frame: frameRect)
-        if !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
-            timer = Timer.scheduledTimer(withTimeInterval: 1.0/24.0, repeats: true) { [weak self] _ in self?.needsDisplay = true }
-        }
-    }
-    required init?(coder: NSCoder) { fatalError("init(coder:) is unavailable") }
-    deinit { timer?.invalidate() }
-    override func hitTest(_ point: NSPoint) -> NSView? { nil }
-    override func draw(_ dirtyRect: NSRect) {
-        let time = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? 0 : ProcessInfo.processInfo.systemUptime
-        for i in 0..<25 {
-            let seed = Double(i)
-            let x = (seed * 0.61803398875).truncatingRemainder(dividingBy: 1.0) * max(1, bounds.width)
-            let y = ((seed * 0.38196601125 + time * (0.003 + seed.truncatingRemainder(dividingBy: 5) * 0.0007)).truncatingRemainder(dividingBy: 1.0)) * max(1, bounds.height)
-            let radius = CGFloat(2 + i % 4)
-            let circle = NSBezierPath(ovalIn: NSRect(x: x-radius, y: y-radius, width: radius*2, height: radius*2))
-            NSColor(srgbRed: 0.46, green: 0.70, blue: 0.91, alpha: 0.055).setFill();circle.fill()
-            NSColor(srgbRed: 0.57, green: 0.80, blue: 0.95, alpha: 0.23).setStroke();circle.lineWidth = 0.7;circle.stroke()
-        }
-    }
-}
-
 @MainActor final class HardwareMeter: NSStackView {
     let value=NSTextField(labelWithString:"—")
     let bar=MeterFill()
@@ -83,14 +57,24 @@ func loadCredential() -> Data? {
         if let fraction=fraction {let r=NSRect(x:0,y:0,width:bounds.width*min(1,max(0,fraction)),height:bounds.height);NSColor(srgbRed:0.56,green:0.71,blue:0.87,alpha:1).setFill();NSBezierPath(roundedRect:r,xRadius:2,yRadius:2).fill()}
     }
 }
+// The sidebar's backdrop: a slightly darker panel with a hairline on its right edge.
+@MainActor final class Backdrop: NSView {
+    let fill: NSColor, edge: NSColor
+    init(fill: NSColor, edge: NSColor) {self.fill=fill;self.edge=edge;super.init(frame:.zero)}
+    required init?(coder: NSCoder) {fatalError("init(coder:) is unavailable")}
+    override func draw(_ dirtyRect: NSRect) {fill.setFill();bounds.fill();edge.setFill();NSRect(x:bounds.maxX-1,y:0,width:1,height:bounds.height).fill()}
+}
 @MainActor final class FlippedStackView:NSStackView {
     override var isFlipped:Bool {true}
 }
 
 @main @MainActor final class App: NSObject, NSApplicationDelegate, NSWindowDelegate, SPUUpdaterDelegate {
     var window:NSWindow!;var updater:SPUStandardUpdaterController!
-    var helperContent:NSStackView!;var dashboard:NSView!;var dashboardBody:NSStackView!;var dashboardStatus=NSTextField(labelWithString:"Connecting to Neptune…")
-    var dashboardTimer:Timer?;var dashboardLoading=false;var pinnedTop:[NSView]=[];var pinnedBottom:[NSView]=[];var thisMacCards:[NSView]=[]
+    var dashboardBody:NSStackView!;var dashboardStatus=NSTextField(labelWithString:"Connecting to Neptune…")
+    var dashboardTimer:Timer?;var modelsTimer:Timer?;var dashboardLoading=false
+    var page="overview";var dash:[String:Any]=[:];var models:[String:Any]=[:];var navButtons:[String:NSButton]=[:]
+    var pageTitle=NSTextField(labelWithString:"Overview");var headerActions=NSStackView();var trainTarget=NSPopUpButton()
+    var thisMacStrip:NSView!;var localJob:NSView!;var pinned:Set<ObjectIdentifier>=[]
     var task:Process?;var input:FileHandle?;var buffer=Data();var busy=false;var quitting=false
     var cachedCredential:Data?;var pendingCommand:String?;var installHandler:(()->Void)?;var logFile:FileHandle?
     var status=NSTextField(wrappingLabelWithString:"Connect this Mac to Neptune to begin.")
@@ -103,8 +87,7 @@ func loadCredential() -> Data? {
     var cpuMeter=HardwareMeter("CPU"),gpuMeter=HardwareMeter("GPU"),ramMeter=HardwareMeter("RAM"),vramMeter=HardwareMeter("GPU memory")
     var computerDetail=NSTextField(labelWithString:""),availability=NSTextField(labelWithString:"Connecting"),jobTitle=NSTextField(labelWithString:""),stageText=NSTextField(labelWithString:""),nextStatus=NSTextField(labelWithString:"")
     var stageProgress=NSProgressIndicator(),stageRow=NSStackView()
-    var jobCardHeight:NSLayoutConstraint?,statusHeight:NSLayoutConstraint?
-    var activityScroll:NSScrollView!;var activityToggle:NSButton!
+    var activityScroll:NSScrollView!
     var log=NSTextView();var stop:NSButton!;var connect:NSButton!;var run:NSButton!;var device=NSPopUpButton()
     let support=FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/Neptune Training Helper")
     static func main() {let app=NSApplication.shared;let delegate=App();app.delegate=delegate;app.setActivationPolicy(.regular);app.run()}
@@ -117,10 +100,8 @@ func loadCredential() -> Data? {
         logFile=try? FileHandle(forWritingTo:file);try? logFile?.seekToEnd()
         buildUI()
 #if DASHBOARD_PREVIEW
-        dashboardStatus.stringValue="Preview · example readouts"
-        if let url=Bundle.main.url(forResource:"dashboard-fixture",withExtension:"json"),
-           let data=try? Data(contentsOf:url),
-           let fixture=(try? JSONSerialization.jsonObject(with:data)) as? [String:Any] {renderDashboard(fixture)}
+        func fixture(_ name:String)->[String:Any]? {Bundle.main.url(forResource:name,withExtension:"json").flatMap {try? Data(contentsOf:$0)}.flatMap {try? JSONSerialization.jsonObject(with:$0) as? [String:Any]}}
+        dash=fixture("dashboard-fixture") ?? [:];models=fixture("models-fixture") ?? [:];dashboardStatus.stringValue="Preview · example readouts";refreshTargets();show(ProcessInfo.processInfo.environment["NEPTUNE_PREVIEW_PAGE"] ?? "overview")
         return
 #endif
         updater=SPUStandardUpdaterController(startingUpdater:true,updaterDelegate:self,userDriverDelegate:nil)
@@ -129,270 +110,408 @@ func loadCredential() -> Data? {
         status.stringValue="If macOS asks for Keychain access, use your Mac login password to let this app read its saved Neptune connection."
         DispatchQueue.global().async {let saved=loadCredential();DispatchQueue.main.async {self.cachedCredential=saved;if saved != nil {self.launch("run");self.reloadDashboard()} else {self.connection.stringValue="Disconnected";self.status.stringValue="Connect this Mac to Neptune to begin.";self.append("1. Connect to Neptune. 2. Approve this Mac in your browser. 3. Choose training or a match test on Neptune.")}}}
     }
+    // ---------- Window: sidebar of pages, one page of cards at a time ----------
+    let ink=NSColor(srgbRed:0.07,green:0.14,blue:0.24,alpha:1)
+    let sidebarFill=NSColor(srgbRed:0.05,green:0.11,blue:0.20,alpha:0.94)
+    let panelFill=NSColor(srgbRed:0.09,green:0.18,blue:0.30,alpha:0.92)
+    let lineColor=NSColor(srgbRed:0.22,green:0.36,blue:0.50,alpha:1)
+    let accent=NSColor(srgbRed:0.325,green:0.831,blue:0.929,alpha:1)
+    let muted=NSColor(srgbRed:0.61,green:0.68,blue:0.77,alpha:1)
+    let good=NSColor(srgbRed:0.52,green:0.87,blue:0.76,alpha:1)
+    let warn=NSColor(srgbRed:0.98,green:0.78,blue:0.42,alpha:1)
+    let pages:[(key:String,title:String,symbol:String)]=[("overview","Overview","square.grid.2x2"),("robots","Robots","viewfinder"),("field","Field","map"),("actions","Actions","figure.run"),("computers","Computers","desktopcomputer"),("activity","Activity","text.alignleft")]
     func buildUI() {
-        let ink=NSColor(srgbRed:0.07,green:0.14,blue:0.24,alpha:1)
-        let panel=NSColor(srgbRed:0.09,green:0.18,blue:0.30,alpha:0.92)
-        let line=NSColor(srgbRed:0.17,green:0.27,blue:0.37,alpha:1)
-        let accent=NSColor(srgbRed:0.325,green:0.831,blue:0.929,alpha:1)
-        let muted=NSColor(srgbRed:0.61,green:0.68,blue:0.77,alpha:1)
-        window=NSWindow(contentRect:NSRect(x:0,y:0,width:1120,height:780),styleMask:[.titled,.closable,.miniaturizable,.resizable],backing:.buffered,defer:false)
+        window=NSWindow(contentRect:NSRect(x:0,y:0,width:1180,height:800),styleMask:[.titled,.closable,.miniaturizable,.resizable,.fullSizeContentView],backing:.buffered,defer:false)
+        window.titlebarAppearsTransparent=true;window.titleVisibility = .hidden
         window.appearance=NSAppearance(named:.darkAqua);window.title="Neptune Training Helper"
-        window.minSize=NSSize(width:640,height:460)
-        window.collectionBehavior=[.fullScreenPrimary];window.delegate=self;window.backgroundColor=ink
-        let root=NSStackView();root.orientation = .vertical;root.alignment = .leading;root.spacing=8
-        root.edgeInsets=NSEdgeInsets(top:12,left:20,bottom:12,right:20);root.translatesAutoresizingMaskIntoConstraints=false
-        helperContent=root
-        let bubbles=AmbientBubbles(frame:.zero);bubbles.translatesAutoresizingMaskIntoConstraints=false
-        window.contentView!.addSubview(bubbles)
-        NSLayoutConstraint.activate([bubbles.leadingAnchor.constraint(equalTo:window.contentView!.leadingAnchor),bubbles.trailingAnchor.constraint(equalTo:window.contentView!.trailingAnchor),bubbles.topAnchor.constraint(equalTo:window.contentView!.topAnchor),bubbles.bottomAnchor.constraint(equalTo:window.contentView!.bottomAnchor)])
-        window.contentView!.addSubview(root)
-        NSLayoutConstraint.activate([root.leadingAnchor.constraint(equalTo:window.contentView!.leadingAnchor),root.trailingAnchor.constraint(equalTo:window.contentView!.trailingAnchor),root.topAnchor.constraint(equalTo:window.contentView!.topAnchor),root.bottomAnchor.constraint(equalTo:window.contentView!.bottomAnchor)])
-        func card(_ height:Double)->(StatusCard,NSStackView) {
-            let card=StatusCard(fill:panel,outline:line);let stack=NSStackView();stack.orientation = .vertical;stack.alignment = .leading;stack.spacing=8;stack.translatesAutoresizingMaskIntoConstraints=false;card.addSubview(stack)
-            NSLayoutConstraint.activate([stack.leadingAnchor.constraint(equalTo:card.leadingAnchor,constant:12),stack.trailingAnchor.constraint(equalTo:card.trailingAnchor,constant:-12),stack.topAnchor.constraint(equalTo:card.topAnchor,constant:12),stack.bottomAnchor.constraint(equalTo:card.bottomAnchor,constant:-12)])
-            thisMacCards.append(card)
-            if height>0 {card.heightAnchor.constraint(equalToConstant:height).isActive=true};root.addArrangedSubview(card);return(card,stack)
+        window.minSize=NSSize(width:880,height:560);window.collectionBehavior=[.fullScreenPrimary];window.delegate=self;window.backgroundColor=ink
+        let content=window.contentView!
+        let sidebar=Backdrop(fill:sidebarFill,edge:lineColor),main=NSView()
+        for v in [sidebar,main] {v.translatesAutoresizingMaskIntoConstraints=false;content.addSubview(v)}
+        NSLayoutConstraint.activate([sidebar.leadingAnchor.constraint(equalTo:content.leadingAnchor),sidebar.topAnchor.constraint(equalTo:content.topAnchor),sidebar.bottomAnchor.constraint(equalTo:content.bottomAnchor),sidebar.widthAnchor.constraint(equalToConstant:214),
+            main.leadingAnchor.constraint(equalTo:sidebar.trailingAnchor),main.trailingAnchor.constraint(equalTo:content.trailingAnchor),main.topAnchor.constraint(equalTo:content.topAnchor),main.bottomAnchor.constraint(equalTo:content.bottomAnchor)])
+        buildSidebar(sidebar);buildMain(main);buildPersistent();buildMenu()
+        show("overview")
+        dashboardTimer=Timer.scheduledTimer(withTimeInterval:10,repeats:true) {[weak self] _ in Task { @MainActor in self?.reloadDashboard() }}
+        modelsTimer=Timer.scheduledTimer(withTimeInterval:60,repeats:true) {[weak self] _ in Task { @MainActor in self?.reloadModels() }}
+        window.center();window.makeKeyAndOrderFront(nil);NSApp.activate(ignoringOtherApps:true)
+    }
+    func pin(_ v:NSView,in parent:NSView) {
+        v.translatesAutoresizingMaskIntoConstraints=false;parent.addSubview(v)
+        NSLayoutConstraint.activate([v.leadingAnchor.constraint(equalTo:parent.leadingAnchor),v.trailingAnchor.constraint(equalTo:parent.trailingAnchor),v.topAnchor.constraint(equalTo:parent.topAnchor),v.bottomAnchor.constraint(equalTo:parent.bottomAnchor)])
+    }
+    func text(_ string:String,_ size:CGFloat=12,_ color:NSColor? = nil,_ weight:NSFont.Weight = .regular)->NSTextField {
+        let field=NSTextField(labelWithString:string);field.font = .systemFont(ofSize:size,weight:weight);field.textColor=color ?? .white
+        field.lineBreakMode = .byTruncatingTail;field.maximumNumberOfLines=1;field.toolTip=string
+        field.setContentCompressionResistancePriority(.defaultLow,for:.horizontal);return field
+    }
+    func vstack(_ views:[NSView],spacing:CGFloat=6)->NSStackView {let s=NSStackView(views:views);s.orientation = .vertical;s.alignment = .leading;s.spacing=spacing;return s}
+    func hstack(_ views:[NSView],spacing:CGFloat=8)->NSStackView {let s=NSStackView(views:views);s.orientation = .horizontal;s.alignment = .centerY;s.spacing=spacing;return s}
+    func spacer()->NSView {let v=NSView();v.setContentHuggingPriority(NSLayoutConstraint.Priority(1),for:.horizontal);v.setContentHuggingPriority(NSLayoutConstraint.Priority(1),for:.vertical);return v}
+    /// Adds a full-width child; the width constraint is made only once both views share a parent.
+    func add(_ view:NSView,to parent:NSStackView) {
+        parent.addArrangedSubview(view)
+        view.widthAnchor.constraint(equalTo:parent.widthAnchor,constant:-(parent.edgeInsets.left+parent.edgeInsets.right)).isActive=true
+    }
+    func makeCard(_ title:String?)->(StatusCard,NSStackView) {
+        let panel=StatusCard(fill:panelFill,outline:lineColor),stack=vstack([],spacing:10);stack.translatesAutoresizingMaskIntoConstraints=false;panel.addSubview(stack)
+        NSLayoutConstraint.activate([stack.leadingAnchor.constraint(equalTo:panel.leadingAnchor,constant:16),stack.trailingAnchor.constraint(equalTo:panel.trailingAnchor,constant:-16),stack.topAnchor.constraint(equalTo:panel.topAnchor,constant:14),stack.bottomAnchor.constraint(equalTo:panel.bottomAnchor,constant:-14)])
+        if let title {stack.addArrangedSubview(text(title,13,.white,.semibold))}
+        return (panel,stack)
+    }
+    @discardableResult func card(_ title:String?)->NSStackView {let (panel,stack)=makeCard(title);add(panel,to:dashboardBody);return stack}
+    func button(_ title:String,_ action:Selector,primary:Bool=false)->NSButton {
+        let b=NSButton(title:title,target:self,action:action);b.bezelStyle = .rounded;b.font = .systemFont(ofSize:12,weight:.medium)
+        if primary {b.bezelColor=accent;b.contentTintColor=ink};return b
+    }
+    func navItem(_ title:String,_ symbol:String,_ action:Selector)->NSButton {
+        let b=NSButton(title:" "+title,image:NSImage(systemSymbolName:symbol,accessibilityDescription:nil) ?? NSImage(),target:self,action:action)
+        b.isBordered=false;b.imagePosition = .imageLeading;b.imageHugsTitle=true;b.alignment = .left;b.font = .systemFont(ofSize:13);b.contentTintColor = .white
+        b.wantsLayer=true;b.layer?.cornerRadius=7;b.heightAnchor.constraint(equalToConstant:30).isActive=true;return b
+    }
+    func buildSidebar(_ bar:NSView) {
+        let col=vstack([],spacing:2);col.edgeInsets=NSEdgeInsets(top:46,left:12,bottom:14,right:12);pin(col,in:bar)
+        // The wide NEPTUNE wordmark across the sidebar.
+        let mark=NSImageView();mark.image=Bundle.main.resourceURL.map {$0.appendingPathComponent("engine/neptune-logo-wide.png")}.flatMap {NSImage(contentsOf:$0)}
+        mark.imageScaling = .scaleProportionallyUpOrDown;mark.imageAlignment = .alignLeft;mark.heightAnchor.constraint(equalToConstant:42).isActive=true
+        add(mark,to:col);let tagline=text("TRAINING HELPER",10,muted,.semibold);col.setCustomSpacing(6,after:mark);col.addArrangedSubview(tagline);col.setCustomSpacing(22,after:tagline)
+        func section(_ title:String) {
+            if let last=col.arrangedSubviews.last {col.setCustomSpacing(16,after:last)}
+            let l=text(title.uppercased(),10,muted,.semibold);col.addArrangedSubview(l);col.setCustomSpacing(6,after:l)
         }
-        var deferredWidths:[NSLayoutConstraint]=[]
-        let (_,live)=card(164)
-        let head=NSStackView();head.distribution = .fill;head.orientation = .horizontal;head.alignment = .centerY;head.spacing=10
-        let mark=NSImageView();mark.image=Bundle.main.resourceURL.map {$0.appendingPathComponent("engine/neptune-logo-square.png")}.flatMap {NSImage(contentsOf:$0)};mark.imageScaling = .scaleProportionallyUpOrDown;mark.widthAnchor.constraint(equalToConstant:32).isActive=true;mark.heightAnchor.constraint(equalToConstant:32).isActive=true;head.addArrangedSubview(mark)
-        let copy=NSStackView();copy.orientation = .vertical;copy.alignment = .leading;copy.spacing=2
-        let name=NSTextField(labelWithString:Host.current().localizedName ?? "This Mac");name.font = .systemFont(ofSize:15,weight:.bold);name.textColor = .white;name.lineBreakMode = .byTruncatingTail
-        computerDetail.font = .systemFont(ofSize:10);computerDetail.textColor=muted;computerDetail.stringValue="Mac · reading hardware…";computerDetail.lineBreakMode = .byTruncatingTail
-        copy.addArrangedSubview(name);copy.addArrangedSubview(computerDetail);head.addArrangedSubview(copy)
-        let badge=StatusCard(fill:NSColor(srgbRed:0.09,green:0.15,blue:0.23,alpha:1),outline:panel);badge.widthAnchor.constraint(equalToConstant:88).isActive=true;badge.heightAnchor.constraint(equalToConstant:25).isActive=true
-        availability.font = .systemFont(ofSize:11,weight:.semibold);availability.textColor = .white;availability.alignment = .center;availability.translatesAutoresizingMaskIntoConstraints=false;badge.addSubview(availability)
-        NSLayoutConstraint.activate([availability.centerXAnchor.constraint(equalTo:badge.centerXAnchor),availability.centerYAnchor.constraint(equalTo:badge.centerYAnchor)])
-        head.addArrangedSubview(badge);deferredWidths.append(head.widthAnchor.constraint(equalTo:live.widthAnchor));head.heightAnchor.constraint(equalToConstant:40).isActive=true;live.addArrangedSubview(head)
-        let meters=NSStackView();meters.orientation = .vertical;meters.spacing=8;meters.alignment = .leading
-        for pair in [[cpuMeter,gpuMeter],[ramMeter,vramMeter]] {
-            let row=NSStackView();row.orientation = .horizontal;row.distribution = .fillEqually;row.spacing=16
-            for meter in pair {row.addArrangedSubview(meter)};deferredWidths.append(row.widthAnchor.constraint(equalTo:live.widthAnchor));row.heightAnchor.constraint(equalToConstant:30).isActive=true;meters.addArrangedSubview(row)
+        for (i,p) in pages.enumerated() {
+            if i==1 {section("Models")};if i==4 {section("Helpers")}
+            let b=navItem(p.title,p.symbol,#selector(navTap(_:)));b.identifier=NSUserInterfaceItemIdentifier(p.key)
+            add(b,to:col);navButtons[p.key]=b
         }
-        meters.heightAnchor.constraint(equalToConstant:68).isActive=true;live.addArrangedSubview(meters)
-        connection.font = .systemFont(ofSize:10);connection.textColor=muted;connection.maximumNumberOfLines=1;connection.lineBreakMode = .byTruncatingTail;connection.heightAnchor.constraint(equalToConstant:16).isActive=true;live.addArrangedSubview(connection)
-        let (job,jobStack)=card(0);jobCardHeight=job.heightAnchor.constraint(equalToConstant:62);jobCardHeight?.isActive=true;jobStack.spacing=6
-        jobTitle.stringValue="THIS MAC";jobTitle.font = .systemFont(ofSize:10,weight:.bold);jobTitle.textColor=accent;jobTitle.heightAnchor.constraint(equalToConstant:14).isActive=true;jobTitle.maximumNumberOfLines=1;jobTitle.lineBreakMode = .byTruncatingTail;jobStack.addArrangedSubview(jobTitle)
-        status.font = .systemFont(ofSize:11);status.textColor = .white;status.maximumNumberOfLines=2;status.preferredMaxLayoutWidth=536;deferredWidths.append(status.widthAnchor.constraint(equalTo:jobStack.widthAnchor))
-        statusHeight=status.heightAnchor.constraint(equalToConstant:18);statusHeight?.isActive=true;status.stringValue="No assigned job";jobStack.addArrangedSubview(status)
-        func progressLine(_ text:NSTextField,_ bar:NSProgressIndicator)->NSStackView {
-            let box=NSStackView();box.orientation = .vertical;box.alignment = .leading;box.spacing=4;text.font = .monospacedSystemFont(ofSize:10,weight:.regular);text.textColor=muted;text.maximumNumberOfLines=1;text.lineBreakMode = .byTruncatingTail
-            bar.minValue=0;bar.maxValue=100;bar.isIndeterminate=false;bar.style = .bar;deferredWidths.append(bar.widthAnchor.constraint(equalTo:jobStack.widthAnchor));box.addArrangedSubview(text);box.addArrangedSubview(bar);box.heightAnchor.constraint(equalToConstant:26).isActive=true;return box
-        }
-        stageRow=progressLine(stageText,stageProgress);progressRow=progressLine(remaining,progress);jobStack.addArrangedSubview(stageRow);jobStack.addArrangedSubview(progressRow)
-        nextStatus.font = .systemFont(ofSize:10);nextStatus.textColor=muted;nextStatus.maximumNumberOfLines=1;nextStatus.lineBreakMode = .byTruncatingTail;nextStatus.heightAnchor.constraint(equalToConstant:12).isActive=true;jobStack.addArrangedSubview(nextStatus)
-        stageRow.isHidden=true;progressRow.isHidden=true;nextStatus.isHidden=true
-        let buttons=NSStackView();buttons.orientation = .horizontal;buttons.spacing=8
-        run=NSButton(title:"Open Neptune",target:self,action:#selector(openSite));connect=NSButton(title:"Reconnect",target:self,action:#selector(reconnect));reviewButton=NSButton(title:"Review tracking…",target:self,action:#selector(reviewTracking))
-        folderButton=NSButton(title:"Label image folder…",target:self,action:#selector(labelImageFolder))
-        for button in [run!,connect!,reviewButton!,folderButton!] {button.bezelStyle = .rounded;button.font = .systemFont(ofSize:11,weight:.medium);button.heightAnchor.constraint(equalToConstant:32).isActive=true;buttons.addArrangedSubview(button)}
-        run.bezelColor=accent;run.contentTintColor=ink;root.addArrangedSubview(buttons);buttons.heightAnchor.constraint(equalToConstant:32).isActive=true
-        let controls=NSStackView();controls.orientation = .horizontal;controls.spacing=10
-        let deviceLabel=NSTextField(labelWithString:"Training device");deviceLabel.font = .systemFont(ofSize:11);deviceLabel.textColor=muted;controls.addArrangedSubview(deviceLabel)
-        device.addItems(withTitles:["Automatic","Mac GPU","CPU"]);device.selectItem(withTitle:UserDefaults.standard.string(forKey:"device") ?? "Automatic");device.target=self;device.action=#selector(changeDevice);controls.addArrangedSubview(device)
-        stop=NSButton(title:"Stop after this match",target:self,action:#selector(stopMatch));stop.isEnabled=false;controls.addArrangedSubview(stop);root.addArrangedSubview(controls);controls.heightAnchor.constraint(equalToConstant:28).isActive=true
+        section("Tools")
+        reviewButton=navItem("Review tracking…","scope",#selector(reviewTracking));add(reviewButton,to:col)
+        folderButton=navItem("Label image folder…","photo.on.rectangle",#selector(labelImageFolder));add(folderButton,to:col)
+        col.addArrangedSubview(spacer())
+        // Connection, version and updates stay in one quiet corner.
+        connection.font = .systemFont(ofSize:11);connection.textColor = .white;connection.maximumNumberOfLines=2
+        for f in [version,updateStatus] {f.font = .systemFont(ofSize:10);f.textColor=muted;f.maximumNumberOfLines=2}
         let identity=Bundle.main.url(forResource:"engine-identity",withExtension:"json").flatMap {try? Data(contentsOf:$0)}.flatMap {try? JSONSerialization.jsonObject(with:$0) as? [String:Any]}
         let engine=(identity?["version"] as? String ?? "Unknown").components(separatedBy:"-").first ?? "Unknown"
-        version.stringValue="v\(Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") ?? "") · Engine \(engine)";version.font = .systemFont(ofSize:9);version.textColor=muted
-        updateStatus.font = .systemFont(ofSize:9);updateStatus.textColor=muted;updateStatus.maximumNumberOfLines=1;updateStatus.lineBreakMode = .byTruncatingTail
-        let footer=NSStackView();footer.orientation = .horizontal;footer.spacing=14;footer.addArrangedSubview(version);footer.addArrangedSubview(updateStatus);footer.heightAnchor.constraint(equalToConstant:26).isActive=true;root.addArrangedSubview(footer)
-        activityToggle=NSButton(title:"Show activity",target:self,action:#selector(toggleActivity));activityToggle.bezelStyle = .rounded;activityToggle.font = .systemFont(ofSize:11);activityToggle.heightAnchor.constraint(equalToConstant:26).isActive=true;root.addArrangedSubview(activityToggle)
-        let scroll=NSScrollView();scroll.hasVerticalScroller=true;scroll.borderType = .noBorder;scroll.documentView=log;log.isEditable=false;log.isSelectable=true;log.font = .monospacedSystemFont(ofSize:10,weight:.regular);log.textColor = .white;log.backgroundColor=ink;log.autoresizingMask=[.width];log.isVerticallyResizable=true;log.textContainer?.widthTracksTextView=true
-        root.addArrangedSubview(scroll);scroll.heightAnchor.constraint(equalToConstant:180).isActive=true;activityScroll=scroll;scroll.isHidden=true
-        let spacer=NSView();spacer.setContentHuggingPriority(NSLayoutConstraint.Priority(1),for:.vertical);spacer.heightAnchor.constraint(greaterThanOrEqualToConstant:0).isActive=true;root.addArrangedSubview(spacer)
-        let menu=NSMenu();let item=NSMenuItem();let appMenu=NSMenu();appMenu.addItem(withTitle:"Check for Updates…",action:#selector(checkUpdates),keyEquivalent:"");appMenu.addItem(withTitle:"Import existing helper connection…",action:#selector(importConnection),keyEquivalent:"");appMenu.addItem(withTitle:"Show logs",action:#selector(showLogs),keyEquivalent:"");appMenu.addItem(.separator());appMenu.addItem(withTitle:"Quit Neptune Training Helper",action:#selector(NSApplication.terminate(_:)),keyEquivalent:"q");item.submenu=appMenu;menu.addItem(item);NSApp.mainMenu=menu
-        let viewMenuItem=NSMenuItem(title:"View",action:nil,keyEquivalent:"");let viewMenu=NSMenu(title:"View")
-        viewMenu.addItem(withTitle:"Refresh readouts",action:#selector(reloadDashboard),keyEquivalent:"r")
-        let fullScreenItem=viewMenu.addItem(withTitle:"Enter Full Screen",action:#selector(toggleFullScreen),keyEquivalent:"f");fullScreenItem.keyEquivalentModifierMask=[.control,.command]
-        viewMenuItem.submenu=viewMenu;menu.addItem(viewMenuItem)
-        NSLayoutConstraint.activate(deferredWidths)
-        buildDashboard(background:ink)
-        dashboardTimer=Timer.scheduledTimer(withTimeInterval:10,repeats:true) {[weak self] _ in Task { @MainActor in self?.reloadDashboard() }}
-        window.contentView!.layoutSubtreeIfNeeded();window.center();window.makeKeyAndOrderFront(nil);NSApp.activate(ignoringOtherApps:true)
+        version.stringValue="v\(Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") ?? "") · engine \(engine)"
+        connect=NSButton(title:"Reconnect",target:self,action:#selector(reconnect));connect.bezelStyle = .rounded;connect.controlSize = .small;connect.font = .systemFont(ofSize:11)
+        let (panel,stack)=makeCard(nil);stack.spacing=6
+        for v in [connection,version,updateStatus] as [NSView] {add(v,to:stack)}
+        stack.addArrangedSubview(connect);add(panel,to:col)
     }
-    func buildDashboard(background:NSColor) {
-        let content=window.contentView!
-        let container=NSView(frame:.zero);container.translatesAutoresizingMaskIntoConstraints=false;content.addSubview(container)
-        NSLayoutConstraint.activate([container.leadingAnchor.constraint(equalTo:content.leadingAnchor),container.trailingAnchor.constraint(equalTo:content.trailingAnchor),container.topAnchor.constraint(equalTo:content.topAnchor),container.bottomAnchor.constraint(equalTo:content.bottomAnchor)])
-        let bar=NSView(frame:.zero);bar.translatesAutoresizingMaskIntoConstraints=false;container.addSubview(bar)
-        let mark=NSImageView();mark.image=Bundle.main.resourceURL.map {$0.appendingPathComponent("engine/neptune-logo-square.png")}.flatMap {NSImage(contentsOf:$0)};mark.imageScaling = .scaleProportionallyUpOrDown;mark.translatesAutoresizingMaskIntoConstraints=false;bar.addSubview(mark)
-        let label=NSTextField(labelWithString:"NEPTUNE  /  TRAINING");label.font = .systemFont(ofSize:13,weight:.bold);label.textColor=NSColor(srgbRed:0.34,green:0.82,blue:0.95,alpha:1);label.translatesAutoresizingMaskIntoConstraints=false;bar.addSubview(label)
-        dashboardStatus.font = .systemFont(ofSize:11);dashboardStatus.textColor=NSColor(srgbRed:0.67,green:0.74,blue:0.83,alpha:1);dashboardStatus.translatesAutoresizingMaskIntoConstraints=false;dashboardStatus.lineBreakMode = .byTruncatingTail;dashboardStatus.setContentCompressionResistancePriority(.defaultLow,for:.horizontal);bar.addSubview(dashboardStatus)
-        let controls=NSStackView();controls.orientation = .horizontal;controls.spacing=8;controls.translatesAutoresizingMaskIntoConstraints=false
-        for button in [reviewButton!,folderButton!,connect!,run!] {button.removeFromSuperview();controls.addArrangedSubview(button)}
-        bar.addSubview(controls)
-        let scroll=NSScrollView(frame:.zero);scroll.translatesAutoresizingMaskIntoConstraints=false;scroll.hasVerticalScroller=true;scroll.drawsBackground=false;container.addSubview(scroll)
-        let body=FlippedStackView(frame:.zero);body.orientation = .vertical;body.alignment = .leading;body.spacing=18;body.edgeInsets=NSEdgeInsets(top:22,left:22,bottom:22,right:22);body.translatesAutoresizingMaskIntoConstraints=false;scroll.documentView=body;dashboardBody=body
-        NSLayoutConstraint.activate([
-            bar.leadingAnchor.constraint(equalTo:container.leadingAnchor),bar.trailingAnchor.constraint(equalTo:container.trailingAnchor),bar.topAnchor.constraint(equalTo:container.topAnchor),bar.heightAnchor.constraint(equalToConstant:52),
-            mark.leadingAnchor.constraint(equalTo:bar.leadingAnchor,constant:18),mark.centerYAnchor.constraint(equalTo:bar.centerYAnchor),mark.widthAnchor.constraint(equalToConstant:36),mark.heightAnchor.constraint(equalToConstant:36),
-            label.leadingAnchor.constraint(equalTo:mark.trailingAnchor,constant:10),label.centerYAnchor.constraint(equalTo:bar.centerYAnchor),
-            dashboardStatus.leadingAnchor.constraint(equalTo:label.trailingAnchor,constant:16),dashboardStatus.centerYAnchor.constraint(equalTo:bar.centerYAnchor),
-            controls.trailingAnchor.constraint(equalTo:bar.trailingAnchor,constant:-18),controls.centerYAnchor.constraint(equalTo:bar.centerYAnchor),
-            dashboardStatus.trailingAnchor.constraint(lessThanOrEqualTo:controls.leadingAnchor,constant:-16),
-            scroll.leadingAnchor.constraint(equalTo:container.leadingAnchor),scroll.trailingAnchor.constraint(equalTo:container.trailingAnchor),scroll.topAnchor.constraint(equalTo:bar.bottomAnchor),scroll.bottomAnchor.constraint(equalTo:container.bottomAnchor),
-            body.widthAnchor.constraint(equalTo:scroll.contentView.widthAnchor)
-        ])
-        dashboard=container
-        // One window: this Mac's card, job and controls sit above Neptune's readouts; activity and version below.
-        let logo=NSImageView();logo.image=Bundle.main.resourceURL.map {$0.appendingPathComponent("engine/neptune-logo-wide.png")}.flatMap {NSImage(contentsOf:$0)};logo.imageScaling = .scaleProportionallyUpOrDown
-        logo.widthAnchor.constraint(equalToConstant:260).isActive=true;logo.heightAnchor.constraint(equalToConstant:60).isActive=true
-        let views=helperContent.arrangedSubviews
-        for view in views {helperContent.removeArrangedSubview(view);view.removeFromSuperview()}
-        helperContent.removeFromSuperview()
-        let controlRow=views.first {($0 as? NSStackView)?.arrangedSubviews.contains(device)==true}
-        let footer=views.first {($0 as? NSStackView)?.arrangedSubviews.contains(version)==true}
-        pinnedTop=[logo]+thisMacCards+[controlRow].compactMap {$0}
-        pinnedBottom=[activityToggle!,activityScroll!,footer].compactMap {$0}
-        for view in pinnedTop+pinnedBottom {dashboardBody.addArrangedSubview(view)}
-        for view in thisMacCards+[activityScroll!] {view.widthAnchor.constraint(equalTo:dashboardBody.widthAnchor,constant:-44).isActive=true}
-        renderDashboard(["computers":[],"queue":[]])
+    func buildMain(_ main:NSView) {
+        pageTitle.font = .systemFont(ofSize:22,weight:.bold);pageTitle.textColor = .white
+        dashboardStatus.font = .systemFont(ofSize:12);dashboardStatus.textColor=muted;dashboardStatus.lineBreakMode = .byTruncatingTail
+        dashboardStatus.setContentCompressionResistancePriority(.defaultLow,for:.horizontal)
+        run=button("Open Neptune",#selector(openTrainPage),primary:true)
+        headerActions.orientation = .horizontal;headerActions.spacing=8
+        let titles=vstack([pageTitle,dashboardStatus],spacing:2);titles.setContentCompressionResistancePriority(.defaultLow,for:.horizontal)
+        let header=hstack([titles,spacer(),headerActions,run],spacing:10);header.translatesAutoresizingMaskIntoConstraints=false;main.addSubview(header)
+        let scroll=NSScrollView();scroll.translatesAutoresizingMaskIntoConstraints=false;scroll.hasVerticalScroller=true;scroll.drawsBackground=false;scroll.autohidesScrollers=true;main.addSubview(scroll)
+        let body=FlippedStackView();body.orientation = .vertical;body.alignment = .leading;body.spacing=14;body.edgeInsets=NSEdgeInsets(top:6,left:28,bottom:28,right:28);body.translatesAutoresizingMaskIntoConstraints=false
+        scroll.documentView=body;dashboardBody=body
+        NSLayoutConstraint.activate([header.leadingAnchor.constraint(equalTo:main.leadingAnchor,constant:28),header.trailingAnchor.constraint(equalTo:main.trailingAnchor,constant:-28),header.topAnchor.constraint(equalTo:main.topAnchor,constant:36),
+            scroll.leadingAnchor.constraint(equalTo:main.leadingAnchor),scroll.trailingAnchor.constraint(equalTo:main.trailingAnchor),scroll.topAnchor.constraint(equalTo:header.bottomAnchor,constant:14),scroll.bottomAnchor.constraint(equalTo:main.bottomAnchor),
+            body.widthAnchor.constraint(equalTo:scroll.contentView.widthAnchor)])
     }
-    func resizeForState() {window?.contentView?.layoutSubtreeIfNeeded()}
-    @objc func reloadDashboard() {
-        guard !dashboardLoading,let data=cachedCredential,
-              let config=(try? JSONSerialization.jsonObject(with:data)) as? [String:Any],
-              let token=config["token"] as? String,token.count==64,
-              let site=config["site"] as? String,site=="https://neptunefrc.com",
-              let url=URL(string:"https://neptunefrc.com/api/robot-detector.php") else {
-            if cachedCredential == nil {dashboardStatus.stringValue="Connect this Mac to Neptune"}
-            return
+    /// Views that live across page changes: this Mac's strip, its job and the activity log.
+    func buildPersistent() {
+        let strip=StatusCard(fill:panelFill,outline:lineColor),row=hstack([],spacing:20);row.translatesAutoresizingMaskIntoConstraints=false;strip.addSubview(row)
+        NSLayoutConstraint.activate([row.leadingAnchor.constraint(equalTo:strip.leadingAnchor,constant:16),row.trailingAnchor.constraint(equalTo:strip.trailingAnchor,constant:-16),row.topAnchor.constraint(equalTo:strip.topAnchor,constant:14),row.bottomAnchor.constraint(equalTo:strip.bottomAnchor,constant:-14)])
+        computerDetail.font = .systemFont(ofSize:11);computerDetail.textColor=muted;computerDetail.stringValue="Mac · reading hardware…";computerDetail.lineBreakMode = .byTruncatingTail
+        availability.font = .systemFont(ofSize:11,weight:.semibold);availability.textColor=good
+        let who=vstack([text(Host.current().localizedName ?? "This Mac",14,.white,.semibold),computerDetail,availability],spacing:3);who.widthAnchor.constraint(equalToConstant:200).isActive=true
+        let top=hstack([cpuMeter,gpuMeter],spacing:16),bottom=hstack([ramMeter,vramMeter],spacing:16)
+        for r in [top,bottom] {r.distribution = .fillEqually}
+        let meters=vstack([top,bottom],spacing:10);meters.setContentHuggingPriority(NSLayoutConstraint.Priority(1),for:.horizontal)
+        for r in [top,bottom] {r.widthAnchor.constraint(equalTo:meters.widthAnchor).isActive=true}
+        device.addItems(withTitles:["Automatic","Mac GPU","CPU"]);device.selectItem(withTitle:UserDefaults.standard.string(forKey:"device") ?? "Automatic");device.target=self;device.action=#selector(changeDevice)
+        stop=button("Stop after this match",#selector(stopMatch));stop.isHidden=true
+        let controls=vstack([text("Training device",10,muted),device,stop],spacing:6);controls.widthAnchor.constraint(equalToConstant:170).isActive=true
+        for v in [who,meters,controls] as [NSView] {row.addArrangedSubview(v)}
+        thisMacStrip=strip
+        // This Mac's own job, shown while it is working.
+        let (job,jobStack)=makeCard(nil);jobStack.spacing=6
+        jobTitle.stringValue="THIS MAC";jobTitle.font = .systemFont(ofSize:11,weight:.bold);jobTitle.textColor=accent;jobTitle.lineBreakMode = .byTruncatingTail
+        status.font = .systemFont(ofSize:13);status.textColor = .white;status.maximumNumberOfLines=2
+        nextStatus.font = .systemFont(ofSize:11);nextStatus.textColor=muted;nextStatus.lineBreakMode = .byTruncatingTail
+        for v in [jobTitle,status] as [NSView] {add(v,to:jobStack)}
+        func progressLine(_ label:NSTextField,_ bar:NSProgressIndicator)->NSStackView {
+            label.font = .monospacedSystemFont(ofSize:11,weight:.regular);label.textColor=muted;label.lineBreakMode = .byTruncatingTail
+            bar.minValue=0;bar.maxValue=100;bar.isIndeterminate=false;bar.style = .bar
+            let box=vstack([],spacing:4);add(box,to:jobStack);add(label,to:box);add(bar,to:box);return box
         }
-        dashboardLoading=true
-        var request=URLRequest(url:url);request.httpMethod="POST";request.timeoutInterval=15
-        request.setValue("application/json",forHTTPHeaderField:"Content-Type")
-        request.setValue("Bearer "+token,forHTTPHeaderField:"Authorization")
-        request.httpBody=Data(#"{"action":"dashboard"}"#.utf8)
-        URLSession.shared.dataTask(with:request) {data,response,error in
-            let payload=data.flatMap {try? JSONSerialization.jsonObject(with:$0) as? [String:Any]}
-            DispatchQueue.main.async {
-                self.dashboardLoading=false
-                if let response=response as? HTTPURLResponse,response.statusCode==200,let payload=payload,
-                   payload["computers"] is [[String:Any]] {
-                    self.dashboardStatus.stringValue="Live readouts · updated "+DateFormatter.localizedString(from:Date(),dateStyle:.none,timeStyle:.short)
-                    self.renderDashboard(payload)
-                } else {
-                    self.dashboardStatus.stringValue="Readouts unavailable · Refresh to retry"
-                }
-            }
+        stageRow=progressLine(stageText,stageProgress);progressRow=progressLine(remaining,progress);add(nextStatus,to:jobStack)
+        localJob=job
+        let scroll=NSScrollView();scroll.hasVerticalScroller=true;scroll.borderType = .noBorder;scroll.documentView=log
+        log.isEditable=false;log.isSelectable=true;log.font = .monospacedSystemFont(ofSize:11,weight:.regular);log.textColor = .white
+        log.backgroundColor=NSColor(srgbRed:0.05,green:0.10,blue:0.18,alpha:1);log.autoresizingMask=[.width];log.isVerticallyResizable=true;log.textContainer?.widthTracksTextView=true
+        scroll.heightAnchor.constraint(equalToConstant:460).isActive=true;activityScroll=scroll
+        pinned=Set([strip,job,scroll].map {ObjectIdentifier($0)})
+    }
+    func buildMenu() {
+        let menu=NSMenu();let item=NSMenuItem();let appMenu=NSMenu();appMenu.addItem(withTitle:"Check for Updates…",action:#selector(checkUpdates),keyEquivalent:"");appMenu.addItem(withTitle:"Import existing helper connection…",action:#selector(importConnection),keyEquivalent:"");appMenu.addItem(withTitle:"Show logs",action:#selector(showLogs),keyEquivalent:"");appMenu.addItem(.separator());appMenu.addItem(withTitle:"Quit Neptune Training Helper",action:#selector(NSApplication.terminate(_:)),keyEquivalent:"q");item.submenu=appMenu;menu.addItem(item)
+        let viewItem=NSMenuItem(title:"View",action:nil,keyEquivalent:"");let viewMenu=NSMenu(title:"View")
+        for (i,p) in pages.enumerated() {let m=viewMenu.addItem(withTitle:p.title,action:#selector(navTap(_:)),keyEquivalent:"\(i+1)");m.identifier=NSUserInterfaceItemIdentifier(p.key)}
+        viewMenu.addItem(.separator());viewMenu.addItem(withTitle:"Refresh",action:#selector(refreshAll),keyEquivalent:"r")
+        let full=viewMenu.addItem(withTitle:"Enter Full Screen",action:#selector(toggleFullScreen),keyEquivalent:"f");full.keyEquivalentModifierMask=[.control,.command]
+        viewItem.submenu=viewMenu;menu.addItem(viewItem);NSApp.mainMenu=menu
+    }
+    @objc func navTap(_ sender:Any) {if let key=(sender as? NSUserInterfaceItemIdentification)?.identifier?.rawValue {show(key)}}
+    @objc func tileTap(_ sender:NSClickGestureRecognizer) {if let key=sender.view?.identifier?.rawValue {show(key)}}
+    @objc func refreshAll() {reloadDashboard();reloadModels()}
+    @objc func toggleFullScreen() {window.toggleFullScreen(nil)}
+    @objc func openTrainPage() {NSWorkspace.shared.open(URL(string:"https://neptunefrc.com/autoscout/train.php")!)}
+    @objc func openLink(_ sender:NSButton) {if let s=sender.identifier?.rawValue,let url=URL(string:s),url.scheme=="https" {NSWorkspace.shared.open(url)}}
+    func show(_ key:String) {
+        page=pages.contains(where:{$0.key==key}) ? key:"overview"
+        for (k,b) in navButtons {let on=k==page;b.layer?.backgroundColor=(on ? NSColor(white:1,alpha:0.10):NSColor.clear).cgColor;b.contentTintColor=on ? accent:.white}
+        pageTitle.stringValue=pages.first(where:{$0.key==page})?.title ?? "Overview"
+        for v in headerActions.arrangedSubviews {headerActions.removeArrangedSubview(v);v.removeFromSuperview()}
+        switch page {
+        case "robots","field":
+            refreshTargets();trainTarget.widthAnchor.constraint(lessThanOrEqualToConstant:230).isActive=true;headerActions.addArrangedSubview(trainTarget)
+            headerActions.addArrangedSubview(button(page=="robots" ? "Train robot detector":"Train field detector",#selector(trainTapped),primary:true));run.bezelColor=nil;run.contentTintColor=nil
+        case "actions":headerActions.addArrangedSubview(button("Train on Neptune",#selector(openTrainPage),primary:true));run.bezelColor=nil;run.contentTintColor=nil
+        case "activity":headerActions.addArrangedSubview(button("Copy log",#selector(copyLog)));headerActions.addArrangedSubview(button("Show log files",#selector(showLogs)));run.bezelColor=accent;run.contentTintColor=ink
+        default:run.bezelColor=accent;run.contentTintColor=ink
+        }
+        if page=="robots"||page=="field" {reloadModels()}
+        render()
+    }
+    @objc func copyLog() {NSPasteboard.general.clearContents();NSPasteboard.general.setString(log.string,forType:.string)}
+    func computerID()->String? {cachedCredential.flatMap {try? JSONSerialization.jsonObject(with:$0) as? [String:Any]}?["computer_id"] as? String}
+    func refreshTargets() {
+        let chosen=trainTarget.selectedItem?.representedObject as? String
+        trainTarget.removeAllItems();trainTarget.addItem(withTitle:"Any free helper")
+        for c in (dash["computers"] as? [[String:Any]] ?? []) where (c["online"] as? Bool)==true {
+            guard let id=c["id"] as? String else {continue}
+            trainTarget.addItem(withTitle:(c["name"] as? String ?? "Computer")+(id==computerID() ? " (this Mac)":""));trainTarget.lastItem?.representedObject=id
+            if id==chosen {trainTarget.select(trainTarget.lastItem)}
+        }
+    }
+    @objc func trainTapped() {
+        let kind=page=="field" ? "train_field":"train",target=trainTarget.selectedItem?.representedObject as? String
+        let alert=NSAlert();alert.messageText=kind=="train" ? "Train the robot detector?":"Train the field detector?"
+        alert.informativeText="Runs on \(target==nil ? "the first free helper":trainTarget.titleOfSelectedItem ?? "the chosen computer"). It replaces the model in use only if it does better on the held-out match."
+        alert.addButton(withTitle:"Start training");alert.addButton(withTitle:"Cancel")
+        guard alert.runModal() == .alertFirstButtonReturn else {return}
+        var body:[String:Any]=["action":"queue_training","kind":kind];if let target {body["computer"]=target}
+        post(body) {ok,reply in
+            self.dashboardStatus.stringValue=ok ? "Run queued" : (reply?["error"] as? String ?? "Couldn't start the run. Check the connection and try again.")
+            self.reloadDashboard();self.reloadModels()
+        }
+    }
+    func post(_ body:[String:Any],_ done:@escaping (Bool,[String:Any]?)->Void) {
+        guard let data=cachedCredential,let config=(try? JSONSerialization.jsonObject(with:data)) as? [String:Any],
+              let token=config["token"] as? String,token.count==64,let site=config["site"] as? String,site=="https://neptunefrc.com",
+              let url=URL(string:"https://neptunefrc.com/api/robot-detector.php"),let json=try? JSONSerialization.data(withJSONObject:body) else {done(false,nil);return}
+        var request=URLRequest(url:url);request.httpMethod="POST";request.timeoutInterval=30
+        request.setValue("application/json",forHTTPHeaderField:"Content-Type");request.setValue("Bearer "+token,forHTTPHeaderField:"Authorization");request.httpBody=json
+        URLSession.shared.dataTask(with:request) {data,response,_ in
+            let payload=data.flatMap {try? JSONSerialization.jsonObject(with:$0) as? [String:Any]},ok=(response as? HTTPURLResponse)?.statusCode==200
+            DispatchQueue.main.async {done(ok,payload)}
         }.resume()
     }
-    @objc func toggleFullScreen() {window.toggleFullScreen(nil)}
-    func dashText(_ string:String,_ size:CGFloat=12,_ color:NSColor = .white,_ weight:NSFont.Weight = .regular)->NSTextField {
-        let field=NSTextField(labelWithString:string);field.font = .systemFont(ofSize:size,weight:weight);field.textColor=color
-        field.lineBreakMode = .byTruncatingTail;field.maximumNumberOfLines=1
-        field.toolTip=string
-        return field
+    @objc func reloadDashboard() {
+        guard cachedCredential != nil else {dashboardStatus.stringValue="Connect this Mac to Neptune";return}
+        guard !dashboardLoading else {return};dashboardLoading=true
+        post(["action":"dashboard"]) {ok,payload in
+            self.dashboardLoading=false
+            if ok,let payload,payload["computers"] is [[String:Any]] {
+                self.dash=payload;self.dashboardStatus.stringValue="Live · updated "+DateFormatter.localizedString(from:Date(),dateStyle:.none,timeStyle:.short)
+                if self.page != "robots" && self.page != "field" {self.refreshTargets()};if self.page != "activity" {self.render()}
+            } else {self.dashboardStatus.stringValue="Readouts unavailable · retrying"}
+        }
     }
-    func dashCard(_ title:String,_ minimumHeight:CGFloat)->NSStackView {
-        let panel=StatusCard(fill:NSColor(srgbRed:0.09,green:0.18,blue:0.30,alpha:0.92),outline:NSColor(srgbRed:0.22,green:0.36,blue:0.50,alpha:1))
-        let stack=NSStackView();stack.orientation = .vertical;stack.alignment = .leading;stack.spacing=10;stack.translatesAutoresizingMaskIntoConstraints=false;panel.addSubview(stack)
-        dashboardBody.addArrangedSubview(panel)
-        NSLayoutConstraint.activate([stack.leadingAnchor.constraint(equalTo:panel.leadingAnchor,constant:14),stack.trailingAnchor.constraint(equalTo:panel.trailingAnchor,constant:-14),stack.topAnchor.constraint(equalTo:panel.topAnchor,constant:14),stack.bottomAnchor.constraint(equalTo:panel.bottomAnchor,constant:-14),panel.widthAnchor.constraint(equalTo:dashboardBody.widthAnchor,constant:-44),panel.heightAnchor.constraint(greaterThanOrEqualToConstant:minimumHeight)])
-        stack.addArrangedSubview(dashText(title,14,NSColor(srgbRed:0.34,green:0.82,blue:0.95,alpha:1),.bold))
-        return stack
+    func reloadModels() {
+        guard cachedCredential != nil else {return}
+        post(["action":"models"]) {ok,payload in if ok,let payload {self.models=payload;if self.page != "activity" {self.render()}}}
     }
-    func dashMeter(_ title:String,_ value:Double?,_ text:String)->HardwareMeter {
-        let meter=HardwareMeter(title);meter.show(value,text)
-        meter.heightAnchor.constraint(equalToConstant:31).isActive=true
-        return meter
+    func render() {
+        for v in dashboardBody.arrangedSubviews {dashboardBody.removeArrangedSubview(v);v.removeFromSuperview()}
+        switch page {
+        case "robots":renderModel("robot")
+        case "field":renderModel("field")
+        case "actions":renderActions()
+        case "computers":renderComputers()
+        case "activity":add(activityScroll,to:dashboardBody)
+        default:renderOverview()
+        }
+        dashboardBody.layoutSubtreeIfNeeded()
     }
-    func renderDashboard(_ data:[String:Any]) {
-        let pinned=Set((pinnedTop+pinnedBottom).map {ObjectIdentifier($0)})
-        for view in dashboardBody.arrangedSubviews {dashboardBody.removeArrangedSubview(view);if !pinned.contains(ObjectIdentifier(view)) {view.removeFromSuperview()}}
-        for view in pinnedTop {dashboardBody.addArrangedSubview(view)}
-        defer {for view in pinnedBottom {dashboardBody.addArrangedSubview(view)};dashboardBody.layoutSubtreeIfNeeded()}
-        let config=cachedCredential.flatMap {try? JSONSerialization.jsonObject(with:$0) as? [String:Any]}
-        let selfID=config?["computer_id"] as? String
-        let muted=NSColor(srgbRed:0.61,green:0.68,blue:0.77,alpha:1)
-        let computers=data["computers"] as? [[String:Any]] ?? []
-        let queue=data["queue"] as? [[String:Any]] ?? []
+    func number(_ d:[String:Any]?,_ k:String)->Double? {(d?[k] as? NSNumber)?.doubleValue}
+    func when(_ t:Any?)->String {
+        guard let s=(t as? NSNumber)?.doubleValue,s>0 else {return "—"}
+        let f=DateFormatter();f.dateFormat="MMM d, h:mm a";return f.string(from:Date(timeIntervalSince1970:s))
+    }
+    func score(_ kind:String,_ value:Any?)->String {
+        guard let p=value as? [String:Any] else {return "—"}
+        if kind=="robot" {return number(p,"f1").map {String(format:"F1 %.2f",$0)} ?? "—"}
+        let found=Int(number(p,"found") ?? 0),expected=Int(number(p,"expected") ?? 0)
+        guard found>0,let e=number(p,"mean_error") else {return "none found"}
+        return String(format:"%d/%d · %.1f%% off",found,expected,e*100)
+    }
+    func runResult(_ r:[String:Any])->(String,NSColor) {
+        switch r["state"] as? String {
+        case "done":return (r["adopted"] as? Bool)==true ? ("Switched to it",good):("Kept the one in use",muted)
+        case "failed":return ("Failed",warn)
+        case "cancelled":return ("Cancelled",muted)
+        case "claimed":return ("Running",accent)
+        default:return ("Waiting",muted)
+        }
+    }
+    func tile(_ label:String,_ value:String,_ note:String,noteColor:NSColor?=nil,link:String?=nil)->StatusCard {
+        let (panel,stack)=makeCard(nil);stack.spacing=4
+        stack.addArrangedSubview(text(label,11,muted));stack.addArrangedSubview(text(value,20,.white,.semibold));stack.addArrangedSubview(text(note,11,noteColor ?? muted))
+        if let link {panel.identifier=NSUserInterfaceItemIdentifier(link);panel.addGestureRecognizer(NSClickGestureRecognizer(target:self,action:#selector(tileTap(_:))))}
+        return panel
+    }
+    func tileRow(_ tiles:[NSView]) {let row=hstack(tiles,spacing:14);row.distribution = .fillEqually;row.alignment = .top;add(row,to:dashboardBody)}
+    func meterRow(_ stats:[String:Any])->NSStackView {
+        let gpu=stats["gpu"] as? [String:Any] ?? [:]
+        func memory(_ used:Double?,_ total:Double?)->String {guard let used else {return "—"};return total.map {String(format:"%.1f / %.1f GB",used/1024,$0/1024)} ?? String(format:"%.1f GB",used/1024)}
+        let cpu=number(stats,"cpu"),gpuUse=number(gpu,"util"),ram=number(stats,"ram_used_mb"),ramTotal=number(stats,"ram_total_mb"),vram=number(gpu,"mem_used_mb"),vramTotal=number(gpu,"mem_total_mb")
+        func percent(_ v:Double?)->String {v.map {String(format:"%.0f%%",$0)} ?? "—"}
+        func share(_ used:Double?,_ total:Double?)->Double? {guard let used,let total,total>0 else {return nil};return used/total}
+        let meters:[(String,Double?,String)]=[("CPU",cpu.map {$0/100},percent(cpu)),("GPU",gpuUse.map {$0/100},percent(gpuUse)),("RAM",share(ram,ramTotal),memory(ram,ramTotal)),("GPU memory",share(vram,vramTotal),memory(vram,vramTotal))]
+        let row=hstack(meters.map {m in let meter=HardwareMeter(m.0);meter.show(m.1,m.2);return meter},spacing:16);row.distribution = .fillEqually;return row
+    }
+    func modelTiles() {
+        let robot=models["robot"] as? [String:Any],field=models["field"] as? [String:Any],actions=models["actions"] as? [String:Any]
+        let rc=robot?["current"] as? [String:Any],fc=field?["current"] as? [String:Any],counts=actions?["counts"] as? [String:Any]
+        let tagged=Int(number(counts,"matches") ?? 0)
+        tileRow([
+            tile("Robots",rc.map {score("robot",$0["new"])} ?? (robot==nil ? "—":"Built-in"),robot.map {"\(Int(number($0,"matches") ?? 0)) labelled matches"} ?? "Loading…",link:"robots"),
+            tile("Field",fc.map {score("field",$0["new"])} ?? (field==nil ? "—":"Marked zones"),field.map {"\(($0["events"] as? [Any])?.count ?? 0) events marked"} ?? "Loading…",link:"field"),
+            tile("Actions",actions==nil ? "—":(actions?["released"] is String ? "Released":"Not released"),actions==nil ? "Loading…":(tagged<6 ? "\(tagged) tagged matches · needs more":"\(tagged) tagged matches"),noteColor:actions != nil && tagged<6 ? warn:nil,link:"actions"),
+        ])
+    }
+    func renderOverview() {
+        add(thisMacStrip,to:dashboardBody)
+        let computers=dash["computers"] as? [[String:Any]] ?? [],queue=dash["queue"] as? [[String:Any]] ?? [],me=computerID()
         let running=queue.filter {($0["state"] as? String)=="running"}
-        let waiting=queue.filter {($0["state"] as? String)=="waiting"}
-        var connected=cachedCredential != nil
-#if DASHBOARD_PREVIEW
-        connected=true
-#endif
-        if !connected {
-            let card=dashCard("CONNECT THIS MAC",110)
-            card.addArrangedSubview(dashText("Connect to Neptune and approve this Mac in your browser to see training readouts.",12,muted))
-            let button=NSButton(title:"Connect to Neptune",target:self,action:#selector(reconnect));button.bezelStyle = .rounded;card.addArrangedSubview(button)
-            return
+        if running.isEmpty {card("Running now").addArrangedSubview(text("Nothing is running. Start a run from a model page.",12,muted))}
+        for job in running.prefix(3) {
+            // Detector runs name their helper in computer_id; action runs in target.
+            let id=(job["computer_id"] as? String) ?? (job["target"] as? String)
+            console(job,computers.first(where:{id != nil && ($0["id"] as? String)==id}),me:me)
         }
-        let active=dashCard("RUNNING NOW  ·  \(running.count) active",running.isEmpty ? 90:290)
-        if let job=running.first {
-            active.addArrangedSubview(dashText(job["title"] as? String ?? "Training",16,.white,.bold))
-            active.addArrangedSubview(dashText(job["message"] as? String ?? "",12,muted))
-            if let id=job["computer_id"] as? String,let worker=computers.first(where:{($0["id"] as? String)==id}) {
-                let counters=worker["counters"] as? [String:Any] ?? [:]
-                let pass=(counters["pass"] as? NSNumber)?.intValue ?? 0
-                let passes=(counters["passes"] as? NSNumber)?.intValue ?? 0
-                let batch=(counters["batch"] as? NSNumber)?.intValue ?? 0
-                let batches=(counters["batches"] as? NSNumber)?.intValue ?? 0
-                if passes>0 {
-                    active.addArrangedSubview(dashText("Stage · pass \(pass)/\(passes) · batch \(batch)/\(batches)",12,muted))
-                    let batchPart=batches>0 ? Double(batch)/Double(batches) : 0
-                    let fraction=(Double(pass-1)+batchPart)/Double(passes)
-                    let bar=dashMeter("Progress",fraction,"\(Int(100*fraction))%")
-                    active.addArrangedSubview(bar)
-                }
-                let lines=worker["log"] as? [[Any]] ?? []
-                if !lines.isEmpty {
-                    let log=NSTextView(frame:.zero);log.isEditable=false;log.isSelectable=true;log.drawsBackground=true
-                    log.backgroundColor=NSColor(srgbRed:0.05,green:0.10,blue:0.18,alpha:1)
-                    log.textColor=NSColor(srgbRed:0.44,green:0.74,blue:0.97,alpha:1)
-                    log.font = .monospacedSystemFont(ofSize:11,weight:.regular)
-                    log.string=lines.suffix(16).map { row in
-                        let time=(row.first as? NSNumber).map {DateFormatter.localizedString(from:Date(timeIntervalSince1970:$0.doubleValue),dateStyle:.none,timeStyle:.short)} ?? ""
-                        return time+"  "+(row.count>1 ? String(describing:row[1]) : "")
-                    }.joined(separator:"\n")
-                    let scroll=NSScrollView();scroll.documentView=log;scroll.hasVerticalScroller=true;scroll.drawsBackground=false
-                    scroll.heightAnchor.constraint(equalToConstant:185).isActive=true;active.addArrangedSubview(scroll)
-                }
-            }
-            if running.count>1 {active.addArrangedSubview(dashText("+ \(running.count-1) other active job(s)",11,muted))}
-        } else {active.addArrangedSubview(dashText("No training job is running.",12,muted))}
-        let others=computers.filter {selfID == nil || ($0["id"] as? String) != selfID}
-        let helpers=dashCard("OTHER HELPERS  ·  \(others.filter{($0["online"] as? Bool)==true}.count) online",others.isEmpty ? 90:CGFloat(others.count)*185+40)
-        if others.isEmpty {helpers.addArrangedSubview(dashText("No other computers connected.",12,muted))}
-        for worker in others {
-            let name=worker["name"] as? String ?? worker["device"] as? String ?? "Computer"
-            let state=worker["job"] as? [String:Any]
-            let status=state != nil ? "Training" : ((worker["online"] as? Bool ?? false) ? "Available":"Offline")
-            helpers.addArrangedSubview(dashText(name+"   ·   "+status,14,.white,.semibold))
-            let device=worker["device"] as? String ?? ""
-            let platform=worker["platform"] as? String ?? ""
-            let version=worker["version"] as? String ?? ""
-            helpers.addArrangedSubview(dashText([platform,device,version].filter{!$0.isEmpty}.joined(separator:" · "),11,muted))
-            let stats=worker["stats"] as? [String:Any] ?? [:]
-            let gpu=stats["gpu"] as? [String:Any] ?? [:]
-            let cpu=(stats["cpu"] as? NSNumber)?.doubleValue
-            let gpuUse=(gpu["util"] as? NSNumber)?.doubleValue
-            let ram=(stats["ram_used_mb"] as? NSNumber)?.doubleValue
-            let ramTotal=(stats["ram_total_mb"] as? NSNumber)?.doubleValue
-            let vram=(gpu["mem_used_mb"] as? NSNumber)?.doubleValue
-            let vramTotal=(gpu["mem_total_mb"] as? NSNumber)?.doubleValue
-            func memory(_ used:Double?,_ total:Double?)->String {
-                guard let used=used else {return "—"}
-                return total.map {String(format:"%.1f / %.1f GB",used/1024,$0/1024)} ?? String(format:"%.1f GB",used/1024)
-            }
-            let row1=NSStackView();row1.orientation = .horizontal;row1.distribution = .fillEqually;row1.spacing=20
-            row1.addArrangedSubview(dashMeter("CPU",cpu.map{$0/100},cpu.map{String(format:"%.0f%%",$0)} ?? "—"))
-            row1.addArrangedSubview(dashMeter("GPU",gpuUse.map{$0/100},gpuUse.map{String(format:"%.0f%%",$0)} ?? "—"))
-            helpers.addArrangedSubview(row1)
-            let row2=NSStackView();row2.orientation = .horizontal;row2.distribution = .fillEqually;row2.spacing=20
-            row2.addArrangedSubview(dashMeter("RAM",(ram != nil && ramTotal != nil && ramTotal!>0) ? ram!/ramTotal!:nil,memory(ram,ramTotal)))
-            row2.addArrangedSubview(dashMeter("GPU memory",(vram != nil && vramTotal != nil && vramTotal!>0) ? vram!/vramTotal!:nil,memory(vram,vramTotal)))
-            helpers.addArrangedSubview(row2)
-            helpers.addArrangedSubview(dashText(state?["message"] as? String ?? "No assigned job",11,muted))
-            if worker["id"] as? String != others.last?["id"] as? String {
-                let rule=NSBox();rule.boxType = .separator;helpers.addArrangedSubview(rule)
+        modelTiles()
+        let waiting=queue.filter {($0["state"] as? String)=="waiting"},q=card("Queue · \(waiting.count) waiting")
+        if waiting.isEmpty {q.addArrangedSubview(text("No runs waiting.",12,muted))}
+        for item in waiting {add(text((item["title"] as? String ?? "Run")+" · "+(item["message"] as? String ?? "Waiting"),12),to:q)}
+    }
+    func clock(_ seconds:Double)->String {
+        let s=max(0,Int(seconds.rounded()));return s>=3600 ? String(format:"%d:%02d:%02d",s/3600,s/60%60,s%60):String(format:"%d:%02d",s/60,s%60)
+    }
+    func firstMatch(_ pattern:String,_ text:String)->[String]? {
+        guard let re=try? NSRegularExpression(pattern:pattern),let m=re.firstMatch(in:text,range:NSRange(text.startIndex...,in:text)) else {return nil}
+        return (0..<m.numberOfRanges).map {Range(m.range(at:$0),in:text).map {String(text[$0])} ?? ""}
+    }
+    /// One running job as the website's console: part and helper, step and match, live readings, stage and overall bars, next steps and recent log.
+    func console(_ job:[String:Any],_ worker:[String:Any]?,me:String?) {
+        func line(_ s:String,_ size:CGFloat=12,_ color:NSColor? = nil,_ weight:NSFont.Weight = .regular)->NSTextField {let f=text(s,size,color,weight);f.font = .monospacedSystemFont(ofSize:size,weight:weight);return f}
+        let lines=(job["message"] as? String ?? "").components(separatedBy:"\n")
+        func get(_ prefix:String)->String {lines.first(where:{$0.hasPrefix(prefix)}).map {String($0.dropFirst(prefix.count)).trimmingCharacters(in:.whitespaces)} ?? ""}
+        let now=get("Now:").replacingOccurrences(of:"^Training (robot|field) detector: ",with:"",options:.regularExpression)
+        let step=lines.first(where:{$0.contains(" · step ")}).map {$0.replacingOccurrences(of:"^.*? · step ([0-9]+ of [0-9]+): ?",with:"Step $1 · ",options:.regularExpression)}
+        let log:[(Double,String)]=(worker?["log"] as? [[Any]] ?? []).compactMap {$0.count>1 ? (($0[0] as? NSNumber)?.doubleValue ?? 0,String(describing:$0[1])):nil}
+        let elapsed=number(job,"started").map {Date().timeIntervalSince1970-$0}
+        var overall:Double?=nil,eta=""
+        if let p=firstMatch("([0-9]+)%(?: · (.*))?",get("Progress:")) {overall=Double(p[1]);eta=p[2].replacingOccurrences(of:"^about ",with:"~",options:.regularExpression)}
+        else if let p=firstMatch("pass ([0-9]+) of up to ([0-9]+)(?: · batch ([0-9]+) of ([0-9]+))?",now),let pass=Double(p[1]),let passes=Double(p[2]),passes>0 {
+            // Detector runs report passes, not an overall figure; same estimate as the website.
+            let f=((pass-1)+((Double(p[3]) ?? 0)/max(1,Double(p[4]) ?? 1)))/passes;overall=(100*(0.1+0.82*f)).rounded()
+            if let e=elapsed,e>60,let o=overall,o>3 {let left=e/(o/100)*(1-o/100);eta=left<3600 ? "~\(Int(left/60)) min left":String(format:"~%.1f h left",left/3600)}
+        }
+        let k=worker?["counters"] as? [String:Any] ?? [:]
+        var stage:Double?=nil,stageText=""
+        if let passes=number(k,"passes"),passes>0 {
+            let pass=number(k,"pass") ?? 1,batch=number(k,"batch") ?? 0,batches=number(k,"batches") ?? 0
+            stage=100*((pass-1)+(batches>0 ? batch/batches:0))/passes
+            stageText=String(format:"pass %.0f/%.0f · batch %.0f/%.0f",pass,passes,batch,batches)+(number(k,"it_s").map {String(format:" · %.2f it/s",$0)} ?? "")
+        } else if let n=number(k,"matches"),n>0 {let i=number(k,"match") ?? 0;stage=100*max(0,i-1)/n;stageText=String(format:"match %.0f of %.0f",i,n)}
+        else if let m=([now]+log.map {$0.1}.reversed()).lazy.compactMap({self.firstMatch("\\[([0-9]+)/([0-9]+)\\]",$0)}).first,let i=Double(m[1]),let n=Double(m[2]),n>0 {stage=100*(i-1)/n;stageText=String(format:"match %.0f of %.0f",i,n)}
+        let key="\\b([0-9]{4}[a-z0-9]+_[a-z0-9]+)\\b",matchKey=firstMatch(key,now)?[1] ?? log.last.flatMap {firstMatch(key,$0.1)?[1]}
+        let stats=worker?["stats"] as? [String:Any] ?? [:],gpu=stats["gpu"] as? [String:Any] ?? [:]
+        func gb(_ mb:Double)->String {String(format:mb<10240 ? "%.1f":"%.0f",mb/1024)}
+        let sys=[number(gpu,"util").map {"GPU \(Int($0))%"},number(gpu,"mem_used_mb").map {"VRAM "+gb($0)+(number(gpu,"mem_total_mb").map {"/"+gb($0)} ?? "")+" GB"},number(gpu,"temp_c").map {"\(Int($0))°C"},
+                 number(stats,"cpu").map {"CPU \(Int($0))%"},number(stats,"ram_total_mb").map {"RAM "+gb(number(stats,"ram_used_mb") ?? 0)+"/"+gb($0)+" GB"}].compactMap {$0}.joined(separator:" · ")
+        let gpuName=(gpu["name"] as? String).map {" · "+$0.replacingOccurrences(of:"NVIDIA GeForce ",with:"")} ?? ""
+        let c=card(nil);c.spacing=5
+        add(hstack([line("● "+(job["label"] as? String ?? job["title"] as? String ?? "Training"),12,accent,.semibold),spacer(),
+                    line(worker.map {($0["name"] as? String ?? "Computer")+(($0["id"] as? String)==me ? " (this Mac)":"")+gpuName} ?? "waiting for its helper",11,muted)]),to:c)
+        add(line((step ?? job["title"] as? String ?? "")+(matchKey.map {" · "+$0} ?? ""),13,.white,.semibold),to:c)
+        add(line(sys.isEmpty ? "no live readings from this helper yet":sys,11,accent),to:c)
+        func pct(_ p:Double?)->String {p.map {String(format:"%3.0f%%",$0)} ?? "  —"}
+        func barRow(_ label:String,_ p:Double?,_ detail:String) {
+            let bar=MeterFill();bar.fraction=p.map {$0/100};bar.widthAnchor.constraint(equalToConstant:240).isActive=true;bar.heightAnchor.constraint(equalToConstant:8).isActive=true
+            let name=line(label,12);name.widthAnchor.constraint(equalToConstant:64).isActive=true
+            add(hstack([name,bar,line(pct(p),12,.white,.semibold),line(detail,12,muted)],spacing:10),to:c)
+        }
+        barRow("stage",stage,stageText.isEmpty ? (now.isEmpty ? "—":now):stageText)
+        barRow("overall",overall,[elapsed.map {clock($0)+" elapsed"},eta.isEmpty ? (overall==nil ? nil:"estimating"):eta].compactMap {$0}.joined(separator:" · "))
+        if !get("Next:").isEmpty {add(line("next → "+get("Next:"),11,muted),to:c)}
+        if !log.isEmpty {
+            let box=vstack([],spacing:2);add(box,to:c)
+            for (t,message) in log.suffix(6) {
+                let lower=message.lowercased()
+                let color:NSColor=lower.range(of:"fail|error|could not|refused|timed out",options:.regularExpression) != nil ? NSColor(srgbRed:0.98,green:0.55,blue:0.55,alpha:1):
+                    lower.range(of:"warn|skipp|retry|missing",options:.regularExpression) != nil ? warn:
+                    lower.range(of:"finish|saved|adopted|done|complete|kept|passed",options:.regularExpression) != nil ? good:NSColor(srgbRed:0.55,green:0.78,blue:0.97,alpha:1)
+                add(line(DateFormatter.localizedString(from:Date(timeIntervalSince1970:t),dateStyle:.none,timeStyle:.medium)+"  "+message,11,color),to:box)
             }
         }
-        let queueCard=dashCard("QUEUE  ·  \(waiting.count) waiting",CGFloat(max(90,60+waiting.count*25)))
-        if waiting.isEmpty {queueCard.addArrangedSubview(dashText("No jobs waiting.",12,muted))}
-        for item in waiting {queueCard.addArrangedSubview(dashText((item["title"] as? String ?? "Job")+" · "+(item["message"] as? String ?? "Waiting"),12,.white))}
+    }
+    func renderModel(_ kind:String) {
+        let m=models[kind] as? [String:Any],current=m?["current"] as? [String:Any]
+        guard let m else {card(nil).addArrangedSubview(text(cachedCredential==nil ? "Connect this Mac to Neptune to see this model.":"Loading this model's status…",12,muted));return}
+        let inUse=current.map {score(kind,$0["new"])} ?? "Built-in"
+        let since=current.map {"Adopted "+when($0["adopted_at"])} ?? "No retrained model has passed the check yet"
+        let data=kind=="robot" ? ("\(Int(number(m,"matches") ?? 0)) matches","\(Int(number(m,"frames") ?? 0)) labelled frames"):("\(Int(number(m,"marked") ?? 0)) matches",((m["events"] as? [String]) ?? []).joined(separator:", "))
+        tileRow([tile("Model in use",inUse,since),tile("Checked on",m["holdout"] as? String ?? "—","Held out · never trained on"),tile(kind=="robot" ? "Labelled data":"Marked data",data.0,data.1.isEmpty ? "—":data.1)])
+        if kind=="field" {card(nil).addArrangedSubview(text("Scouting uses your marked zones. Mark one match at each event you scout; training this detector is optional.",12,muted))}
+        else if (m["ready"] as? Bool) != true {card(nil).addArrangedSubview(text("Label robots in at least two matches on Neptune before training.",12,warn))}
+        let runs=m["runs"] as? [[String:Any]] ?? [],c=card("Recent runs")
+        if runs.isEmpty {c.addArrangedSubview(text("No runs yet.",12,muted))}
+        for r in runs {
+            let (label,color)=runResult(r),date=text(when(r["created_at"]),12,muted),result=text(label,12,color,.semibold)
+            date.widthAnchor.constraint(equalToConstant:130).isActive=true;result.widthAnchor.constraint(equalToConstant:150).isActive=true
+            let versus=text(!(r["new"] is [String:Any]) ? "—":"\(score(kind,r["new"])) vs \(!(r["current"] is [String:Any]) ? "none":score(kind,r["current"]))",12)
+            var cells:[NSView]=[date,result,versus,spacer()]
+            if let review=r["review"] as? [String:Any],let id=review["youtube_id"] as? String,id.range(of:"^[A-Za-z0-9_-]{11}$",options:.regularExpression) != nil {
+                let watch=NSButton(title:"Watch",image:NSImage(systemSymbolName:"play.fill",accessibilityDescription:nil) ?? NSImage(),target:self,action:#selector(openLink(_:)))
+                watch.isBordered=false;watch.contentTintColor=accent;watch.imagePosition = .imageLeading;watch.identifier=NSUserInterfaceItemIdentifier("https://youtu.be/"+id);cells.append(watch)
+            } else if (r["review"] as? [String:Any])?["status"] as? String=="upload_failed" {cells.append(text("Video upload failed",11,muted))}
+            let row=hstack(cells,spacing:12);add(row,to:c)
+            if let message=r["message"] as? String,!message.isEmpty {add(text(message,11,muted),to:c)}
+            if r["id"] as? String != runs.last?["id"] as? String {let rule=NSBox();rule.boxType = .separator;add(rule,to:c)}
+        }
+    }
+    func renderActions() {
+        let a=models["actions"] as? [String:Any]
+        guard let a else {card(nil).addArrangedSubview(text(cachedCredential==nil ? "Connect this Mac to Neptune to see the action model.":"Loading the action model's status…",12,muted));return}
+        let counts=a["counts"] as? [String:Any],latest=a["latest"] as? [String:Any],released=a["released"] as? String,tagged=Int(number(counts,"matches") ?? 0)
+        tileRow([tile("Model in use",released==nil ? "None released":"Released",latest.map {"Latest trained "+when($0["created_at"])} ?? "No model trained yet"),
+                 tile("Tagged matches","\(tagged)",tagged<6 ? "Needs tagged matches from more events":"Human-tagged",noteColor:tagged<6 ? warn:nil),
+                 tile("Human tags","\(Int(number(counts,"tags") ?? 0))","\(Int(number(counts,"external") ?? 0)) imported actions")])
+        let c=card("Improve this model")
+        for line in ["Tag scoring, climbing and defense in matches from events not tagged yet; more variety helps more than more of one event.","Train on Neptune picks the matches and the computer, then Test & release checks the new model before it's used."] {add(text(line,12,muted),to:c)}
+    }
+    func renderComputers() {
+        let computers=dash["computers"] as? [[String:Any]] ?? [],me=computerID()
+        if computers.isEmpty {card(nil).addArrangedSubview(text("No computer readouts yet.",12,muted))}
+        for w in computers.sorted(by:{(($0["id"] as? String)==me ? 0:1)<(($1["id"] as? String)==me ? 0:1)}) {
+            let isThisMac=(w["id"] as? String)==me
+            let state=isThisMac && reviewing ? ("Tracking review",warn):isThisMac && folderReview ? ("Image review",warn):(w["job"] as? [String:Any]) != nil ? ("Training",accent):((w["online"] as? Bool)==true ? ("Available",good):("Offline",muted))
+            let c=card(nil)
+            c.addArrangedSubview(hstack([text((w["name"] as? String ?? "Computer")+(isThisMac ? " · this Mac":""),14,.white,.semibold),text(state.0,12,state.1,.semibold)],spacing:10))
+            add(text([w["platform"],w["device"],w["version"]].compactMap {$0 as? String}.filter {!$0.isEmpty}.joined(separator:" · "),11,muted),to:c)
+            add(meterRow(w["stats"] as? [String:Any] ?? [:]),to:c)
+            if isThisMac && (reviewing || folderReview) {add(text("Live helper readings resume when you close the local review.",11,warn),to:c)}
+            add(text((w["job"] as? [String:Any])?["message"] as? String ?? "No assigned job",11,muted),to:c)
+        }
     }
     func updateTelemetry(_ payload:[String:Any]) {
         let stats=payload["stats"] as? [String:Any] ?? [:],gpu=stats["gpu"] as? [String:Any] ?? [:],counters=payload["counters"] as? [String:Any] ?? [:]
@@ -477,13 +596,11 @@ func loadCredential() -> Data? {
     }
     func setBusy(_ value:Bool) {
         busy=value;dashboardStatus.stringValue=value ? "Training on this Mac":"Mac available";availability.stringValue=value ? "Working":"Available";folderButton.isEnabled = !value;reviewButton.isEnabled = !value && !folderReview;stop.isEnabled=value;connect.isEnabled = !value;device.isEnabled = !value
-        jobCardHeight?.constant=value ? 154:62;statusHeight?.constant=value ? 28:18
-        stageRow.isHidden = !value;progressRow.isHidden = !value;nextStatus.isHidden = !value
+        stageRow.isHidden = !value;progressRow.isHidden = !value;nextStatus.isHidden = !value;stop.isHidden = !value
         if !value {jobTitle.stringValue="THIS MAC";status.stringValue="No assigned job"}
-        resizeForState()
+        if page=="overview" {render()}
         if !value,let handler=installHandler {installHandler=nil;send(["command":"quit"]);handler()}
     }
-    @objc func toggleActivity() {activityScroll.isHidden.toggle();activityToggle.title=activityScroll.isHidden ? "Show activity":"Hide activity";resizeForState()}
     @objc func reviewTracking() {
         guard !busy else {return}
         if reviewing {reviewing=false;reviewButton.title="Review robot tracking…";pendingCommand="run";send(["command":"quit"]);return}
