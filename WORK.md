@@ -1,3 +1,7 @@
+## 2026-10-27 — Look-based re-ID and 12 fps tracking tested (Claude)
+
+Look-matching (handcrafted bumper shade and chassis features, our detector's backbone, DINOv2 ViT-S/14) cannot name same-alliance robots with zero wrong labels. DINOv2 is best, at 62% in the wide view and chance in the close-ups, so nothing was added to tracking. QM1 at 12 fps: 0 wrong, lost time 82.2 → 76.5 s per robot, and twice the detections; the default stays at 6 fps. The metric fix in 1f90dd5 covers QM1's earlier "wrong" labels. Tables are in `docs/persistent-identity.md`; scripts are in `local/appearance-reid-20261027/`. The owner approved the DINOv2 download (88 MB, PyTorch cache, not in git).
+
 ## 2026-10-26 — Constant identity v2: 1.5 s link gap after the QM1 review (Claude)
 
 The owner reviewed QM1: 951 corrected boxes and 1,589 marked "not a robot". The 2 s motion and colour link carried 6672's read back onto 5261 across a 1.83 s gap. That was 11 wrong close-up boxes. `LINK_GAP` is now 1.5 s (`constant-identity-v2`). On QM1, correctly labeled boxes go from 151 to 175, and the layer adds no wrong ones. On QM4, 46 boxes are labeled with 0 wrong, and lost time per robot falls from 97.5 s to 94.2 s. The hidden-OCR check is 309 of 309 on three matches. Added a regression test. The engine suite passes on the bundled Python. The table is in `docs/persistent-identity.md`.

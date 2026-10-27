@@ -82,3 +82,28 @@ The owner reviewed QM1 on October 26: 951 corrected robot boxes and 1,589 boxes 
 QM1 first appeared to have 11 wrong boxes and 6 switches from existing labels: 10 from wide-view OCR segments and 1 from the roster solver. All of them were metric errors. The metric searched only labeled boxes, so a reviewed robot with no label of its own was matched to an overlapping, correctly labeled neighbour. `evaluate` now takes every tracker detection (`detections=observations`), so each reviewed box matches its own detection. The hidden-OCR check is now 128 of 128 on QM4, 36 of 36 on QM3 and 145 of 145 on QM1. "Before" here is the same engine without the constant layer.
 
 Scripts and outputs: `local/identity-constancy-20261026/` (also `sweep.py`, `with-qm1.json`) (`measure.py`, `holdout.py`, `before.json`, `after.json`, `holdout.json`). "Before" ran the HEAD `bdf580c` engine.
+
+### Look-based re-identification — tested and rejected (October 27, 2026)
+
+Question: can a robot be named by its look alone after occlusion, cuts or replays, without a new bumper read? The test named each reviewed QM1 or QM4 robot box only by comparing its crop with OCR-verified detections of the same three alliance robots from the same kind of camera view. Those detections were taken more than 3 s from the query. The answer is then checked against the owner's review. Chance is 33%.
+
+| Look features | Wide: right | Wide, confident | Close-ups: right |
+|---|---:|---:|---:|
+| Handcrafted: bumper hue/saturation shade, chassis colour, chassis gradients | 186 / 352 | 32 / 32 at margin .05 | ~50% even when confident |
+| Our bumper detector's backbone (YOLO embed) | 134 / 352 | 0 / 4 | chance |
+| DINOv2 ViT-S/14, bumper + chassis crops | 218 / 352 | 14 / 14 at margin .1; 63 / 88 at .05 | ~35% |
+
+None reaches the zero-wrong bar at a useful coverage, so nothing was added to tracking. Wide-view robots are about 60 px wide, and the close-up gallery comes from other shots and angles. A second limit: for 430 of QM1's reviewed boxes, some robot on that alliance had no bumper read at all in that kind of camera view, so there is no reference picture of it. A future attempt would need a model trained on FRC robot identity, with labelled crops from reviewed matches, and more bumper reads to build galleries. Scripts: `local/appearance-reid-20261027/`.
+
+### Tracking at 12 fps instead of 6 — measured on QM1 (October 27, 2026)
+
+QM1 was retracked with this engine at 6 and 12 fps, then went through the same roster solver and constant layer, scored against the owner's review:
+
+| | 6 fps | 12 fps |
+|---|---:|---:|
+| Detections | 6,530 | 14,486 |
+| Reviewed robot boxes correctly labeled | 175 / 951 | 156 / 951 |
+| Wrong team / switches / non-robots labeled | 0 / 0 / 3 | 0 / 0 / 3 |
+| Lost-track seconds per robot | 82.2 | 76.5 |
+
+12 fps cuts lost time by about 6 s per robot and adds no wrong labels. The lower correct count is partly a measuring bias: the reviewed boxes were drawn from the 6 fps run's boxes, so 12 fps boxes match them less often. The default stays at 6 fps, since 12 fps roughly doubles detections and processing. It is a candidate for crowded stretches only, or for runs where time does not matter.
