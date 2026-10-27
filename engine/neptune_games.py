@@ -41,7 +41,12 @@ def profiles(home=HOME):
         home = Path(os.environ["NEPTUNE_GAMES_HOME"])
     result = {y: validate(p,y) for y,p in json.loads(BUILTIN.read_text())['seasons'].items()}
     for file in sorted((Path(home)/'games').glob('*.json')):
-        data=json.loads(file.read_text());year=str(data['season']);result[year]=validate(data,year)
+        data=json.loads(file.read_text());year=str(data['season']);data=validate(data,year)
+        # A saved copy of the same game can predate newer broadcast layouts; fill in the ones it lacks.
+        built=result.get(year) or {}
+        if built.get('game_key')==data.get('game_key') and built.get('layout_profiles'):
+            data['layout_profiles']={**built['layout_profiles'],**data.get('layout_profiles',{})}
+        result[year]=data
     return result
 
 
