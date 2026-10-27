@@ -1,3 +1,49 @@
+## 2026-10-26 — Scoring labels from scoreboard changes; alliance-total check (Claude, local only)
+
+The owner asked for weak scoring labels built from scoreboard score changes, plus a check of robot points against the alliance total. Kept local: not pushed, released or deployed.
+
+Added `engine/neptune_score_labels.py`:
+- `score_events`: an alliance score increase counts only if the new value is read at least twice in a row. Drops and one-read jumps are ignored.
+- `measure_delay`: the broadcast delay between a robot's action and the scoreboard change, measured from hand clicks (most common lag, -2 to 10 s). It is measured, not assumed.
+- `attribute`: an event goes to a robot only when exactly one of the alliance's tracked robots was inside a marked scoring zone in the 3 s before the delay-corrected change. Otherwise it is kept, unattributed, with a reason.
+- Labels carry source `scoreboard_change`, weight 0.25 and `weak_supervision`, and are never merged into hand labels.
+- `alliance_check`: the summed robot points per alliance against the final displayed score. Alliance-level parts (results_screen_components other than auto/teleop) are removed when the results screen was read. Duplicate estimates of one robot are averaged; an alliance missing a robot is marked incomplete.
+- Nothing game-specific: zones come from marked field regions, and alliance-level parts from the game pack.
+
+Added `engine/evaluation/evaluate_score_labels.py`. The delay applied to each match is measured on the other matches only. Q7 is refused. Truth is the hand clicks on the four txcmp1 matches that still have facts on this Mac.
+
+**Delay:** 3.1 s (Q1), 5.0 s (Q3), 6.9 s (Q4) and 5.6 s (Q6) measured per match. It is not constant, which limits timing precision.
+
+**Attribution against hand clicks.** Precision = attributed events with a click from that robot within the window. "Other robot" = the same events credited to another alliance robot that was seen (chance).
+
+| Match | Window (s) | Events attributed | Precision | Other robot | Recall |
+|---|---|---|---|---|---|
+| Q3 | 2 | 18/34 | 0.72 | 0.12 | 0.38 |
+| Q3 | 3 | 22/34 | 0.73 | 0.17 | 0.54 |
+| Q3 | 5 | 24/34 | 0.79 | 0.28 | 0.67 |
+| Q4 | 2 | 19/34 | 0.47 | 0.00 | 0.42 |
+| Q4 | 3 | 20/34 | 0.45 | 0.04 | 0.51 |
+| Q4 | 5 | 21/34 | 0.52 | 0.03 | 0.64 |
+| Q1, Q6 | any | 0 | — | — | — |
+
+Q1 and Q6 have no marked scoring zones on this Mac, so nothing is attributed there, by design.
+
+**Weak labels added to training.** Match-held-out folds and gates unchanged. AUC is measured on hand positives only.
+
+| Action | Weak positives | AUC hand only → with weak | Recall | Gate |
+|---|---|---|---|---|
+| score_1_fuel | 14 | 0.678 → 0.679 | 0.49 → 0.49 | passes both |
+| score_2_fuel | 17 | 0.652 → 0.672 | 0.54 → 0.61 | passes both |
+| scoring | 31 | 0.649 → 0.660 | — | no signal both |
+
+These are small gains from 14–31 rows on two matches that already have dense hand labels: not evidence of improvement. The labels should matter on matches with marked zones and no hand labels, and none of those have facts on this Mac.
+
+**Robot points.** The weak labels don't feed the points regressor, so leave-one-match-out MAE is unchanged (48.3). Alliance-total check with leave-one-match-out predictions: Q3 red +52 (blue incomplete), Q4 red −18, Q4 blue +41, Q6 red +74 (blue incomplete). Mean |gap| is 46 points per alliance. No results screen was read on these matches, so the totals still include fouls. Hand estimates match the totals by construction, so only the model's gap is informative.
+
+Checked: `test_score_labels.py` (11 tests); 524 engine tests OK on the bundled Python. Not wired into training, `neptune_engine.FILES` or the server.
+
+Next, if the owner wants it: mark scoring zones for more events, run facts on unlabelled matches, and measure the weak labels' effect on matches without hand labels.
+
 ## 2026-10-26 — Fort Worth layout release: Mac 3.2.56, Windows 6.5.27, Linux 6.6.18, engine 2.7.41 (Claude)
 
 Ships the full-height FIRST AGE overlay (`frc-2026-age-large-v1`, entry below) so match tests on FIT District Fort Worth videos can read the clock and roster. The game pack is unchanged, so trained action models stay valid. The owner approved the release.
