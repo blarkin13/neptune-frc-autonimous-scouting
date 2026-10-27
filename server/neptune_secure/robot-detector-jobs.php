@@ -38,7 +38,11 @@ final class RobotDetectorJobs {
   $body=['kind'=>$kind];if($kind==='train_field')$body['game_key']=self::game((string)($p['game_key']??''));
   if(in_array($kind,['train','train_field'],true)&&preg_match('/^[A-Za-z0-9_-]{1,100}$/D',(string)($p['holdout']??'')))$body['holdout']=$p['holdout'];   // chosen by autoscout_holdout()
   if(preg_match('/^[a-f0-9]{32}$/D',(string)($p['computer']??'')))$body['target']=$p['computer'];   // only this helper may claim it
-  if($kind==='prepare'){$body['source_stills']=true;$body['video_id']=self::video((string)($p['video_id']??''));$body['match_key']=(string)($p['match_key']??'');if(!preg_match('/^\d{4}[A-Za-z0-9_-]{1,95}$/D',$body['match_key']))throw new InvalidArgumentException('Invalid match');}
+  if($kind==='prepare'){$body['source_stills']=true;$body['video_id']=self::video((string)($p['video_id']??''));$body['match_key']=(string)($p['match_key']??'');if(!preg_match('/^\d{4}[A-Za-z0-9_-]{1,95}$/D',$body['match_key']))throw new InvalidArgumentException('Invalid match');
+   $times=$p['times_ms']??[];   // hard frames picked from tracking reviews
+   if(!is_array($times)||count($times)>60)throw new InvalidArgumentException('Invalid frame times');
+   foreach($times as $t)if(!is_int($t)||$t<0||$t>1800000)throw new InvalidArgumentException('Invalid frame times');
+   if($times){$times=array_values(array_unique($times));sort($times);$body['times_ms']=$times;}}
   foreach($this->requests() as $r)if(in_array($r['state'],['queued','claimed'],true)&&$r['kind']===$kind&&($r['video_id']??null)===($body['video_id']??null)&&($r['game_key']??null)===($body['game_key']??null))return $r;
   $r=$body+['id'=>bin2hex(random_bytes(12)),'state'=>'queued','created_at'=>time(),'created_by'=>$user,'message'=>empty($body['target'])?'Waiting for a connected helper':'Waiting for the chosen computer'];
   self::write($this->dir('requests').'/'.$r['id'].'.json',$r);return $r;
@@ -59,6 +63,7 @@ final class RobotDetectorJobs {
    if($r['kind']==='train'&&is_file(dirname($this->root,2).'/external-bumper-training/'.basename($this->root).'/6962-workshop-v1.json')&&!$this->supportsWorkshop((string)$computer['id']))continue;
    if($r['kind']==='train_field'&&!$this->supportsFieldReference((string)$computer['id']))continue;
    if($r['kind']==='train'&&!$this->supportsRobotValidation((string)$computer['id']))continue;
+   if(!empty($r['times_ms'])&&!$this->supportsHardFrames((string)$computer['id']))continue;
    if(!empty($r['target'])&&$r['target']!==$computer['id'])continue;   // sent to another computer
    $r=array_replace($r,['state'=>'claimed','claimed_at'=>time(),'heartbeat_at'=>time(),'computer_id'=>$computer['id'],'lease'=>bin2hex(random_bytes(16)),'message'=>($r['state']==='claimed'?'Restarted on the helper':'Started on a helper')]);
    self::write($this->dir('requests').'/'.$r['id'].'.json',$r);return $r;
@@ -99,6 +104,15 @@ final class RobotDetectorJobs {
   if(preg_match('/^3\./',$v))return version_compare($v,'3.2.52','>=');
   if(preg_match('/^6\.5\./',$v))return version_compare($v,'6.5.23','>=');
   if(preg_match('/^6\.6\./',$v))return version_compare($v,'6.6.14','>=');
+  return false;
+ }
+ private function supportsHardFrames(string $computer):bool{
+  $v=(string)($this->status($computer)['version']??'');
+  // Older helpers would prepare only the regular grid and drop the picked hard frames. Set to the release that ships them.
+  if(preg_match('/^engine (\d+\.\d+\.\d+)/D',$v,$m))return version_compare($m[1],'2.7.42','>=');
+  if(preg_match('/^3\./',$v))return version_compare($v,'3.2.57','>=');
+  if(preg_match('/^6\.5\./',$v))return version_compare($v,'6.5.28','>=');
+  if(preg_match('/^6\.6\./',$v))return version_compare($v,'6.6.19','>=');
   return false;
  }
  private function owned(array $computer,array $p):array{

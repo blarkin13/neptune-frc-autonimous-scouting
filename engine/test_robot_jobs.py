@@ -42,6 +42,9 @@ class RobotJobs(unittest.TestCase):
         source = Path(rj.__file__).read_text()
         self.assertIn('imgsz=1280, batch=4', source); self.assertIn("predict(image, imgsz=1280", source)
 
+    def test_picked_hard_frames_join_the_grid(self):
+        self.assertEqual(rj.frame_times(9, {5000}, [6100, 6100, -1, 9000, '7']), [0, 4000, 5000, 6100, 8000])
+
     def test_adoption_needs_a_clear_margin(self):
         self.assertGreater(rj.ADOPT_MARGIN, 0)
         new, old = {'f1': .70}, {'f1': .69}

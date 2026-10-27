@@ -223,6 +223,12 @@ def match_video(video_id, folder):
     return video
 
 
+def frame_times(length_s, labelled=(), picked=None):
+    """The regular grid, frames already labelled, and hard frames picked from tracking reviews (neptune_hard_frames)."""
+    extra = {t for t in picked or [] if type(t) is int and 0 <= t < length_s*1000}
+    return sorted(set(range(0, int(length_s*1000), int(FRAME_STEP_S*1000))) | set(labelled) | extra)
+
+
 def prepare(config, req, progress):
     """Detector guesses on frames every FRAME_STEP_S seconds of the match video, uploaded for Robot labels."""
     import os
@@ -238,7 +244,7 @@ def prepare(config, req, progress):
     source_sha=hashlib.sha256(video.read_bytes()).hexdigest()
     from neptune_robot_labels import sync
     labelled={int(t) for d in sync(config) if d.get('video_id')==req['video_id'] for t in d.get('frames',{})}
-    times = sorted(set(range(0, int(length*1000), int(FRAME_STEP_S*1000))) | labelled)
+    times = frame_times(length, labelled, req.get('times_ms'))
     for i, t in enumerate(times):
         still=work/('%08d.jpg'%t)
         subprocess.run([ffmpeg(),'-v','error','-y','-ss','%.3f'%(t/1000),'-i',str(video),'-frames:v','1','-q:v','2',str(still)],check=True,timeout=120)
