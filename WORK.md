@@ -1,3 +1,7 @@
+## 2026-10-26 — Constant identity v2: 1.5 s link gap after the QM1 review (Claude)
+
+The owner reviewed QM1: 951 corrected boxes and 1,589 marked "not a robot". The 2 s motion and colour link carried 6672's read back onto 5261 across a 1.83 s gap. That was 11 wrong close-up boxes. `LINK_GAP` is now 1.5 s (`constant-identity-v2`). On QM1, correctly labeled boxes go from 151 to 175, and the layer adds no wrong ones. On QM4, 46 boxes are labeled with 0 wrong, and lost time per robot falls from 97.5 s to 94.2 s. The hidden-OCR check is 309 of 309 on three matches. Added a regression test. The engine suite passes on the bundled Python. The table is in `docs/persistent-identity.md`.
+
 ## 2026-10-26 — Constant identity: no links past an unnamed rival; crowded-frame solver rejected (Claude)
 
 A stricter hidden-OCR check reruns the roster solver without the hidden reads. It found the first version 18 wrong of 381 carried labels on QM4: a close-up scrum carried 9492 onto 10340. Now any near-equal rival tracklet blocks a link, whether named, unnamed or in contact. The check then gives 153 of 153 correct. Reviewed QM4 is 46 of 224 correct (was 70, originally 21), still 0 wrong and 0 switches. The earlier "430 of 430" was the weaker check. Tried and reverted: letting the roster solver keep three boxes in crowded frames (5 wrong reviewed boxes).

@@ -31,6 +31,13 @@ class ConstantIdentityTests(unittest.TestCase):
         out = run(a+b, [seed(a[0], 1)])
         self.assertEqual(out[(b[3]['t'], 9)], 1)
 
+    def test_link_refused_after_long_unseen_gap(self):
+        # QM1: a 1.8 s gap between two blue robots carried 6672's read back onto 5261.
+        a = [obs(i/3, 7, .2+i*.005) for i in range(6)]
+        b = [obs(a[-1]['t']+1.8+i/3, 9, .23+i*.005) for i in range(6)]
+        out = run(a+b, [seed(b[0], 1)])
+        self.assertIsNone(out[(a[0]['t'], 7)])
+
     def test_link_refused_across_camera_cut(self):
         a = [obs(i/3, 7, .2) for i in range(6)]
         b = [obs(2.5+i/3, 9, .2, scene='wide:1') for i in range(6)]

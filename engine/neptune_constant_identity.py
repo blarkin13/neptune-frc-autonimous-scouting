@@ -16,9 +16,9 @@ carried labels; reviewed points are never an input.
 import collections
 import math
 
-VERSION = 'constant-identity-v1'
+VERSION = 'constant-identity-v2'
 MAX_GAP = 1.0           # seconds without a sighting that still counts as one tracklet
-LINK_GAP = 2.0          # longest unseen gap a motion/colour link may bridge
+LINK_GAP = 1.5          # longest unseen gap a motion/colour link may bridge (2 s carried a 5261 box onto 6672 in QM1)
 APPEARANCE_LIMIT = .11  # same scale as neptune_identity bridges
 RIVAL_MARGIN = .35
 SEED_METHODS = ('yolo_botsort_ocr',)

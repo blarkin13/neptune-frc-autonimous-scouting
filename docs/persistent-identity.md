@@ -37,11 +37,11 @@ Next experiment: preserve the baseline's useful assignments while adding indepen
 
 ## Constant identity layer — October 26, 2026
 
-`engine/neptune_constant_identity.py` (`constant-identity-v1`) carries each robot's number along tracker tracklets, and its labels feed scoring attribution as `identity_method: constant_identity`. They are never training labels: `neptune_training` and `neptune_temporal` do not accept them.
+`engine/neptune_constant_identity.py` (`constant-identity-v2`) carries each robot's number along tracker tracklets, and its labels feed scoring attribution as `identity_method: constant_identity`. They are never training labels: `neptune_training` and `neptune_temporal` do not accept them.
 
 - **Seeds** are existing trusted labels only: OCR-verified tracker segments, the roster solver's OCR-verified points and same-number-through-contact points. A roster-only guess seeds a tracklet only in the wide view (all six robots on screen) or when the tracklet has a number read.
 - **Tracklets** end at gaps over 1 s, jumps, scene cuts and same-alliance contact. A tracker swap during a collision therefore cannot carry a number out. A contact stretch keeps its number only if the same tracker track leaves contact with the same OCR team.
-- **Links** join an unlabeled tracklet to a labeled one that ended (or starts) within 2 s in the same camera shot. The link must pass the motion and size gate, match colour (≤ .11) and agree with every number read. No other tracklet may be a near-equal match, whether it is named, unnamed or in contact. Nothing is linked across a camera cut. After a cut, only OCR or the roster can name the robot.
+- **Links** join an unlabeled tracklet to a labeled one that ended (or starts) within 1.5 s in the same camera shot. The link must pass the motion and size gate, match colour (≤ .11) and agree with every number read. No other tracklet may be a near-equal match, whether it is named, unnamed or in contact. Nothing is linked across a camera cut. After a cut, only OCR or the roster can name the robot.
 - **Elimination** in the wide view names the third robot of an alliance when the other two are labeled for that tracklet's whole life. The tracklet must move, with no other unlabeled same-alliance box.
 - **Exclusivity**: two tracklets claiming one team in one camera at the same time both lose the carried label.
 
@@ -67,4 +67,18 @@ An earlier version also had the rival rule ignore unnamed tracklets. It scored 4
 
 Lost-track time barely moved. Most of it is detection and OCR coverage, not identity carrying. In QM4 wide frames, 1,595 of 3,115 boxes sit in frames with more than three same-alliance detections, which the roster solver skips. The next lever is detector false positives and duplicate boxes in the wide view. Then come longer-gap re-ID by bumper number after cuts and a trained appearance model.
 
-Scripts and outputs: `local/identity-constancy-20261026/` (`measure.py`, `holdout.py`, `before.json`, `after.json`, `holdout.json`). "Before" ran the HEAD `bdf580c` engine.
+### QM1 review and the 1.5 s link gap (v2)
+
+The owner reviewed QM1 on October 26: 951 corrected robot boxes and 1,589 boxes marked "not a robot". With the 2 s link gap, the layer put 6672 on 11 close-up-right boxes that were really 5261, at 99–101 s. Two blue robots crossed there. Track 169 (5261) ended, and 1.83 s later track 180 started with a 6672 read. Colour (.108) only just passed, because both bumpers are blue. A 1.5 s gap removes those 11 labels and keeps every QM4 gain. Gaps of 1.0 s and a tighter colour limit for gaps over 1 s scored the same on QM1 and worse on QM4 lost time.
+
+| v2 (1.5 s) | QM4 | QM3 | QM1 before | QM1 after |
+|---|---:|---:|---:|---:|
+| Reviewed robot boxes correctly labeled | 46 / 224 | 0 / 23 | 151 / 951 | **175 / 951** |
+| Wrong team | 0 | 0 | 11 | 11 |
+| Identity switches | 0 | 0 | 6 | 6 |
+| Non-robot boxes given a team | 0 | 0 | 3 | 3 |
+| Lost-track seconds per robot | 94.2 | 117.0 | 83.9 | 82.2 |
+
+QM1's remaining 11 wrong boxes and 6 switches all come from existing labels: 10 from OCR tracker segments in the wide view and 1 from the roster solver. The constant layer adds none. The hidden-OCR check is now 128 of 128 on QM4, 36 of 36 on QM3 and 145 of 145 on QM1. "Before" here is the same engine without the constant layer.
+
+Scripts and outputs: `local/identity-constancy-20261026/` (also `sweep.py`, `with-qm1.json`) (`measure.py`, `holdout.py`, `before.json`, `after.json`, `holdout.json`). "Before" ran the HEAD `bdf580c` engine.
