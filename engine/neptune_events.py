@@ -71,7 +71,7 @@ def stationary_disabled(facts, model_id, threshold=DISABLED_AFTER_SECONDS, radiu
     from neptune_clock import phase_at
     groups = {}
     for p in facts.get('tracking', {}).get('localizations', []):
-        if p.get('identity_method') not in ('direct_vote_track','yolo_botsort_ocr','human_reviewed_track','roster_inferred'):
+        if p.get('identity_method') not in ('direct_vote_track','yolo_botsort_ocr','human_reviewed_track','roster_inferred','constant_identity'):
             continue
         if p.get('occluded') or p.get('box_source') == 'optical_flow':continue
         if phase_at(facts,p['t'])[0] != 'teleop':continue

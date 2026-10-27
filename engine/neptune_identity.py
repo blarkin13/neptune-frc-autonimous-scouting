@@ -287,10 +287,15 @@ def with_roster_inferred(tracking):
     for p in base:
         taken[(p.get('camera'), p['team'])].append(p['t'])
     added = []
+    # A close-up shows part of the field, so roster elimination there can name a still non-robot
+    # box (2026txcmp1 QM3: 60 human-excluded boxes). There it needs a number read on that track.
+    read = {(p.get('camera'), str(p.get('scene')), p.get('track_id')) for p in review.get('points', []) if p.get('read_teams')}
     for p in review.get('points', []):
         if p.get('identity_status') != 'inferred' or p.get('reason') not in TRAINING_INFERENCE_REASONS or p.get('team') is None:
             continue
         if p.get('box_source') == 'optical_flow' or p.get('occluded'):
+            continue
+        if p.get('reason') == 'bidirectional_motion_and_roster' and p.get('camera', 'wide') != 'wide' and (p.get('camera'), str(p.get('scene')), p.get('track_id')) not in read:
             continue
         if any(abs(t-p['t']) < .2 for t in taken[(p.get('camera'), p['team'])]):
             continue

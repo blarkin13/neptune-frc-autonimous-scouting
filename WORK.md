@@ -1,3 +1,28 @@
+## 2026-10-27 — Look-based re-ID and 12 fps tracking tested (Claude)
+
+Look-matching (handcrafted bumper shade and chassis features, our detector's backbone, DINOv2 ViT-S/14) cannot name same-alliance robots with zero wrong labels. DINOv2 is best, at 62% in the wide view and chance in the close-ups, so nothing was added to tracking. QM1 at 12 fps: 0 wrong, lost time 82.2 → 76.5 s per robot, and twice the detections; the default stays at 6 fps. The metric fix in 1f90dd5 covers QM1's earlier "wrong" labels. Tables are in `docs/persistent-identity.md`; scripts are in `local/appearance-reid-20261027/`. The owner approved the DINOv2 download (88 MB, PyTorch cache, not in git).
+
+## 2026-10-26 — Constant identity v2: 1.5 s link gap after the QM1 review (Claude)
+
+The owner reviewed QM1: 951 corrected boxes and 1,589 marked "not a robot". The 2 s motion and colour link carried 6672's read back onto 5261 across a 1.83 s gap. That was 11 wrong close-up boxes. `LINK_GAP` is now 1.5 s (`constant-identity-v2`). On QM1, correctly labeled boxes go from 151 to 175, and the layer adds no wrong ones. On QM4, 46 boxes are labeled with 0 wrong, and lost time per robot falls from 97.5 s to 94.2 s. The hidden-OCR check is 309 of 309 on three matches. Added a regression test. The engine suite passes on the bundled Python. The table is in `docs/persistent-identity.md`.
+
+The 11 "wrong" QM1 labels left after this, from OCR and the roster solver, were metric errors. A reviewed robot with no label was matched to an overlapping labeled neighbour. `evaluate` now also matches against every tracker detection. QM1 then has 0 wrong and 0 switches, before and after the layer.
+
+## 2026-10-26 — Constant identity: no links past an unnamed rival; crowded-frame solver rejected (Claude)
+
+A stricter hidden-OCR check reruns the roster solver without the hidden reads. It found the first version 18 wrong of 381 carried labels on QM4: a close-up scrum carried 9492 onto 10340. Now any near-equal rival tracklet blocks a link, whether named, unnamed or in contact. The check then gives 153 of 153 correct. Reviewed QM4 is 46 of 224 correct (was 70, originally 21), still 0 wrong and 0 switches. The earlier "430 of 430" was the weaker check. Tried and reverted: letting the roster solver keep three boxes in crowded frames (5 wrong reviewed boxes).
+
+Checked: 504 engine tests OK on the bundled Python. Not released or pushed.
+
+## 2026-10-26 — Constant robot identity layer; close-up roster guesses need a read (Claude)
+
+Measured first, on the two human-reviewed matches (QM4, QM3; Q7 never used). Identity was almost never wrong but mostly missing. QM4: 21 of 224 reviewed robot boxes labeled, 0 wrong, 0 switches, 99 of 164 s lost per robot. QM3: 60 boxes the reviewer marked "not a robot" (a still close-up box) carried a team via roster elimination, so they would have fed scoring.
+
+New `engine/neptune_constant_identity.py` carries trusted OCR and roster labels along tracker tracklets. Tracklets end at gaps, jumps, cuts and contact. Linking across short gaps in one shot needs the motion gate, colour, number reads and no rival. A contact stretch is kept when the same track leaves with the same number. The third robot is named by elimination in the wide view. Its labels go to scoring attribution (`constant_identity`; events, scouting rules, field regions, homography), never to training. `with_roster_inferred` now needs a number read on the track before a close-up roster guess is used. New `engine/neptune_identity_metrics.py` does the measuring. Details and the table are in `docs/persistent-identity.md`.
+
+Result: QM4 21 → 70 reviewed boxes correctly labeled (70 of the 97 that have a detection), 0 wrong, 0 switches. QM3 non-robot labels 60 → 0. Lost seconds per robot: QM4 99.2 → 94.4, QM3 113.2 → 112.7. The rest is detection and OCR coverage. Hidden-OCR check: 430 of 430 carried labels match hidden OCR.
+
+Checked: 502 engine tests OK on the bundled Python (13 new). Not released, pushed or deployed; no fresh video run.
 ## 2026-10-27 — Robots page: black-and-white picture toggle (Claude)
 
 Owner request: red boxes on red bumpers are hard to see. `autoscout/robot-labels.php` gets a "Black & white" button next to the clock (and the **G** key) that greys only the frame picture (video or source still); the boxes stay coloured because they are drawn on the canvas above it. The choice is remembered per browser (localStorage, wrapped in try/catch). Checked in a local copy of the frame stage on a QM1 still: grayscale on the picture only, toggles back with G. One-file server deploy, no helper release.
