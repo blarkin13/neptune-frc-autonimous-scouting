@@ -2,6 +2,8 @@
 
 Ships the full-height FIRST AGE overlay (`frc-2026-age-large-v1`, entry below) so match tests on FIT District Fort Worth videos can read the clock and roster. The game pack is unchanged, so trained action models stay valid. The owner approved the release.
 
+Deployed through AWS SSM (62 files: engine, downloads, update feeds, apt; backup /root/fort-worth-layout-release-backup-20261026). Public Windows latest.json, Mac appcast, apt Packages show the new versions; downloaded update archives match local SHA-256.
+
 Checked: Mac build ran 513 engine tests OK on its bundled Python, Sparkle signature verified, DMG verified; package sizes match 3.2.55/6.5.26/6.6.17.
 
 Build note: the worktree had no `engine/robot-detector/bumper_wide.pt` or `engine/field-detector/model.pt` (kept out of git). The first Windows/Linux builds came out 0.5 MB against the usual 10 MB, so I discarded them, copied both files from the main checkout (hashes match the manifest and the installed 3.2.55), and rebuilt. Build releases from a worktree only after copying those files.
