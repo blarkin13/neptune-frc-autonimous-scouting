@@ -1,8 +1,8 @@
-## 2026-10-27 — Constant identity v3: look fallback in the wide view; QM6 review checked (Claude, not released)
+## 2026-10-27 — Constant identity v3: look fallback in the wide view; QM6 review checked; Mac 3.2.62, Windows 6.5.33, Linux 6.6.24, engine 2.7.47 (Claude)
 
 Owner request: use what each robot looks like when its number cannot be read. `neptune_constant_identity` (v3) adds a last pass: an unnamed wide-view tracklet takes the team whose already-named tracklets in the same match and camera have the clearly closest look profile (the tracker's 24-value colour profile; all three alliance teams must be in the gallery; best within 2x the link limit; margin .1; never in close-ups; the gallery is fixed first so one guess never seeds another; reads and same-time conflicts still veto). Margin chosen on the hidden-OCR check (half of OCR seeds hidden, labels checked against them): .06 named 9 of 36 QM4 boxes wrong, .08 was the first clean margin, .1 keeps a step in hand. At .1: hidden-OCR look labels QM4 9/9, QM1 35/35 right; reviewed boxes unchanged (QM1 175 correct, QM4 46, both 0 wrong), QM4 lost time 94.2 -> 93.7 s per robot. Small gain, kept because nothing it adds has been wrong.
 
-QM6 (first 0-10.7 s plus one long close-up track, 441 corrected / 235 not-robot, retracked with the current engine): 105 correct, 95 "wrong", 0 switches, lost 78.8 s per robot. All 95 are one close-up-right track (track 11, 8.2-24.5 s) the review saved as 324; the frame at 8.3 s clearly shows 8088 on its bumper, which is what the tracker said. Owner asked to correct it. Not released.
+QM6 (first 0-10.7 s plus one long close-up track, 441 corrected / 235 not-robot, retracked with the current engine): 105 correct, 95 "wrong", 0 switches, lost 78.8 s per robot. All 95 are one close-up-right track (track 11, 8.2-24.5 s) the review saved as 324; the frame at 8.3 s clearly shows 8088 on its bumper, which is what the tracker said. Owner asked to correct it.
 
 ## 2026-10-27 — Tracking review keyboard shortcuts; Mac 3.2.61, Windows 6.5.32, Linux 6.6.23, engine 2.7.46 (Claude)
 
