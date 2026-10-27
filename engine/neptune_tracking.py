@@ -646,29 +646,36 @@ def crop_box(p, work_width, full_width, full_height):
     return x0, y0, max(1, x1 - x0), max(1, y1 - y0)
 
 
-def track_reads(video, band, start, end, tracks, work_width, folder, backend, roster, every=1.0, upscale=2):
+def track_reads(video, band, start, end, tracks, work_width, folder, backend, roster, every=1.0, upscale=4):
     """OCR crops of every track's bumper once per `every` s. Returns raw reads
-    [{'t','track','text','kind','team','confidence','box'}] for tokens matching the roster (see neptune_facts.roster_match).
+    [{'t','track','text','kind','team','confidence','box'}] for bumpers read as one of the match's teams
+    (neptune_ocr.read_team, limited to the track's alliance for corrections).
 
-    The band is decoded once at `upscale` x the source resolution; crops are sliced from each frame in memory."""
-    import neptune_facts
+    The band is decoded once at `upscale` x the source resolution (bicubic); each crop is a tight window around
+    the bumper strip (neptune_ocr.bumper_window), taken at the scale that brings the strip to about
+    BUMPER_TARGET_PX. The reader first sees the white-digit map of every crop; crops without an exact read are
+    read again in colour (black numbers, and the cases the map loses)."""
+    import neptune_ocr
     folder = Path(folder)
     folder.mkdir(parents=True, exist_ok=True)
-    for old in folder.glob('tr_*.bmp'):
+    for old in list(folder.glob('tr_*.bmp')) + list(folder.glob('tc_*.bmp')):
         old.unlink()
     targets = read_targets(tracks, start, every)
     if not targets:
         return []
+    colour = {tr['id']: tr.get('colour') for tr in tracks}
     top, bottom = band
     probe = subprocess.run(['ffprobe', '-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=width,height',
                             '-of', 'csv=p=0', str(video)], capture_output=True, text=True, check=True, timeout=60)
     sw, sh = (int(x) for x in probe.stdout.strip().split(',')[:2])
     fw = sw * upscale
-    fh = int(round(sh * (bottom - top))) * upscale
-    vf = 'fps=%g:round=up,crop=iw:%d:0:ih*%.5f,scale=%d:%d:flags=bicubic' % (1 / every, fh // upscale, top, fw, fh)
+    bh = int(round(sh * (bottom - top)))
+    fh = bh * upscale
+    vf = 'fps=%g:round=up,crop=iw:%d:0:ih*%.5f,scale=%d:%d:flags=bicubic' % (1 / every, bh, top, fw, fh)
     cmd = ['ffmpeg', '-nostdin', '-v', 'error', '-threads', '2', '-ss', '%.3f' % max(0.0, start), '-t', '%.3f' % max(0.1, end - start),
            '-i', str(video), '-vf', vf, '-pix_fmt', 'bgr24', '-f', 'rawvideo', '-']
     crops = []
+    s = sw / work_width   # work pixels -> source pixels
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE)
     try:
         k = 0
@@ -678,33 +685,38 @@ def track_reads(video, band, start, end, tracks, work_width, folder, backend, ro
             if len(buf) < size:
                 break
             for tid, p in targets.get(k, []):
-                x, y, w, h = crop_box(p, work_width, fw, fh)
-                rows = [buf[(y + r) * fw * 3 + x * 3:(y + r) * fw * 3 + (x + w) * 3] for r in range(h)]
+                box = (p[3] * s, p[4] * s, (p[5] - p[3] + 1) * s, (p[6] - p[4] + 1) * s)
+                (x0, y0, x1, y1), scale, inner = neptune_ocr.bumper_window(box, sw, bh)
+                step = max(1, upscale // min(scale, upscale))   # sample the enlarged frame at the crop's scale
+                rows = []
+                for y in range(y0 * upscale, y1 * upscale, step):
+                    row = buf[y * fw * 3 + x0 * upscale * 3:y * fw * 3 + x1 * upscale * 3]
+                    rows.append(row if step == 1 else b''.join(row[i:i + 3] for i in range(0, len(row), 3 * step)))
+                w = len(rows[0]) // 3 if rows else 0
+                if not w:
+                    continue
                 path = folder / ('tr_%05d_%d.bmp' % (k, tid))
-                write_bmp(path, w, h, rows)
-                inner = ((p[3] * fw / work_width - x) / w, (p[4] * fw / work_width - y) / h,
-                         ((p[5] + 1) * fw / work_width - x) / w, ((p[6] + 1) * fw / work_width - y) / h)
+                write_bmp(path, w, len(rows), neptune_ocr.white_rows(rows))
+                write_bmp(folder / ('tc_%05d_%d.bmp' % (k, tid)), w, len(rows), rows)
                 crops.append((start + k * every, tid, path, inner, p))
             k += 1
     finally:
         proc.stdout.close()
         proc.wait(timeout=60)
     texts = backend.recognize([c[2] for c in crops])
-    teams = set(roster['red'] + roster['blue'])
+    first = {c[2]: neptune_ocr.read_team(texts.get(str(c[2]), []), roster, colour.get(c[1]), c[3]) for c in crops}
+    retry = [c[2].with_name(c[2].name.replace('tr_', 'tc_')) for c in crops if not first[c[2]] or first[c[2]]['kind'] != 'exact']
+    second = backend.recognize(retry) if retry else {}
     out = []
     for t, tid, path, inner, p in crops:
-        for item in texts.get(str(path), []):
-            cx, cy = item['x'] + item['w'] / 2, item['y'] + item['h'] / 2
-            # The digits must sit on this track's bumper, not on a neighbour that entered the crop.
-            margin_x = 0.15 * (inner[2] - inner[0]) + 0.05
-            if not (inner[0] - margin_x <= cx <= inner[2] + margin_x and inner[1] - (inner[3] - inner[1]) * 1.2 - 0.05 <= cy <= inner[3] + 0.08):
-                continue
-            for token in re.findall(r'\S+', item['t']):
-                m = neptune_facts.roster_match(token, teams)
-                if m and m[0] in ('exact', 'corrected'):
-                    out.append({'t': round(t, 2), 'track': tid, 'at': p[0], 'box': list(p[3:7]), 'text': token, 'kind': m[0], 'team': m[1],
-                                'confidence': None if item.get('c') is None else round(float(item['c']), 3),
-                                'crop': path.name})
+        r = first[path]
+        col = str(path.with_name(path.name.replace('tr_', 'tc_')))
+        if (not r or r['kind'] != 'exact') and col in second:
+            r = neptune_ocr.read_team(texts.get(str(path), []) + second[col], roster, colour.get(tid), inner)
+        if r and r['kind'] in ('exact', 'corrected'):
+            out.append({'t': round(t, 2), 'track': tid, 'at': p[0], 'box': list(p[3:7]), 'text': r['text'], 'kind': r['kind'], 'team': r['team'],
+                        'confidence': None if r.get('confidence') is None else round(float(r['confidence']), 3),
+                        'crop': path.name, 'correction': r.get('correction')})
     return out
 
 

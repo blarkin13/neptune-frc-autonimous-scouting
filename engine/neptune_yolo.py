@@ -14,7 +14,7 @@ import sys
 
 VERSION = 'yolo-botsort-1'
 # Bump whenever Identities/recover_segments change: cached tracking is reused only on an exact match.
-CONTINUITY_REVISION = 'contact-carry-partial-reads-v7'
+CONTINUITY_REVISION = 'bumper-window-roster-reads-v8'
 ULTRALYTICS_VERSION = '8.4.63'
 
 
@@ -330,8 +330,7 @@ def _track_camera(video, facts, profile, backend, work, fps=6., width=960, read_
     os.environ['YOLO_AUTOINSTALL'] = 'false'
     from ultralytics import YOLO
     from neptune_tracking import wide_band, decode, read_position, coverage, FRAME_DECODER_REVISION
-    from neptune_facts import roster_match
-    from neptune_ocr import OcrUnavailable
+    from neptune_ocr import OcrUnavailable, bumper_crop, read_team
     meta = bundle(season=int(profile['season']))
     root = bundle_path()
     view = camera['name'] if camera else 'wide'
@@ -461,32 +460,47 @@ def _track_camera(video, facts, profile, backend, work, fps=6., width=960, read_
                 if len(hits) == 1:
                     reads.append({'track': hits[0]['id'], 'team': r['team'], 'kind': 'exact'})
             if sample:
+                # Tight bumper window enlarged to a fixed strip height; the white-digit map first, the coloured
+                # crop only for bumpers without an exact read (see tools/ocr-benchmark for the measurements).
                 paths = []
                 for d in dets:
                     if d.get('box_source')=='optical_flow':continue
                     a,b,c,e=scaled_ocr_box(d['box'],(w,h),(ocr_image.shape[1],ocr_image.shape[0]))
+                    if c-a < 2 or e-b < 2:continue
                     path = ocr_folder/('bumper-%d.png' % d['id'])
-                    cv2.imwrite(str(path), cv2.resize(ocr_image[b:e, a:c], None, fx=3, fy=3))
-                    paths.append((d, path))
+                    crop, inner = bumper_crop(ocr_image, (a, b, c-a, e-b), white=True)
+                    cv2.imwrite(str(path), crop)
+                    cv2.imwrite(str(path.with_name('bumper-%d-colour.png' % d['id'])), bumper_crop(ocr_image, (a, b, c-a, e-b))[0])
+                    paths.append((d, path, inner))
                 try:
-                    texts = backend.recognize([p for d, p in paths]) if paths else {}
+                    texts = backend.recognize([p for d, p, _ in paths]) if paths else {}
+                    found = {str(p): read_team(texts.get(str(p), []), roster, d['alliance'], inner) for d, p, inner in paths}
+                    retry = [p.with_name(p.stem + '-colour.png') for d, p, _ in paths if not found[str(p)] or found[str(p)]['kind'] != 'exact']
+                    second = backend.recognize(retry) if retry else {}
                 except OcrUnavailable:
                     # One failed text-reader call skips this frame's reads instead of losing the match.
-                    texts = {}; ocr_failures[0] += 1
+                    texts = {}; found = {}; second = {}; ocr_failures[0] += 1
                     if ocr_failures[0] > max(5, .2*ocr_failures[1]):raise
                 ocr_failures[1] += 1
-                for d, path in paths:
-                    for token in texts.get(str(path), []):
-                        for word in re.findall(r'\S+', token['t']):
-                            matched = roster_match(word, teams)
-                            if matched and matched[0] in ('exact', 'corrected'):
-                                reads.append({'track': d['id'], 'team': matched[1], 'kind': matched[0]})
-                            elif re.fullmatch(r'[0-9]{3,5}', word):
-                                # Part of a number that only one team of this bumper colour contains.
-                                fits = [n for n in roster.get(d['alliance'], []) if word in str(n)]
-                                if len(fits) == 1:
-                                    reads.append({'track': d['id'], 'team': fits[0], 'kind': 'partial'})
+                for d, path, inner in paths:
+                    items = texts.get(str(path), [])
+                    col = str(path.with_name(path.stem + '-colour.png'))
+                    r = found.get(str(path))
+                    if (not r or r['kind'] != 'exact') and col in second:
+                        items = items + second[col]
+                        r = read_team(items, roster, d['alliance'], inner)
+                    if r and r['kind'] in ('exact', 'corrected'):
+                        reads.append({'track': d['id'], 'team': r['team'], 'kind': r['kind']})
+                    elif r is None:
+                        for token in items:
+                            for word in re.findall(r'\S+', token['t']):
+                                if re.fullmatch(r'[0-9]{3,5}', word):
+                                    # Part of a number that only one team of this bumper colour contains.
+                                    fits = [n for n in roster.get(d['alliance'], []) if word in str(n)]
+                                    if len(fits) == 1:
+                                        reads.append({'track': d['id'], 'team': fits[0], 'kind': 'partial'})
                     path.unlink(missing_ok=True)
+                    Path(col).unlink(missing_ok=True)
             proposals=reacquisition.propose(scene,t,dets,resolver.states,reads,width=w)
             reacquisition_rows.extend(dict(p,camera=camera['name'] if camera else 'wide') for p in proposals)
             # Retain unassigned detections for offline reconciliation and human review,

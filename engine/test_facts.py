@@ -231,6 +231,27 @@ class LayoutAndIdentityTests(unittest.TestCase):
         with self.assertRaises(nf.FactsError):nf.detect_layout(frames,{str(p):[i for i in items if i['t']!='REBUILT'] for _,p in frames},2026,{'week0':profile})
         self.assertFalse(nf.parse_overlay([i for i in items if i['t'] not in ('5962','190')],profile)['labels'])
 
+    def test_layout_with_alliances_on_the_other_sides_is_skipped(self):
+        # Week 0 (red left) and AGE (blue left) share one geometry; the roster decides which one this video is.
+        rules=RULES['layout_profiles'];layouts={k:rules[k] for k in ('frc-2026-week0-overlay-v1','frc-2026-age-blue-left-v1')}
+        items=[item('Qualification 1 of 15',.5,.12),item('REBUILT',.72,.12),item('FIRST AGE',.28,.12),item('0:17',.5,.30)]
+        items += [item(str(n),x,.31) for n,x in [(88,.27),(501,.33),(3566,.39),(1768,.63),(5962,.69),(190,.75)]]
+        frames=[(float(t),Path('/w/ov%d.jpg'%t)) for t in range(25)]
+        texts={str(p):items for _,p in frames}
+        self.assertEqual(nf.detect_layout(frames,texts,2026,layouts)[0],'frc-2026-week0-overlay-v1')
+        pid,_,stats=nf.detect_layout(frames,texts,2026,layouts,{'red':[1768,5962,190],'blue':[88,501,3566]})
+        self.assertEqual((pid,stats['roster_numbers_on_other_side']),('frc-2026-age-blue-left-v1',0))
+        with self.assertRaises(nf.FactsError) as error:
+            nf.detect_layout(frames,texts,2026,{'w':layouts['frc-2026-week0-overlay-v1']},{'red':[1768,5962,190],'blue':[88,501,3566]})
+        self.assertIn('other sides',str(error.exception))
+
+    def test_joined_roster_numbers_are_split(self):
+        profile=RULES['layout_profiles']['frc-2026-week0-overlay-v1']
+        items=[item('Qualification 1 of 15',.5,.12),item('REBUILT',.72,.12),item('0:17',.5,.30),item('88 501 3566',.33,.31),item('1768 5962 190',.69,.31)]
+        r=nf.parse_overlay(items,profile)
+        self.assertTrue(r['labels'])
+        self.assertEqual([i['t'] for i in r['roster']['red']],['88','501','3566'])
+
     def test_supported_layout_detected(self):
         band, texts = samples_from(match_clock(10.0), lambda t: (int(t), int(t)))
         pid, profile, stats = nf.detect_layout(band, texts, 2026)
