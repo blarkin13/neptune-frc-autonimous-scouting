@@ -1,3 +1,11 @@
+## 2026-10-26 — Fort Worth layout release: Mac 3.2.56, Windows 6.5.27, Linux 6.6.18, engine 2.7.41 (Claude)
+
+Ships the full-height FIRST AGE overlay (`frc-2026-age-large-v1`, entry below) so match tests on FIT District Fort Worth videos can read the clock and roster. The game pack is unchanged, so trained action models stay valid. The owner approved the release.
+
+Checked: Mac build ran 513 engine tests OK on its bundled Python, Sparkle signature verified, DMG verified; package sizes match 3.2.55/6.5.26/6.6.17.
+
+Build note: the worktree had no `engine/robot-detector/bumper_wide.pt` or `engine/field-detector/model.pt` (kept out of git). The first Windows/Linux builds came out 0.5 MB against the usual 10 MB, so I discarded them, copied both files from the main checkout (hashes match the manifest and the installed 3.2.55), and rebuilt. Build releases from a worktree only after copying those files.
+
 ## 2026-10-26 — Fort Worth broadcast layout (engine-side, game pack unchanged) (Claude)
 
 The owner's match test on FIT District Fort Worth qm10 (https://www.youtube.com/watch?v=JfrWE1N9Dmw) stopped with "Unsupported broadcast layout". The overlay is FIRST AGE with blue on the left, but drawn at full height: the clock and scores sit in the lower half of the band, where `frc-2026-age-blue-left-v1` doesn't look. OCR also reads its "AGE" logo as "AGLO".
