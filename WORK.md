@@ -1,6 +1,6 @@
-## 2026-10-27 — Tracking review: a box can be named with the other alliance's team; Mac 3.2.59, Windows 6.5.30, Linux 6.6.21, engine 2.7.44 (Claude)
+## 2026-10-27 — Tracking review: a box can be named with the other alliance's team; Mac 3.2.60, Windows 6.5.31, Linux 6.6.22, engine 2.7.45 (Claude)
 
-Owner hit a 6800 bumper inside a box the detector called red; the review list offered only red's three teams, so the only choices were Unknown or a wrong label. The Robot number list now also offers the other alliance's teams ("6800 (blue: the colour is wrong)"). `apply_corrections` accepts any team on the match roster and moves the corrected interval's boxes to that team's alliance (`alliance_corrected`); the rest of the track and the saved original review are unchanged. Teams not in the match are still refused. Engine 2.7.44. Checked: engine suite OK on the bundled Python (new `test_other_alliance_team_fixes_the_box_colour`).
+Owner hit a 6800 bumper inside a box the detector called red; the review list offered only red's three teams, so the only choices were Unknown or a wrong label. The Robot number list now also offers the other alliance's teams ("6800 (blue: the colour is wrong)"). `apply_corrections` accepts any team on the match roster and moves the corrected interval's boxes to that team's alliance (`alliance_corrected`); the rest of the track and the saved original review are unchanged. Teams not in the match are still refused. Engine 2.7.45. Checked: engine suite OK on the bundled Python (new `test_other_alliance_team_fixes_the_box_colour`).
 
 ## 2026-10-27 — Robot check uses tracking's duplicate-box cleanup; Mac 3.2.59, Windows 6.5.30, Linux 6.6.21, engine 2.7.44 (Claude)
 
