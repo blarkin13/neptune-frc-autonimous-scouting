@@ -1,4 +1,4 @@
-## 2026-10-27 — Hard-frame picker: tracking reviews choose frames to box on the Robots page (Claude, not released)
+## 2026-10-27 — Hard-frame picker: tracking reviews choose frames to box on the Robots page; Mac 3.2.57, Windows 6.5.28, Linux 6.6.19, engine 2.7.42 (Claude)
 
 Audit first: saved tracking reviews cannot train the bumper detector. Their boxes are `crop_box`-widened chassis crops; "corrected" fixes the team number, not the box, so every box is one the detector already found; a missed robot leaves no trace, so only 1 QM1 wide frame (0 in QM3) is provably complete. Of the 1,589 QM1 "not a robot" boxes, 1,563 are in the close-up insets and 685 are one track.
 
