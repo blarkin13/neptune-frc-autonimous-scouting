@@ -1,3 +1,7 @@
+## 2026-10-26 — OCR release: Mac 3.2.53, Windows 6.5.24, Linux 6.6.15, engine 2.7.38 (Claude)
+
+Ships the roster-constrained bumper reads and the scoreboard side check (entry below) to every helper. Saved match facts re-parse and saved tracking reruns on first use.
+
 ## 2026-10-26 — Scouting uses marked zones only; Mac 3.2.52, Windows 6.5.23, Linux 6.6.14, engine 2.7.37 (Claude; ships with the robot validation fix below)
 
 Owner decision: the field detector is deprioritized. Each event uses one fixed camera and one marked match already covers every match at that event, so the detector only mattered for unmarked events, where its guesses (both hubs, rarely corners on a new venue) could mislead scoring. `neptune_field_regions.load()` no longer falls back to detected regions by default, and match runs no longer call `detect_if_unmarked`; unmarked events run without scoring-zone hints. Train page guidance (pillar.js v22): mark one match per scouted event; field detector training is optional. Marks and the Train field detector button are kept. Robot detection, OCR, constant tracking and the action model are now separate sessions.
