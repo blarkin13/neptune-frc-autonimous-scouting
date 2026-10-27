@@ -1,3 +1,24 @@
+## 2026-10-27 — Storage cleanup on AWS and this Mac; deploys now prune (Claude)
+
+The owner reported the Mac using a lot of storage and AWS at 93%. The server disk was at 94%: 27 of 29 GB used, 2 GB free. Each release left a ~313 MB Mac zip in `community/downloads/mac` and a ~480 MB backup in `/root`.
+
+AWS, as the owner asked:
+- Removed Mac zips 3.2.33–3.2.54; 3.2.55 and 3.2.56 are kept. The appcast points only at 3.2.56, and every version is still on GitHub Releases.
+- Trimmed the journal to 100 MB (freed 231 MB).
+- Removed every `/root/*backup-2026*` folder except `fort-worth-layout-release-backup-20261026`. That pattern also matched about 60 older code-deploy backups from Sept 17–Oct 25 (autoscout-section, neptune-*, rc-*, windows-*), not just the 13 release backups listed to the owner. They were copies of replaced files, and the live site does not use them.
+- Kept the SQL dump `/root/scouting_before_utc_20261016-124944.sql` and the backup folders without a date in their name.
+- Result: 62% used, 11 GB free. Mac appcast, 3.2.56 zip, DMG and Windows latest.json all return 200.
+
+Mac:
+- Removed the pip, Sublime Text, Homebrew, Movavi and Raspberry Pi caches.
+- Removed Windows 6.5.11–6.5.26 and Linux 6.6.4–6.6.17 build folders. Kept Windows 6.5.27 and 6.4.2, Linux 6.6.18, and the Linux 6.5 base.
+- Free space went from 27 to 38 GB.
+
+Deploys now prune: `trainer-app/scripts/prune-release-server.sh`, installed on the server as `/usr/local/sbin/neptune-prune-releases`, with the AGENTS.md rule 10 addition.
+- Keeps the two newest Mac zips and Windows update zips, plus anything a feed points at, and the two newest dated `/root` backups.
+- Vacuums the journal and never touches `.sql` dumps.
+- The dry run listed only Windows update zips 6.3–6.5.25 to remove (2 MB each); the real run is not done yet, pending the owner's OK.
+
 ## 2026-10-26 — Fort Worth layout release: Mac 3.2.56, Windows 6.5.27, Linux 6.6.18, engine 2.7.41 (Claude)
 
 Ships the full-height FIRST AGE overlay (`frc-2026-age-large-v1`, entry below) so match tests on FIT District Fort Worth videos can read the clock and roster. The game pack is unchanged, so trained action models stay valid. The owner approved the release.
