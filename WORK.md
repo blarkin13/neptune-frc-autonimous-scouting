@@ -1,6 +1,6 @@
 ## 2026-10-27 — Release: constant robot identity; Mac 3.2.58, Windows 6.5.29, Linux 6.6.20, engine 2.7.43 (Claude)
 
-Ships constant-identity-v2 (PR #1). Built from this worktree with `bumper_wide.pt` and field `model.pt` copied from the main checkout and hash-checked. Deployed by the owner through AWS SSM with the manifest-driven deploy script, ending with `neptune-prune-releases`.
+Ships constant-identity-v2 (PR #1). Built from this worktree with `bumper_wide.pt` and field `model.pt` copied from the main checkout and hash-checked. Deployed 2026-10-27 through AWS SSM command 00581769 (owner ran it): 60 files fetched and verified, 64 changed, backup /root/constant-identity-release-backup-20261027, then pruned (disk 36%). Public appcast 3.2.58 and apt 6.6.20 confirmed.
 
 ## 2026-10-27 — Look-based re-ID and 12 fps tracking tested (Claude)
 
