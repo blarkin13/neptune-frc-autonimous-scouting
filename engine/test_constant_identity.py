@@ -102,6 +102,19 @@ class ConstantIdentityTests(unittest.TestCase):
         still = [obs(i/3, 3, .8) for i in range(9)]
         self.assertIsNone(run(a+b+still, [seed(a[0], 1), seed(b[0], 2)])[(0, 3)])
 
+    def test_look_fallback_names_wide_tracklet_only_with_a_clear_margin(self):
+        a = [obs(i/3, 1, .1, look=1) for i in range(6)]
+        b = [obs(i/3, 2, .5, look=2) for i in range(6)]
+        c = [obs(i/3, 3, .8, look=3) for i in range(6)]
+        late = [obs(20+i/3, 9, .3, look=2) for i in range(6)]
+        seeds = [seed(a[0], 1), seed(b[0], 2), seed(c[0], 3)]
+        out = run(a+b+c+late, seeds)
+        self.assertEqual(out[(20, 9)], 2)
+        close = [dict(p, camera='closeup-left', scene='closeup-left:0') for p in a+b+c+late]
+        self.assertIsNone(run(close, [seed(close[0], 1), seed(close[6], 2), seed(close[12], 3)])[(20, 9)])
+        twin = [obs(i/3, 3, .8, look=2) for i in range(6)]
+        self.assertIsNone(run(a+b+twin+late, [seed(a[0], 1), seed(b[0], 2), seed(twin[0], 3)])[(20, 9)])
+
     def test_added_localizations_never_training_and_keep_trusted_labels(self):
         ps = [obs(i/3, 7, .2) for i in range(6)]
         base = [seed(ps[0], 1)]

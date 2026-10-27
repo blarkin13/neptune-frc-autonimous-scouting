@@ -8,7 +8,9 @@ never carries a number to the wrong robot. Unlabeled tracklets are then linked
 to a just-ended (or just-starting) labeled tracklet in the same camera shot when
 the motion gate, colour and number reads agree and no rival is close. Last, a
 moving tracklet takes the third roster team of its alliance when the other two
-are visibly labeled in that camera for its whole life. Nothing crosses a camera
+are visibly labeled in that camera for its whole life. A still-unnamed wide-view
+tracklet may then take the team its look clearly matches among that match's named
+tracklets (strict margin; close-ups never). Nothing crosses a camera
 cut by motion: after a cut only OCR or the roster can name a robot again.
 Any two tracklets claiming one team in one camera at the same time lose the
 carried labels; reviewed points are never an input.
@@ -16,7 +18,7 @@ carried labels; reviewed points are never an input.
 import collections
 import math
 
-VERSION = 'constant-identity-v2'
+VERSION = 'constant-identity-v3'
 MAX_GAP = 1.0           # seconds without a sighting that still counts as one tracklet
 LINK_GAP = 1.5          # longest unseen gap a motion/colour link may bridge (2 s carried a 5261 box onto 6672 in QM1)
 APPEARANCE_LIMIT = .11  # same scale as neptune_identity bridges
@@ -27,6 +29,12 @@ SEED_REASONS = ('verified_ocr_segment', 'same_number_before_and_after_contact')
 # (a field element, a cart) can win the roster by elimination.
 ROSTER_REASONS = ('bidirectional_motion_and_roster',)
 FULL_FIELD_CAMERA = 'wide'
+# Look fallback: an unnamed wide-view tracklet takes the team whose already-named tracklets
+# in this match look clearly closest. With half the OCR hidden, a .06 margin named 9 of 36
+# QM4 boxes wrong; .08 was the first clean margin, so .1 keeps a step in hand. Close-ups
+# were near chance and never use it.
+LOOK_MARGIN = .1
+LOOK_LIMIT = 2*APPEARANCE_LIMIT
 
 
 def _center(box):
@@ -209,6 +217,29 @@ def label(tracking, roster, source_sha256=None):
             rivals = [m for m in shot if m is not n and m['team'] is None and m['start'] <= n['end'] and n['start'] <= m['end']]
             if len(free) == 1 and not rivals and _reads_allow(n, free[0]):
                 n.update(team=free[0], how='roster_elimination')
+    # Gallery is fixed before the pass, so one look guess never seeds another.
+    named = [m for m in nodes if m['team'] is not None]
+    for shot in by_shot.values():
+        if shot[0]['camera'] != FULL_FIELD_CAMERA:
+            continue
+        teams = roster[shot[0]['alliance']]
+        for n in shot:
+            if n['team'] is not None or n['contact'] or len(n['points']) < 3:
+                continue
+            look = _mean_appearance(n['points'])
+            if look is None:
+                continue
+            best = {}
+            for m in named:
+                if m['camera'] == n['camera'] and m['alliance'] == n['alliance']:
+                    d = _appearance(look, _mean_appearance(m['points']))
+                    if d is not None and d < best.get(m['team'], 9):
+                        best[m['team']] = d
+            if sorted(best) != sorted(teams):
+                continue
+            (team, near), (_, second) = sorted(best.items(), key=lambda r: r[1])[:2]
+            if near <= LOOK_LIMIT and second-near >= LOOK_MARGIN and _reads_allow(n, team) and not _busy(nodes, n, team):
+                n.update(team=team, how='look_fallback')
     points = []
     for n in nodes:
         for p in n['points']:
