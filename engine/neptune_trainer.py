@@ -305,7 +305,7 @@ def main():
     # One window: a sidebar of pages (overview, the three models, computers, activity) beside a page of cards.
     emblem=Path(__file__).with_name('neptune-logo-square.png')
     view={'page':'overview','dash':{},'models':{}}
-    shell=ui.Shell(root,logo=emblem,on_page=lambda key:show_page(key));top_status=shell.status
+    shell=ui.Shell(root,logo=Path(__file__).with_name('neptune-logo-wide.png'),on_page=lambda key:show_page(key));top_status=shell.status
     page=frame=shell.page
     from neptune_engine import VERSION as engine_version
     computer_card=ui.ComputerCard(page,name=platform.node() or 'Training computer',logo=emblem);computer_card.pack_forget()
@@ -455,7 +455,6 @@ def main():
         key=view['page']
         if key=='overview':
             page.add(computer_card)
-            if busy['value']:page.add(job_outer)
             ui.render_overview(page,view['dash'],view['models'],self_id=self_id,busy=busy['value'],open_page=open_page)
         elif key in ('robots','field'):ui.render_model(page,'robot' if key=='robots' else 'field',view['models'].get('robot' if key=='robots' else 'field'),open_url=webbrowser.open)
         elif key=='actions':ui.render_actions(page,view['models'].get('actions'))

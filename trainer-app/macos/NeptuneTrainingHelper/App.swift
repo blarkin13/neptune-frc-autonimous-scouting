@@ -35,32 +35,6 @@ func loadCredential() -> Data? {
     }
 }
 
-// Faint moving dots behind the native helper controls, matching Neptune's dashboard.
-@MainActor final class AmbientBubbles: NSView {
-    private var timer: Timer?
-    override init(frame frameRect: NSRect) {
-        super.init(frame: frameRect)
-        if !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
-            timer = Timer.scheduledTimer(withTimeInterval: 1.0/24.0, repeats: true) { [weak self] _ in self?.needsDisplay = true }
-        }
-    }
-    required init?(coder: NSCoder) { fatalError("init(coder:) is unavailable") }
-    deinit { timer?.invalidate() }
-    override func hitTest(_ point: NSPoint) -> NSView? { nil }
-    override func draw(_ dirtyRect: NSRect) {
-        let time = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? 0 : ProcessInfo.processInfo.systemUptime
-        for i in 0..<25 {
-            let seed = Double(i)
-            let x = (seed * 0.61803398875).truncatingRemainder(dividingBy: 1.0) * max(1, bounds.width)
-            let y = ((seed * 0.38196601125 + time * (0.003 + seed.truncatingRemainder(dividingBy: 5) * 0.0007)).truncatingRemainder(dividingBy: 1.0)) * max(1, bounds.height)
-            let radius = CGFloat(2 + i % 4)
-            let circle = NSBezierPath(ovalIn: NSRect(x: x-radius, y: y-radius, width: radius*2, height: radius*2))
-            NSColor(srgbRed: 0.46, green: 0.70, blue: 0.91, alpha: 0.055).setFill();circle.fill()
-            NSColor(srgbRed: 0.57, green: 0.80, blue: 0.95, alpha: 0.23).setStroke();circle.lineWidth = 0.7;circle.stroke()
-        }
-    }
-}
-
 @MainActor final class HardwareMeter: NSStackView {
     let value=NSTextField(labelWithString:"—")
     let bar=MeterFill()
@@ -152,7 +126,6 @@ func loadCredential() -> Data? {
         window.appearance=NSAppearance(named:.darkAqua);window.title="Neptune Training Helper"
         window.minSize=NSSize(width:880,height:560);window.collectionBehavior=[.fullScreenPrimary];window.delegate=self;window.backgroundColor=ink
         let content=window.contentView!
-        pin(AmbientBubbles(frame:.zero),in:content)
         let sidebar=Backdrop(fill:sidebarFill,edge:lineColor),main=NSView()
         for v in [sidebar,main] {v.translatesAutoresizingMaskIntoConstraints=false;content.addSubview(v)}
         NSLayoutConstraint.activate([sidebar.leadingAnchor.constraint(equalTo:content.leadingAnchor),sidebar.topAnchor.constraint(equalTo:content.topAnchor),sidebar.bottomAnchor.constraint(equalTo:content.bottomAnchor),sidebar.widthAnchor.constraint(equalToConstant:214),
@@ -198,10 +171,10 @@ func loadCredential() -> Data? {
     }
     func buildSidebar(_ bar:NSView) {
         let col=vstack([],spacing:2);col.edgeInsets=NSEdgeInsets(top:46,left:12,bottom:14,right:12);pin(col,in:bar)
-        let mark=NSImageView();mark.image=Bundle.main.resourceURL.map {$0.appendingPathComponent("engine/neptune-logo-square.png")}.flatMap {NSImage(contentsOf:$0)}
-        mark.imageScaling = .scaleProportionallyUpOrDown;mark.widthAnchor.constraint(equalToConstant:30).isActive=true;mark.heightAnchor.constraint(equalToConstant:30).isActive=true
-        let brand=hstack([mark,vstack([text("Neptune",15,.white,.bold),text("Training helper",11,muted)],spacing:0)],spacing:10)
-        col.addArrangedSubview(brand);col.setCustomSpacing(20,after:brand)
+        // The wide NEPTUNE wordmark across the sidebar.
+        let mark=NSImageView();mark.image=Bundle.main.resourceURL.map {$0.appendingPathComponent("engine/neptune-logo-wide.png")}.flatMap {NSImage(contentsOf:$0)}
+        mark.imageScaling = .scaleProportionallyUpOrDown;mark.imageAlignment = .alignLeft;mark.heightAnchor.constraint(equalToConstant:42).isActive=true
+        add(mark,to:col);let tagline=text("TRAINING HELPER",10,muted,.semibold);col.setCustomSpacing(6,after:mark);col.addArrangedSubview(tagline);col.setCustomSpacing(22,after:tagline)
         func section(_ title:String) {
             if let last=col.arrangedSubviews.last {col.setCustomSpacing(16,after:last)}
             let l=text(title.uppercased(),10,muted,.semibold);col.addArrangedSubview(l);col.setCustomSpacing(6,after:l)
@@ -416,29 +389,80 @@ func loadCredential() -> Data? {
     }
     func renderOverview() {
         add(thisMacStrip,to:dashboardBody)
-        if busy {add(localJob,to:dashboardBody)}
         let computers=dash["computers"] as? [[String:Any]] ?? [],queue=dash["queue"] as? [[String:Any]] ?? [],me=computerID()
-        let running=queue.filter {($0["state"] as? String)=="running" && !(busy && ($0["computer_id"] as? String)==me)}
-        let c=card(running.isEmpty ? "Running now":"Running now · \(running.count)")
-        if running.isEmpty {c.addArrangedSubview(text(busy ? "Nothing else is running.":"Nothing is running. Start a run from a model page.",12,muted))}
+        let running=queue.filter {($0["state"] as? String)=="running"}
+        if running.isEmpty {card("Running now").addArrangedSubview(text("Nothing is running. Start a run from a model page.",12,muted))}
         for job in running.prefix(3) {
-            let worker=computers.first(where:{($0["id"] as? String)==(job["computer_id"] as? String) && $0["id"] != nil})
-            c.addArrangedSubview(hstack([text(job["title"] as? String ?? "Training",14,.white,.semibold),text(worker.map {"on "+($0["name"] as? String ?? "a helper")} ?? "",12,muted)],spacing:8))
-            if let message=job["message"] as? String,!message.isEmpty {add(text(message,12,muted),to:c)}
-            let k=worker?["counters"] as? [String:Any] ?? [:]
-            if let passes=number(k,"passes"),passes>0 {
-                let pass=number(k,"pass") ?? 1,batch=number(k,"batch") ?? 0,batches=number(k,"batches") ?? 0
-                let fraction=((pass-1)+(batches>0 ? batch/batches:0))/passes,meter=HardwareMeter(String(format:"Pass %.0f of %.0f",pass,passes))
-                meter.show(fraction,"\(Int(100*fraction))%");add(meter,to:c)
-            }
-            if let lines=worker?["log"] as? [[Any]],let last=lines.last,last.count>1 {
-                let line=text("\(when(last[0]))  \(last[1])",11,muted);line.font = .monospacedSystemFont(ofSize:11,weight:.regular);add(line,to:c)
-            }
+            // Detector runs name their helper in computer_id; action runs in target.
+            let id=(job["computer_id"] as? String) ?? (job["target"] as? String)
+            console(job,computers.first(where:{id != nil && ($0["id"] as? String)==id}),me:me)
         }
         modelTiles()
         let waiting=queue.filter {($0["state"] as? String)=="waiting"},q=card("Queue · \(waiting.count) waiting")
         if waiting.isEmpty {q.addArrangedSubview(text("No runs waiting.",12,muted))}
         for item in waiting {add(text((item["title"] as? String ?? "Run")+" · "+(item["message"] as? String ?? "Waiting"),12),to:q)}
+    }
+    func clock(_ seconds:Double)->String {
+        let s=max(0,Int(seconds.rounded()));return s>=3600 ? String(format:"%d:%02d:%02d",s/3600,s/60%60,s%60):String(format:"%d:%02d",s/60,s%60)
+    }
+    func firstMatch(_ pattern:String,_ text:String)->[String]? {
+        guard let re=try? NSRegularExpression(pattern:pattern),let m=re.firstMatch(in:text,range:NSRange(text.startIndex...,in:text)) else {return nil}
+        return (0..<m.numberOfRanges).map {Range(m.range(at:$0),in:text).map {String(text[$0])} ?? ""}
+    }
+    /// One running job as the website's console: part and helper, step and match, live readings, stage and overall bars, next steps and recent log.
+    func console(_ job:[String:Any],_ worker:[String:Any]?,me:String?) {
+        func line(_ s:String,_ size:CGFloat=12,_ color:NSColor? = nil,_ weight:NSFont.Weight = .regular)->NSTextField {let f=text(s,size,color,weight);f.font = .monospacedSystemFont(ofSize:size,weight:weight);return f}
+        let lines=(job["message"] as? String ?? "").components(separatedBy:"\n")
+        func get(_ prefix:String)->String {lines.first(where:{$0.hasPrefix(prefix)}).map {String($0.dropFirst(prefix.count)).trimmingCharacters(in:.whitespaces)} ?? ""}
+        let now=get("Now:").replacingOccurrences(of:"^Training (robot|field) detector: ",with:"",options:.regularExpression)
+        let step=lines.first(where:{$0.contains(" · step ")}).map {$0.replacingOccurrences(of:"^.*? · step ([0-9]+ of [0-9]+): ?",with:"Step $1 · ",options:.regularExpression)}
+        let log:[(Double,String)]=(worker?["log"] as? [[Any]] ?? []).compactMap {$0.count>1 ? (($0[0] as? NSNumber)?.doubleValue ?? 0,String(describing:$0[1])):nil}
+        let elapsed=number(job,"started").map {Date().timeIntervalSince1970-$0}
+        var overall:Double?=nil,eta=""
+        if let p=firstMatch("([0-9]+)%(?: · (.*))?",get("Progress:")) {overall=Double(p[1]);eta=p[2].replacingOccurrences(of:"^about ",with:"~",options:.regularExpression)}
+        else if let p=firstMatch("pass ([0-9]+) of up to ([0-9]+)(?: · batch ([0-9]+) of ([0-9]+))?",now),let pass=Double(p[1]),let passes=Double(p[2]),passes>0 {
+            // Detector runs report passes, not an overall figure; same estimate as the website.
+            let f=((pass-1)+((Double(p[3]) ?? 0)/max(1,Double(p[4]) ?? 1)))/passes;overall=(100*(0.1+0.82*f)).rounded()
+            if let e=elapsed,e>60,let o=overall,o>3 {let left=e/(o/100)*(1-o/100);eta=left<3600 ? "~\(Int(left/60)) min left":String(format:"~%.1f h left",left/3600)}
+        }
+        let k=worker?["counters"] as? [String:Any] ?? [:]
+        var stage:Double?=nil,stageText=""
+        if let passes=number(k,"passes"),passes>0 {
+            let pass=number(k,"pass") ?? 1,batch=number(k,"batch") ?? 0,batches=number(k,"batches") ?? 0
+            stage=100*((pass-1)+(batches>0 ? batch/batches:0))/passes
+            stageText=String(format:"pass %.0f/%.0f · batch %.0f/%.0f",pass,passes,batch,batches)+(number(k,"it_s").map {String(format:" · %.2f it/s",$0)} ?? "")
+        } else if let n=number(k,"matches"),n>0 {let i=number(k,"match") ?? 0;stage=100*max(0,i-1)/n;stageText=String(format:"match %.0f of %.0f",i,n)}
+        else if let m=([now]+log.map {$0.1}.reversed()).lazy.compactMap({self.firstMatch("\\[([0-9]+)/([0-9]+)\\]",$0)}).first,let i=Double(m[1]),let n=Double(m[2]),n>0 {stage=100*(i-1)/n;stageText=String(format:"match %.0f of %.0f",i,n)}
+        let key="\\b([0-9]{4}[a-z0-9]+_[a-z0-9]+)\\b",matchKey=firstMatch(key,now)?[1] ?? log.last.flatMap {firstMatch(key,$0.1)?[1]}
+        let stats=worker?["stats"] as? [String:Any] ?? [:],gpu=stats["gpu"] as? [String:Any] ?? [:]
+        func gb(_ mb:Double)->String {String(format:mb<10240 ? "%.1f":"%.0f",mb/1024)}
+        let sys=[number(gpu,"util").map {"GPU \(Int($0))%"},number(gpu,"mem_used_mb").map {"VRAM "+gb($0)+(number(gpu,"mem_total_mb").map {"/"+gb($0)} ?? "")+" GB"},number(gpu,"temp_c").map {"\(Int($0))°C"},
+                 number(stats,"cpu").map {"CPU \(Int($0))%"},number(stats,"ram_total_mb").map {"RAM "+gb(number(stats,"ram_used_mb") ?? 0)+"/"+gb($0)+" GB"}].compactMap {$0}.joined(separator:" · ")
+        let gpuName=(gpu["name"] as? String).map {" · "+$0.replacingOccurrences(of:"NVIDIA GeForce ",with:"")} ?? ""
+        let c=card(nil);c.spacing=5
+        add(hstack([line("● "+(job["label"] as? String ?? job["title"] as? String ?? "Training"),12,accent,.semibold),spacer(),
+                    line(worker.map {($0["name"] as? String ?? "Computer")+(($0["id"] as? String)==me ? " (this Mac)":"")+gpuName} ?? "waiting for its helper",11,muted)]),to:c)
+        add(line((step ?? job["title"] as? String ?? "")+(matchKey.map {" · "+$0} ?? ""),13,.white,.semibold),to:c)
+        add(line(sys.isEmpty ? "no live readings from this helper yet":sys,11,accent),to:c)
+        func pct(_ p:Double?)->String {p.map {String(format:"%3.0f%%",$0)} ?? "  —"}
+        func barRow(_ label:String,_ p:Double?,_ detail:String) {
+            let bar=MeterFill();bar.fraction=p.map {$0/100};bar.widthAnchor.constraint(equalToConstant:240).isActive=true;bar.heightAnchor.constraint(equalToConstant:8).isActive=true
+            let name=line(label,12);name.widthAnchor.constraint(equalToConstant:64).isActive=true
+            add(hstack([name,bar,line(pct(p),12,.white,.semibold),line(detail,12,muted)],spacing:10),to:c)
+        }
+        barRow("stage",stage,stageText.isEmpty ? (now.isEmpty ? "—":now):stageText)
+        barRow("overall",overall,[elapsed.map {clock($0)+" elapsed"},eta.isEmpty ? (overall==nil ? nil:"estimating"):eta].compactMap {$0}.joined(separator:" · "))
+        if !get("Next:").isEmpty {add(line("next → "+get("Next:"),11,muted),to:c)}
+        if !log.isEmpty {
+            let box=vstack([],spacing:2);add(box,to:c)
+            for (t,message) in log.suffix(6) {
+                let lower=message.lowercased()
+                let color:NSColor=lower.range(of:"fail|error|could not|refused|timed out",options:.regularExpression) != nil ? NSColor(srgbRed:0.98,green:0.55,blue:0.55,alpha:1):
+                    lower.range(of:"warn|skipp|retry|missing",options:.regularExpression) != nil ? warn:
+                    lower.range(of:"finish|saved|adopted|done|complete|kept|passed",options:.regularExpression) != nil ? good:NSColor(srgbRed:0.55,green:0.78,blue:0.97,alpha:1)
+                add(line(DateFormatter.localizedString(from:Date(timeIntervalSince1970:t),dateStyle:.none,timeStyle:.medium)+"  "+message,11,color),to:box)
+            }
+        }
     }
     func renderModel(_ kind:String) {
         let m=models[kind] as? [String:Any],current=m?["current"] as? [String:Any]
@@ -479,11 +503,13 @@ func loadCredential() -> Data? {
         let computers=dash["computers"] as? [[String:Any]] ?? [],me=computerID()
         if computers.isEmpty {card(nil).addArrangedSubview(text("No computer readouts yet.",12,muted))}
         for w in computers.sorted(by:{(($0["id"] as? String)==me ? 0:1)<(($1["id"] as? String)==me ? 0:1)}) {
-            let state=(w["job"] as? [String:Any]) != nil ? ("Training",accent):((w["online"] as? Bool)==true ? ("Available",good):("Offline",muted))
+            let isThisMac=(w["id"] as? String)==me
+            let state=isThisMac && reviewing ? ("Tracking review",warn):isThisMac && folderReview ? ("Image review",warn):(w["job"] as? [String:Any]) != nil ? ("Training",accent):((w["online"] as? Bool)==true ? ("Available",good):("Offline",muted))
             let c=card(nil)
-            c.addArrangedSubview(hstack([text((w["name"] as? String ?? "Computer")+((w["id"] as? String)==me ? " · this Mac":""),14,.white,.semibold),text(state.0,12,state.1,.semibold)],spacing:10))
+            c.addArrangedSubview(hstack([text((w["name"] as? String ?? "Computer")+(isThisMac ? " · this Mac":""),14,.white,.semibold),text(state.0,12,state.1,.semibold)],spacing:10))
             add(text([w["platform"],w["device"],w["version"]].compactMap {$0 as? String}.filter {!$0.isEmpty}.joined(separator:" · "),11,muted),to:c)
             add(meterRow(w["stats"] as? [String:Any] ?? [:]),to:c)
+            if isThisMac && (reviewing || folderReview) {add(text("Live helper readings resume when you close the local review.",11,warn),to:c)}
             add(text((w["job"] as? [String:Any])?["message"] as? String ?? "No assigned job",11,muted),to:c)
         }
     }
