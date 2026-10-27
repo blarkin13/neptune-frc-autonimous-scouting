@@ -11,6 +11,8 @@ PANEL = '#172e4c'
 PANEL_ALT = '#1f3a5c'
 LINE = '#385c80'
 LOG = '#0d1a2e'
+SIDEBAR = '#0d1c33'
+WARN = '#fac76b'
 TEXT = '#f1f7fc'
 MUTED = '#a8bdcf'
 ACCENT = '#53d4ed'
@@ -115,7 +117,7 @@ class ComputerCard(tk.Frame):
     def __init__(self,parent,*,name,logo=None):
         super().__init__(parent,bg=LINE,padx=1,pady=1)
         self.pack(fill='x',pady=(0,8));self.connected=False;self.working=False
-        inner=tk.Frame(self,bg=PANEL,padx=12,pady=10);inner.pack(fill='both',expand=True)
+        inner=self.inner=tk.Frame(self,bg=PANEL,padx=12,pady=10);inner.pack(fill='both',expand=True)
         head=tk.Frame(inner,bg=PANEL);head.pack(fill='x',pady=(0,8))
         if logo and Path(logo).is_file():
             try:
@@ -172,8 +174,15 @@ class BubblePage(tk.Canvas):
     def add(self,widget):
         """Place a child of this canvas as the next card; returns the widget."""
         self.items.append((widget,self.create_window(0,0,window=widget,anchor='nw')))
-        widget.bind('<Configure>',lambda event:self.after_idle(self.relayout),add='+')
+        if not getattr(widget,'_relayout_bound',False):
+            widget.bind('<Configure>',lambda event:self.after_idle(self.relayout),add='+');widget._relayout_bound=True
         self.after_idle(self.relayout);return widget
+    def show_only(self,keep):
+        """Start a new page: lift every card off the canvas, destroying all but `keep`, which are re-added later."""
+        for widget,item in self.items:
+            self.delete(item)
+            if widget not in keep:widget.destroy()
+        self.items=[];self.yview_moveto(0)
     def clear(self,keep=()):
         for widget,item in list(self.items):
             if widget not in keep:self.delete(item);widget.destroy();self.items.remove((widget,item))
@@ -204,37 +213,11 @@ class BubblePage(tk.Canvas):
         self.tag_lower('all');self.after(50,self.drift)
 
 
-def topbar(parent,*,logo=None):
-    """NEPTUNE / TRAINING bar with a status line; returns (bar, status_var, button_row)."""
-    bar=tk.Frame(parent,bg=INK,padx=18,pady=10);bar.pack(fill='x')
-    if logo and Path(logo).is_file():
-        try:
-            picture=tk.PhotoImage(file=str(logo));picture=picture.subsample(max(1,(picture.width()+35)//36))
-            mark=tk.Label(bar,image=picture,bg=INK);mark.image=picture;mark.pack(side='left',padx=(0,10))
-        except tk.TclError:pass
-    tk.Label(bar,text='NEPTUNE  /  TRAINING',font=('Arial',12,'bold'),fg=ACCENT,bg=INK).pack(side='left')
-    buttons=tk.Frame(bar,bg=INK);buttons.pack(side='right')
-    value=tk.StringVar(value='Connecting to Neptune…')
-    tk.Label(bar,textvariable=value,font=('Arial',10),fg=MUTED,bg=INK,anchor='w').pack(side='left',fill='x',expand=True,padx=(16,12))
-    return bar,value,buttons
-
-
-def wordmark(parent,logo):
-    """The wide Neptune logo as its own card-less row."""
-    row=tk.Frame(parent,bg=INK)
-    if logo and Path(logo).is_file():
-        try:
-            picture=tk.PhotoImage(file=str(logo));picture=picture.subsample(max(1,(picture.width()+259)//260))
-            label=tk.Label(row,image=picture,bg=INK);label.image=picture;label.pack(anchor='w')
-        except tk.TclError:pass
-    return row
-
-
 def page_card(page,title):
     """A bordered card placed on a BubblePage; returns (outer, inner)."""
     outer=tk.Frame(page,bg=LINE,padx=1,pady=1)
     inner=tk.Frame(outer,bg=PANEL,padx=14,pady=12);inner.pack(fill='both',expand=True)
-    tk.Label(inner,text=title,font=('Arial',12,'bold'),fg=ACCENT,bg=PANEL,anchor='w').pack(fill='x',pady=(0,6))
+    if title:tk.Label(inner,text=title,font=('Arial',12,'bold'),fg=TEXT,bg=PANEL,anchor='w').pack(fill='x',pady=(0,6))
     page.add(outer);return outer,inner
 
 
@@ -246,50 +229,184 @@ def _meter(parent,label,fraction,text):
     return cell
 
 
-def render_dashboard(page,data,*,self_id=None):
-    """Neptune's Running now, other helpers and queue as cards; returns the cards made."""
+class Shell:
+    """Sidebar of pages beside a header and a scrolling page of cards, the same layout as the Mac app."""
+    PAGES=[('overview','Overview'),('robots','Robots'),('field','Field'),('actions','Actions'),('computers','Computers'),('activity','Activity')]
+    def __init__(self,root,*,logo=None,on_page=lambda key:None):
+        self.on_page=on_page;self.nav={}
+        side=tk.Frame(root,bg=SIDEBAR,width=210,padx=12,pady=16);side.pack(side='left',fill='y');side.pack_propagate(False)
+        tk.Frame(root,bg=LINE,width=1).pack(side='left',fill='y')
+        brand=tk.Frame(side,bg=SIDEBAR);brand.pack(fill='x',pady=(0,18))
+        if logo and Path(logo).is_file():
+            try:
+                picture=tk.PhotoImage(file=str(logo));picture=picture.subsample(max(1,(picture.width()+29)//30))
+                mark=tk.Label(brand,image=picture,bg=SIDEBAR);mark.image=picture;mark.pack(side='left',padx=(0,10))
+            except tk.TclError:pass
+        words=tk.Frame(brand,bg=SIDEBAR);words.pack(side='left')
+        tk.Label(words,text='Neptune',font=('Arial',14,'bold'),fg=TEXT,bg=SIDEBAR,anchor='w').pack(fill='x')
+        tk.Label(words,text='Training helper',font=('Arial',9),fg=MUTED,bg=SIDEBAR,anchor='w').pack(fill='x')
+        def section(title):tk.Label(side,text=title.upper(),font=('Arial',8,'bold'),fg=MUTED,bg=SIDEBAR,anchor='w').pack(fill='x',pady=(14,4))
+        for i,(key,title) in enumerate(self.PAGES):
+            if i==1:section('Models')
+            if i==4:section('Helpers')
+            item=tk.Label(side,text=title,font=('Arial',11),fg=TEXT,bg=SIDEBAR,anchor='w',padx=10,pady=6,cursor='hand2')
+            item.pack(fill='x');item.bind('<Button-1>',lambda event,k=key:self.on_page(k));self.nav[key]=item
+        section('Tools')
+        self.tools=tk.Frame(side,bg=SIDEBAR);self.tools.pack(fill='x')
+        footer=tk.Frame(side,bg=LINE,padx=1,pady=1);footer.pack(side='bottom',fill='x')
+        self.footer=tk.Frame(footer,bg=PANEL,padx=10,pady=10);self.footer.pack(fill='both')
+        main=tk.Frame(root,bg=INK);main.pack(side='left',fill='both',expand=True)
+        head=tk.Frame(main,bg=INK,padx=22,pady=14);head.pack(fill='x')
+        self.title=tk.StringVar(value='Overview');self.status=tk.StringVar(value='Connecting to Neptune…')
+        words=tk.Frame(head,bg=INK);words.pack(side='left',fill='x',expand=True)
+        tk.Label(words,textvariable=self.title,font=('Arial',19,'bold'),fg=TEXT,bg=INK,anchor='w').pack(fill='x')
+        tk.Label(words,textvariable=self.status,font=('Arial',10),fg=MUTED,bg=INK,anchor='w').pack(fill='x')
+        self.right=tk.Frame(head,bg=INK);self.right.pack(side='right')
+        self.actions=tk.Frame(head,bg=INK);self.actions.pack(side='right',padx=(0,8))
+        holder=tk.Frame(main,bg=INK);holder.pack(fill='both',expand=True)
+        self.page=BubblePage(holder)
+    def select(self,key):
+        for k,item in self.nav.items():item.configure(bg=PANEL_ALT if k==key else SIDEBAR,fg=ACCENT if k==key else TEXT)
+        self.title.set(dict(self.PAGES).get(key,'Overview'))
+        for child in self.actions.winfo_children():child.destroy()
+
+
+def tool_button(shell,text,command):
+    """A sidebar tool: looks like a page link, runs a command."""
+    item=tk.Label(shell.tools,text=text,font=('Arial',11),fg=TEXT,bg=SIDEBAR,anchor='w',padx=10,pady=6,cursor='hand2')
+    item.pack(fill='x');item.bind('<Button-1>',lambda event:command());return item
+
+
+def _when(t):
     import time as _time
-    computers=data.get('computers') or [];queue=data.get('queue') or []
-    running=[x for x in queue if x.get('state')=='running'];waiting=[x for x in queue if x.get('state')=='waiting']
-    def label(parent,text,size=11,color=TEXT,weight='normal',font='Arial'):
-        tk.Label(parent,text=text,font=(font,size,weight),fg=color,bg=PANEL,anchor='w',justify='left').pack(fill='x',pady=(0,3))
-    made=[]
-    outer,card=page_card(page,'RUNNING NOW  ·  %d active'%len(running));made.append(outer)
-    if running:
-        job=running[0];label(card,job.get('title') or 'Training',14,TEXT,'bold');label(card,job.get('message') or '',10,MUTED)
+    return _time.strftime('%b %d, %H:%M',_time.localtime(t)) if isinstance(t,(int,float)) and t>0 else '—'
+
+
+def score(kind,p):
+    """Robot detector: held-out F1. Field detector: targets and corners placed, and how far off."""
+    if not isinstance(p,dict):return '—'
+    if kind=='robot':return 'F1 %.2f'%p['f1'] if isinstance(p.get('f1'),(int,float)) else '—'
+    if not p.get('found') or not isinstance(p.get('mean_error'),(int,float)):return 'none found'
+    return '%d/%d · %.1f%% off'%(p['found'],p.get('expected',0),p['mean_error']*100)
+
+
+def run_result(r):
+    state=r.get('state')
+    if state=='done':return ('Switched to it',GOOD) if r.get('adopted') else ('Kept the one in use',MUTED)
+    return {'failed':('Failed',WARN),'cancelled':('Cancelled',MUTED),'claimed':('Running',ACCENT)}.get(state,('Waiting',MUTED))
+
+
+def _label(parent,text,size=11,color=TEXT,weight='normal',font='Arial',bg=PANEL):
+    tk.Label(parent,text=text,font=(font,size,weight),fg=color,bg=bg,anchor='w',justify='left').pack(fill='x',pady=(0,3))
+
+
+def tiles(page,specs):
+    """A row of equal tiles: (label, value, note, note colour, click handler or None)."""
+    row=tk.Frame(page,bg=INK)
+    for i,(label,value,note,color,click) in enumerate(specs):
+        row.columnconfigure(i,weight=1,uniform='tile')
+        outer=tk.Frame(row,bg=LINE,padx=1,pady=1);outer.grid(row=0,column=i,sticky='nsew',padx=(0 if i==0 else 6,0 if i==len(specs)-1 else 6))
+        inner=tk.Frame(outer,bg=PANEL,padx=14,pady=12,cursor='hand2' if click else '');inner.pack(fill='both',expand=True)
+        for text,size,col,weight in ((label,10,MUTED,'normal'),(value,17,TEXT,'bold'),(note,9,color or MUTED,'normal')):
+            w=tk.Label(inner,text=text,font=('Arial',size,weight),fg=col,bg=PANEL,anchor='w');w.pack(fill='x')
+            if click:w.bind('<Button-1>',lambda event,c=click:c())
+        if click:inner.bind('<Button-1>',lambda event,c=click:c())
+    page.add(row);return row
+
+
+def model_tiles(page,models,open_page):
+    robot,field,actions=models.get('robot'),models.get('field'),models.get('actions')
+    tagged=((actions or {}).get('counts') or {}).get('matches') or 0
+    tiles(page,[
+        ('Robots',score('robot',(robot.get('current') or {}).get('new')) if robot and robot.get('current') else ('Built-in' if robot else '—'),'%d labelled matches'%(robot.get('matches') or 0) if robot else 'Loading…',None,lambda:open_page('robots')),
+        ('Field',score('field',(field.get('current') or {}).get('new')) if field and field.get('current') else ('Marked zones' if field else '—'),'%d events marked'%len(field.get('events') or []) if field else 'Loading…',None,lambda:open_page('field')),
+        ('Actions',('Released' if actions.get('released') else 'Not released') if actions else '—',('%d tagged matches'%tagged+(' · needs more' if tagged<6 else '')) if actions else 'Loading…',WARN if actions and tagged<6 else None,lambda:open_page('actions')),
+    ])
+
+
+def render_overview(page,dash,models,*,self_id=None,busy=False,open_page=lambda k:None):
+    """Running now (other computers when this one is busy), the three models, and the queue."""
+    computers=dash.get('computers') or [];queue=dash.get('queue') or []
+    running=[q for q in queue if q.get('state')=='running' and not (busy and q.get('computer_id')==self_id)]
+    _,card=page_card(page,'Running now'+(' · %d'%len(running) if running else ''))
+    if not running:_label(card,'Nothing else is running.' if busy else 'Nothing is running. Start a run from a model page.',10,MUTED)
+    for job in running[:3]:
         worker=next((c for c in computers if c.get('id') and c.get('id')==job.get('computer_id')),None)
-        if worker:
-            k=worker.get('counters') or {}
-            if k.get('passes'):
-                fraction=((k.get('pass',1)-1)+(k.get('batch',0)/k['batches'] if k.get('batches') else 0))/k['passes']
-                label(card,'Stage · pass %s/%s · batch %s/%s'%(k.get('pass','?'),k['passes'],k.get('batch','?'),k.get('batches','?')),10,MUTED)
-                _meter(card,'Progress',fraction,'%d%%'%int(100*fraction)).pack(fill='x',pady=(2,8))
-            lines=(worker.get('log') or [])[-16:]
-            if lines:
-                text=tk.Text(card,height=min(10,max(3,len(lines))),bg=LOG,fg='#70bdf7',font=('Menlo',10),borderwidth=0,highlightthickness=0,padx=10,pady=8,wrap='none')
-                text.insert('end','\n'.join(_time.strftime('%H:%M',_time.localtime(row[0]))+'  '+str(row[1]) for row in lines if len(row)>1));text.config(state='disabled');text.pack(fill='x')
-        if len(running)>1:label(card,'+ %d other active job(s)'%(len(running)-1),10,MUTED)
-    else:label(card,'No training job is running.',10,MUTED)
-    others=[c for c in computers if not self_id or c.get('id')!=self_id]
-    outer,card=page_card(page,'OTHER HELPERS  ·  %d online'%sum(1 for c in others if c.get('online')));made.append(outer)
-    if not others:label(card,'No other computers connected.',10,MUTED)
-    for index,worker in enumerate(others):
-        state='Training' if worker.get('job') else 'Available' if worker.get('online') else 'Offline'
-        label(card,(worker.get('name') or worker.get('device') or 'Computer')+'   ·   '+state,12,TEXT,'bold')
-        label(card,' · '.join(x for x in (worker.get('platform'),worker.get('device'),worker.get('version')) if x),9,MUTED)
-        stats=worker.get('stats') or {};gpu=stats.get('gpu') or {}
-        def memory(used,total):
-            return '—' if used is None else '%.1f / %.1f GB'%(used/1024,total/1024) if total else '%.1f GB'%(used/1024)
-        grid=tk.Frame(card,bg=PANEL);grid.pack(fill='x',pady=(4,4));grid.columnconfigure(0,weight=1,uniform='m');grid.columnconfigure(1,weight=1,uniform='m')
+        _label(card,(job.get('title') or 'Training')+('   on '+(worker.get('name') or 'a helper') if worker else ''),12,TEXT,'bold')
+        if job.get('message'):_label(card,job['message'],10,MUTED)
+        k=(worker or {}).get('counters') or {}
+        if k.get('passes'):
+            fraction=((k.get('pass',1)-1)+(k.get('batch',0)/k['batches'] if k.get('batches') else 0))/k['passes']
+            _meter(card,'Pass %s of %s'%(k.get('pass','?'),k['passes']),fraction,'%d%%'%int(100*fraction)).pack(fill='x',pady=(2,6))
+        lines=(worker or {}).get('log') or []
+        if lines and len(lines[-1])>1:_label(card,_when(lines[-1][0])+'  '+str(lines[-1][1]),9,MUTED,font='Menlo')
+    model_tiles(page,models,open_page)
+    waiting=[q for q in queue if q.get('state')=='waiting']
+    _,card=page_card(page,'Queue · %d waiting'%len(waiting))
+    if not waiting:_label(card,'No runs waiting.',10,MUTED)
+    for item in waiting:_label(card,(item.get('title') or 'Run')+' · '+(item.get('message') or 'Waiting'),10)
+
+
+def render_model(page,kind,m,*,open_url=lambda url:None,connected=True):
+    """A detector's page: the model in use, its held-out match, its data and the last runs."""
+    if not m:
+        _,card=page_card(page,None);_label(card,'Loading this model’s status…' if connected else 'Connect this computer to Neptune to see this model.',10,MUTED);return
+    current=m.get('current')
+    data=('%d matches'%(m.get('matches') or 0),'%d labelled frames'%(m.get('frames') or 0)) if kind=='robot' else ('%d matches'%(m.get('marked') or 0),', '.join(m.get('events') or []) or '—')
+    tiles(page,[('Model in use',score(kind,current.get('new')) if current else 'Built-in','Adopted '+_when(current.get('adopted_at')) if current else 'No retrained model has passed the check yet',None,None),
+                ('Checked on',m.get('holdout') or '—','Held out · never trained on',None,None),
+                ('Labelled data' if kind=='robot' else 'Marked data',data[0],data[1],None,None)])
+    if kind=='field':_,card=page_card(page,None);_label(card,'Scouting uses your marked zones. Mark one match at each event you scout; training this detector is optional.',10,MUTED)
+    elif not m.get('ready'):_,card=page_card(page,None);_label(card,'Label robots in at least two matches on Neptune before training.',10,WARN)
+    _,card=page_card(page,'Recent runs')
+    runs=m.get('runs') or []
+    if not runs:_label(card,'No runs yet.',10,MUTED)
+    for i,r in enumerate(runs):
+        row=tk.Frame(card,bg=PANEL);row.pack(fill='x')
+        result,color=run_result(r)
+        tk.Label(row,text=_when(r.get('created_at')),font=('Arial',10),fg=MUTED,bg=PANEL,width=14,anchor='w').pack(side='left')
+        tk.Label(row,text=result,font=('Arial',10,'bold'),fg=color,bg=PANEL,width=17,anchor='w').pack(side='left')
+        versus='—' if not isinstance(r.get('new'),dict) else score(kind,r['new'])+' vs '+(score(kind,r['current']) if isinstance(r.get('current'),dict) else 'none')
+        tk.Label(row,text=versus,font=('Arial',10),fg=TEXT,bg=PANEL,anchor='w').pack(side='left')
+        review=r.get('review') or {}
+        if isinstance(review.get('youtube_id'),str) and len(review['youtube_id'])==11:
+            watch=tk.Label(row,text='▶ Watch',font=('Arial',10),fg=ACCENT,bg=PANEL,cursor='hand2');watch.pack(side='right')
+            watch.bind('<Button-1>',lambda event,u='https://youtu.be/'+review['youtube_id']:open_url(u))
+        elif review.get('status')=='upload_failed':tk.Label(row,text='Video upload failed',font=('Arial',9),fg=MUTED,bg=PANEL).pack(side='right')
+        if r.get('message'):_label(card,r['message'],9,MUTED)
+        if i<len(runs)-1:tk.Frame(card,bg=LINE,height=1).pack(fill='x',pady=6)
+
+
+def render_actions(page,a,*,connected=True):
+    if not a:
+        _,card=page_card(page,None);_label(card,'Loading the action model’s status…' if connected else 'Connect this computer to Neptune to see the action model.',10,MUTED);return
+    counts=a.get('counts') or {};tagged=counts.get('matches') or 0;latest=a.get('latest')
+    tiles(page,[('Model in use','Released' if a.get('released') else 'None released','Latest trained '+_when(latest.get('created_at')) if latest else 'No model trained yet',None,None),
+                ('Tagged matches',str(tagged),'Needs tagged matches from more events' if tagged<6 else 'Human-tagged',WARN if tagged<6 else None,None),
+                ('Human tags',str(counts.get('tags') or 0),'%d imported actions'%(counts.get('external') or 0),None,None)])
+    _,card=page_card(page,'Improve this model')
+    _label(card,'Tag scoring, climbing and defense in matches from events not tagged yet; more variety helps more than more of one event.',10,MUTED)
+    _label(card,'Train on Neptune picks the matches and the computer, then Test & release checks the new model before it’s used.',10,MUTED)
+
+
+def render_computers(page,dash,*,self_id=None):
+    """Every connected computer with its live readings; this one first."""
+    computers=sorted(dash.get('computers') or [],key=lambda c:c.get('id')!=self_id)
+    if not computers:_,card=page_card(page,None);_label(card,'No computer readouts yet.',10,MUTED)
+    for w in computers:
+        _,card=page_card(page,None)
+        state,color=('Training',ACCENT) if w.get('job') else (('Available',GOOD) if w.get('online') else ('Offline',MUTED))
+        head=tk.Frame(card,bg=PANEL);head.pack(fill='x')
+        tk.Label(head,text=(w.get('name') or 'Computer')+(' · this computer' if w.get('id')==self_id else ''),font=('Arial',12,'bold'),fg=TEXT,bg=PANEL).pack(side='left')
+        tk.Label(head,text=state,font=('Arial',10,'bold'),fg=color,bg=PANEL).pack(side='left',padx=10)
+        _label(card,' · '.join(x for x in (w.get('platform'),w.get('device'),w.get('version')) if x),9,MUTED)
+        stats=w.get('stats') or {};gpu=stats.get('gpu') or {}
+        def memory(used,total):return '—' if used is None else '%.1f / %.1f GB'%(used/1024,total/1024) if total else '%.1f GB'%(used/1024)
+        grid=tk.Frame(card,bg=PANEL);grid.pack(fill='x',pady=(4,4))
         cells=[('CPU',(stats.get('cpu') or 0)/100,'%g%%'%stats['cpu'] if isinstance(stats.get('cpu'),(int,float)) else '—'),
                ('GPU',(gpu.get('util') or 0)/100,'%g%%'%gpu['util'] if isinstance(gpu.get('util'),(int,float)) else '—'),
                ('RAM',stats['ram_used_mb']/stats['ram_total_mb'] if stats.get('ram_used_mb') is not None and stats.get('ram_total_mb') else None,memory(stats.get('ram_used_mb'),stats.get('ram_total_mb'))),
                ('GPU memory',gpu['mem_used_mb']/gpu['mem_total_mb'] if gpu.get('mem_used_mb') is not None and gpu.get('mem_total_mb') else None,memory(gpu.get('mem_used_mb'),gpu.get('mem_total_mb')))]
         for i,(name,fraction,text) in enumerate(cells):
-            _meter(grid,name,fraction,text).grid(row=i//2,column=i%2,sticky='ew',padx=(0,16) if i%2==0 else 0,pady=(0,8))
-        label(card,(worker.get('job') or {}).get('message') or 'No assigned job',9,MUTED)
-        if index<len(others)-1:tk.Frame(card,bg=LINE,height=1).pack(fill='x',pady=8)
-    outer,card=page_card(page,'QUEUE  ·  %d waiting'%len(waiting));made.append(outer)
-    if not waiting:label(card,'No jobs waiting.',10,MUTED)
-    for item in waiting:label(card,(item.get('title') or 'Job')+' · '+(item.get('message') or 'Waiting'),10)
-    return made
+            grid.columnconfigure(i,weight=1,uniform='m');_meter(grid,name,fraction,text).grid(row=0,column=i,sticky='ew',padx=(0,14) if i<3 else 0)
+        _label(card,(w.get('job') or {}).get('message') or 'No assigned job',9,MUTED)

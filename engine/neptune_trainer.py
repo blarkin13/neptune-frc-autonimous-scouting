@@ -302,16 +302,15 @@ def main():
     if sys.platform == 'win32':
         try:root.iconbitmap(str(source.with_name('Neptune.ico')))
         except tk.TclError:pass
-    # One resizable window: this computer's card and controls, then Neptune's readouts, then activity.
-    emblem,wide=Path(__file__).with_name('neptune-logo-square.png'),Path(__file__).with_name('neptune-logo-wide.png')
-    _bar,top_status,bar_buttons=ui.topbar(root,logo=emblem)
-    holder=tk.Frame(root,bg=ui.INK);holder.pack(fill='both',expand=True)
-    page=frame=ui.BubblePage(holder)
+    # One window: a sidebar of pages (overview, the three models, computers, activity) beside a page of cards.
+    emblem=Path(__file__).with_name('neptune-logo-square.png')
+    view={'page':'overview','dash':{},'models':{}}
+    shell=ui.Shell(root,logo=emblem,on_page=lambda key:show_page(key));top_status=shell.status
+    page=frame=shell.page
     from neptune_engine import VERSION as engine_version
-    page.add(ui.wordmark(page,wide))
-    computer_card=ui.ComputerCard(page,name=platform.node() or 'Training computer',logo=emblem);computer_card.pack_forget();page.add(computer_card)
+    computer_card=ui.ComputerCard(page,name=platform.node() or 'Training computer',logo=emblem);computer_card.pack_forget()
     status=tk.StringVar(value='Connecting to Neptune…');job_title=tk.StringVar(value='THIS COMPUTER');next_value=tk.StringVar(value='')
-    job_outer=tk.Frame(page,bg=ui.LINE,padx=1,pady=1,height=62);job_outer.pack_propagate(False);page.add(job_outer)
+    job_outer=tk.Frame(page,bg=ui.LINE,padx=1,pady=1,height=62);job_outer.pack_propagate(False)
     job=tk.Frame(job_outer,bg=ui.PANEL,padx=12,pady=10);job.pack(fill='both',expand=True)
     tk.Label(job,textvariable=job_title,font=('Arial',9,'bold'),fg=ui.ACCENT,bg=ui.PANEL,anchor='w').pack(fill='x')
     status_label=tk.Label(job,textvariable=status,font=('Arial',10),fg=ui.TEXT,bg=ui.PANEL,anchor='nw',justify='left',height=1,wraplength=900);status_label.pack(fill='x',pady=(5,0))
@@ -332,27 +331,19 @@ def main():
         next_value.set(next((x for x in lines if x.startswith('Next:')),''))
         if text.startswith('Ready.') or text.startswith('Connected — ready.'):return 'No assigned job'
         return next((x for x in lines if x.startswith('Now:')),text)
-    controls=bar_buttons
-    ttk.Button(controls,text='Open Neptune',style='Neptune.TButton',command=lambda:webbrowser.open(config['site'].rstrip('/')+'/autoscout/train.php?connect=1')).pack(side='right',padx=(8,0))
-    choice=tk.StringVar(value='Automatic');settings=ttk.Frame(page,style='Neptune.TFrame');page.add(settings)
-    ttk.Label(settings,text='Training device',style='Muted.TLabel').pack(side='left',padx=(0,12))
+    train_page=config['site'].rstrip('/')+'/autoscout/train.php'
+    ttk.Button(shell.right,text='Open Neptune',style='Neptune.TButton',command=lambda:webbrowser.open(train_page+'?connect=1')).pack(side='right')
+    # This computer's controls live on its own card.
+    choice=tk.StringVar(value='Automatic');settings=tk.Frame(computer_card.inner,bg=ui.PANEL);settings.pack(fill='x',pady=(6,0))
+    ttk.Label(settings,text='Training device',style='CardMuted.TLabel').pack(side='left',padx=(0,12))
     devices=['Automatic','NVIDIA GPU','CPU'] if sys.platform in ('win32','linux') else ['Automatic','Mac GPU','CPU']
     device=ttk.Combobox(settings,textvariable=choice,values=devices,state='readonly',width=18,style='Neptune.TCombobox');device.pack(side='left')
-    # Neptune's readouts go between this computer's rows and the bottom rows; see the 'dashboard' message.
-    toggle_row=ttk.Frame(page,style='Neptune.TFrame');page.add(toggle_row)
-    # The activity log stays hidden until asked for.
-    activity_box=tk.Frame(page,bg=ui.INK,height=1);activity_inner=ttk.Frame(activity_box,style='Neptune.TFrame');log=ui.activity(activity_inner);page.add(activity_box)
-    actions=ttk.Frame(page,style='Neptune.TFrame');page.add(actions)
-    bottom=[toggle_row,activity_box,actions];pinned=set(widget for widget,_ in page.items)
+    activity_box=tk.Frame(page,bg=ui.INK);log=ui.activity(activity_box);log.configure(height=28)
+    pinned={computer_card,job_outer,activity_box}
     def resize_helper():page.after_idle(page.relayout)
-    def toggle_activity():
-        if activity_inner.winfo_ismapped():
-            activity_inner.pack_forget();activity_box.configure(height=1);activity_button.config(text='Show activity')
-        else:
-            activity_inner.pack(fill='both',expand=True);activity_button.config(text='Hide activity')
-        resize_helper()
-    ttk.Label(toggle_row,text='v'+helper_version()+' · Engine '+engine_version.split('-')[0],style='Muted.TLabel').pack(side='right')
-    activity_button=ttk.Button(toggle_row,text='Show activity',style='Subtle.TButton',command=toggle_activity);activity_button.pack(side='left')
+    # Connection, version and updates sit at the foot of the sidebar.
+    tk.Label(shell.footer,text='v'+helper_version()+' · engine '+engine_version.split('-')[0],font=('Arial',9),fg=ui.MUTED,bg=ui.PANEL,anchor='w').pack(fill='x')
+    actions=tk.Frame(shell.footer,bg=ui.PANEL);actions.pack(fill='x',pady=(6,0))
     messages=queue.Queue();closing=threading.Event();pause=threading.Event();busy={'value':False};reviewing=threading.Event();review_closing=threading.Event()
     import neptune_telemetry as telemetry
     unsubscribe_meters=telemetry.subscribe(lambda payload:messages.put(('telemetry',payload)))
@@ -364,8 +355,8 @@ def main():
         reconnect_button.config(state='disabled')
         pause.set();closing.set();review_closing.set()
         status.set('Finishing this match, then opening browser approval…' if busy['value'] else 'Opening browser approval…')
-    reconnect_button=ttk.Button(controls,text='Reconnect',style='Subtle.TButton',command=reconnect)
-    reconnect_button.pack(side='right',padx=(8,0))
+    reconnect_button=ttk.Button(shell.footer,text='Reconnect',style='Subtle.TButton',command=reconnect)
+    reconnect_button.pack(anchor='w',pady=(6,0))
     update={'release':None,'stage':None,'checking':False}
     update_status=tk.StringVar(value='')
     def check_updates():
@@ -388,11 +379,11 @@ def main():
         threading.Thread(target=work,daemon=True).start()
     update_button=ttk.Button(actions,text='Check for updates',style='Subtle.TButton',command=lambda:install_update() if update['release'] else check_updates())
     if sys.platform=='win32':
-        update_button.pack(side='left',padx=(0,8))
-        ttk.Label(actions,textvariable=update_status,wraplength=340,style='Muted.TLabel').pack(side='left')
+        update_button.pack(anchor='w')
+        tk.Label(actions,textvariable=update_status,wraplength=170,justify='left',font=('Arial',9),fg=ui.MUTED,bg=ui.PANEL,anchor='w').pack(fill='x',pady=(4,0))
         root.after(1500,check_updates)
     else:
-        ttk.Label(actions,text='Updates are managed by your package manager.',style='Muted.TLabel').pack(anchor='w')
+        tk.Label(actions,text='Updates come from your package manager.',wraplength=170,justify='left',font=('Arial',9),fg=ui.MUTED,bg=ui.PANEL,anchor='w').pack(fill='x')
     def progress(text):messages.put(('progress',str(text)))
     def stop_current():pause.set();progress('Finishing this match, then pausing. Progress stays saved on Neptune.')
     stop_button=ttk.Button(settings,text='Stop after this match',style='Subtle.TButton',command=stop_current,state='disabled');stop_button.pack(side='left',padx=(12,0))
@@ -407,7 +398,7 @@ def main():
             except Exception as error:progress('Tracking review: '+str(error))
             finally:reviewing.clear();messages.put(('review_closed',None))
         threading.Thread(target=review_worker,daemon=True).start()
-    review_button=ttk.Button(controls,text='Review tracking…',style='Subtle.TButton',command=review_tracking);review_button.pack(side='right',padx=(8,0))
+    review_button=ui.tool_button(shell,'Review tracking…',review_tracking)
     selfchecked=[]
     def worker():
         hardware=None;selected=None
@@ -447,11 +438,55 @@ def main():
         messages.put(('closed',None))
     def dashboard_worker():
         import neptune_robot_jobs
+        rounds=0
         while not closing.is_set():
             try:messages.put(('dashboard',neptune_robot_jobs.api(config,'dashboard',timeout=20)))
             except Exception:messages.put(('dashboard',None))
+            # Model status changes slowly: read it at start, then every sixth round (a minute).
+            rounds+=1
+            if rounds%6==1:
+                try:messages.put(('models',neptune_robot_jobs.api(config,'models',timeout=30)))
+                except Exception:pass
             if closing.wait(10):break
-    ui.render_dashboard(page,{},self_id=config.get('computer_id'));page.move_to_end(bottom)
+    self_id=config.get('computer_id')
+    def open_page(key):show_page(key)
+    def render():
+        page.show_only(pinned)
+        key=view['page']
+        if key=='overview':
+            page.add(computer_card)
+            if busy['value']:page.add(job_outer)
+            ui.render_overview(page,view['dash'],view['models'],self_id=self_id,busy=busy['value'],open_page=open_page)
+        elif key in ('robots','field'):ui.render_model(page,'robot' if key=='robots' else 'field',view['models'].get('robot' if key=='robots' else 'field'),open_url=webbrowser.open)
+        elif key=='actions':ui.render_actions(page,view['models'].get('actions'))
+        elif key=='computers':ui.render_computers(page,view['dash'],self_id=self_id)
+        else:page.add(activity_box)
+    target=tk.StringVar(value='Any free helper')
+    def targets():
+        rows=[(c.get('name') or 'Computer')+(' (this computer)' if c.get('id')==self_id else '') for c in view['dash'].get('computers') or [] if c.get('online') and c.get('id')]
+        ids=[c['id'] for c in view['dash'].get('computers') or [] if c.get('online') and c.get('id')]
+        return ['Any free helper']+rows,dict(zip(rows,ids))
+    def train(kind):
+        names,ids=targets();chosen=ids.get(target.get())
+        if not messagebox.askyesno('Train the %s detector?'%('robot' if kind=='train' else 'field'),'Runs on %s. It replaces the model in use only if it does better on the held-out match.'%(target.get() if chosen else 'the first free helper')):return
+        def work():
+            import neptune_robot_jobs
+            try:neptune_robot_jobs.api(config,'queue_training',{'kind':kind,**({'computer':chosen} if chosen else {})},timeout=30);messages.put(('queued',None))
+            except Exception as error:messages.put(('queued',str(error)))
+        threading.Thread(target=work,daemon=True).start()
+    def show_page(key):
+        view['page']=key;shell.select(key)
+        if key in ('robots','field'):
+            names,_=targets()
+            if target.get() not in names:target.set('Any free helper')
+            ttk.Combobox(shell.actions,textvariable=target,values=names,state='readonly',width=24,style='Neptune.TCombobox').pack(side='left',padx=(0,8))
+            ttk.Button(shell.actions,text='Train %s detector'%('robot' if key=='robots' else 'field'),style='Neptune.TButton',command=lambda:train('train' if key=='robots' else 'train_field')).pack(side='left')
+        elif key=='actions':ttk.Button(shell.actions,text='Train on Neptune',style='Neptune.TButton',command=lambda:webbrowser.open(train_page)).pack(side='left')
+        elif key=='activity':
+            def copy():root.clipboard_clear();root.clipboard_append(log.get('1.0','end-1c'))
+            ttk.Button(shell.actions,text='Copy log',style='Subtle.TButton',command=copy).pack(side='left')
+        render()
+    show_page('overview')
     choice_value={'value':choice.get()}
     def poll():
         choice_value['value']=choice.get()
@@ -467,8 +502,8 @@ def main():
             if kind=='connection':computer_card.set_connected(message);top_status.set('Connected' if message else 'Reconnecting…');continue
             if kind=='dashboard':
                 if isinstance(message,dict) and isinstance(message.get('computers'),list):
-                    top_status.set('Live readouts · updated '+time.strftime('%H:%M'))
-                    page.clear(keep=pinned);ui.render_dashboard(page,message,self_id=config.get('computer_id'));page.move_to_end(bottom)
+                    top_status.set('Live · updated '+time.strftime('%H:%M'));view['dash']=message
+                    if view['page'] in ('overview','computers'):render()
                 else:top_status.set('Readouts unavailable · retrying')
                 continue
             if kind=='closed':
@@ -481,6 +516,11 @@ def main():
                         reconnect_requested['value']=False
                         messagebox.showerror('Reconnect could not start',str(error))
                 root.destroy();return
+            if kind=='models':
+                if isinstance(message,dict):view['models']=message
+                if view['page'] in ('overview','robots','field','actions'):render()
+                continue
+            if kind=='queued':top_status.set('Run queued' if message is None else 'Couldn’t start the run: '+message);continue
             if kind=='review_closed':review_button.config(text='Review robot tracking…');continue
             if kind=='update_check':
                 update['checking']=False;update['release']=message
@@ -503,9 +543,11 @@ def main():
                 if message:
                     stage_box.pack(fill='x',pady=(4,0));progress_box.pack(fill='x',pady=(4,0));next_label.pack(fill='x',pady=(4,0))
                 else:
-                    stage_box.pack_forget();progress_box.pack_forget();next_label.pack_forget();job_title.set('RUNNING NOW');status.set('No assigned job')
+                    stage_box.pack_forget();progress_box.pack_forget();next_label.pack_forget();job_title.set('THIS COMPUTER');status.set('No assigned job')
                 if not message:progress_value.set(0);remaining.set('No job running')
-                busy['value']=message;resize_helper();review_button.config(state='disabled' if message else 'normal');stop_button.config(state='normal' if message else 'disabled');device.config(state='disabled' if message else 'readonly')
+                busy['value']=message
+                if view['page']=='overview':render()
+                review_button.config(state='disabled' if message else 'normal');stop_button.config(state='normal' if message else 'disabled');device.config(state='disabled' if message else 'readonly')
                 if sys.platform=='win32':update_button.config(state='disabled' if message else 'normal')
                 if not message and update['stage']:
                     stage=update['stage'];update['stage']=None;messages.put(('update_ready',stage))

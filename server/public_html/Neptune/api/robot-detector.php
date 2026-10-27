@@ -3,6 +3,7 @@ declare(strict_types=1);
 require_once dirname(__DIR__,3).'/neptune_secure/bootstrap.php';
 require_once dirname(__DIR__,3).'/neptune_secure/community-analysis-install.php';
 require_once dirname(__DIR__,3).'/neptune_secure/community-training-control.php';
+require_once dirname(__DIR__,3).'/neptune_secure/community-learning.php';
 require_once dirname(__DIR__,3).'/neptune_secure/robot-detector-jobs.php';
 require_once dirname(__DIR__,3).'/neptune_secure/autoscout-train-overview.php';
 require_once dirname(__DIR__,3).'/neptune_secure/external-bumper-training.php';
@@ -30,6 +31,20 @@ try {
    foreach($q as $row){$control=json_decode((string)($row['control_json']??''),true)?:[];$state=(string)$row['state'];$queue[]=['title'=>str_starts_with($state,'test_')?'Test a match':(str_starts_with($state,'evaluation_')?'Independent evaluation':'Train action models & scoring'),'state'=>str_ends_with($state,'queued')?'waiting':'running','message'=>$row['message']??'','target'=>$control['computer_id']??null];}
    foreach($computers as &$row){$row=array_intersect_key($row,array_flip(['id','name','device','online','status','last_seen','platform','stats','counters','log','reported_at','version','job','waiting']));$row['log']=array_slice($row['log']??[],-35);}unset($row);
    return ['game'=>RobotDetectorJobs::defaultGame(),'computers'=>$computers,'queue'=>$queue,'generated_at'=>time()];
+  })(),
+  // A helper's model pages: the owner's Train page overview, trimmed. Queue starts a detector run like the Train page.
+  'models'=>(function()use($pdo,$computer){
+   $owner=(int)$computer['user_id'];$season=(int)gmdate('Y');$game=(string)(community_learning_games()[(string)$season]['game_key']??'');
+   return ['season'=>$season]+autoscout_helper_models(autoscout_train_overview($pdo,(new CommunityTrainingControl($pdo))->panel($season,$owner),(int)$computer['organization_id'],$owner,$game));
+  })(),
+  'queue_training'=>(function()use($pdo,$computer,$jobs,$p){
+   $kind=(string)($p['kind']??'');if(!in_array($kind,['train','train_field'],true))throw new CommunityAnalysisError(422,'Choose a detector.');
+   $owner=(int)$computer['user_id'];$control=new CommunityTrainingControl($pdo);$target=(string)($p['computer']??'');
+   if($target!==''&&!in_array($target,array_column(array_filter($control->computers($owner),fn($c)=>!$c['revoked']),'id'),true))throw new CommunityAnalysisError(422,'Choose one of your connected computers.');
+   $season=(int)gmdate('Y');$game=(string)(community_learning_games()[(string)$season]['game_key']??'');
+   $o=autoscout_train_overview($pdo,$control->panel($season,$owner),(int)$computer['organization_id'],$owner,$game);
+   try{return ['request'=>$jobs->queue($kind,['computer'=>$target,'game_key'=>$game,'holdout'=>$o[$kind==='train'?'robot':'field']['holdout']],$owner)];}
+   catch(InvalidArgumentException $e){throw new CommunityAnalysisError(422,$e->getMessage());}
   })(),
   'claim'=>['request'=>$jobs->claim($computer)],
   'training_supplement_index'=>['packages'=>(new ExternalBumperTraining(dirname(__DIR__,3).'/neptune_secure',(int)$computer['organization_id']))->index()],

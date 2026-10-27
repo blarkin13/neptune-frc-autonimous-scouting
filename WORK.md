@@ -1,3 +1,11 @@
+## 2026-10-26 — Helper redesign: sidebar pages, model pages with Train; Mac 3.2.54, Windows 6.5.25, Linux 6.6.16, engine 2.7.39 (Claude)
+
+Owner asked for a modern, less redundant helper that shows and works on the models. Mac (`App.swift`) and Windows/Linux (`neptune_ui.Shell`, `neptune_trainer.main`) now share one layout: a sidebar (Overview, Robots, Field, Actions, Computers, Activity; Tools: Review tracking, Label image folder; connection/version/updates/Reconnect at the foot) beside a header and a page of cards over the bubbles. Overview: this computer's card with readings and device, this computer's job only while busy, Running now elsewhere with progress and last log line, three clickable model tiles, queue. Robot/Field pages: model in use with held-out score, holdout match, data counts, last eight runs (result, new vs in use, review video, message) and a Train button with a computer picker (confirms first). Actions page: release state, tagged matches/tags, guidance; training opens Neptune. Removed: duplicate logos and this-Mac cards, the button bar, the empty Running now card.
+
+Server: `api/robot-detector.php` adds `models` (owner's Train overview trimmed by `autoscout_helper_models()`) and `queue_training` (robot/field run, optional target among the owner's own computers, holdout chosen as on the Train page). Ships with the OCR work (2.7.38) not yet deployed until now.
+
+Checked: Mac and Tk previews of every page with fixture data (fixed an NSNull "Training" state and an over-wide picker); 506 engine tests OK; `tests/server/helper-models.php` 6 PASS, `my-computers.php` OK. Not exercised against live data before deploy; Tk previewed on macOS only.
+
 ## 2026-10-26 — OCR release: Mac 3.2.53, Windows 6.5.24, Linux 6.6.15, engine 2.7.38 (Claude)
 
 Ships the roster-constrained bumper reads and the scoreboard side check (entry below) to every helper. Saved match facts re-parse and saved tracking reruns on first use.
