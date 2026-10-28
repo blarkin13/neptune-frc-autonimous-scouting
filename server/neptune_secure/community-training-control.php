@@ -105,15 +105,6 @@ final class CommunityTrainingControl {
    $control=array_replace($old,$where,['version'=>1,'kind'=>'training','stop_requested'=>false,'run_requested'=>true]);$this->setControl($id,$control);$this->q('UPDATE community_learning_jobs SET state=?,message=? WHERE id=?',[$where['executor']==='helper'?'remote_queued':'queued','Ready to resume saved match preparation',$id]);return ['id'=>$id];
   });
  }
- /** Cancel a waiting or running run now. A running job's helper may be gone (closed, asleep); one still working is refused on its next update and stops.
-  * $owner limits it to runs that user started (helpers); null for the owner's Training page. */
- public function cancel(string $id,?int $owner):array {
-  $q=$this->db->prepare("UPDATE community_learning_jobs SET state='cancelled',finished_at=?,message='Cancelled by the owner. Saved files and human labels are kept.' WHERE id=?".($owner===null?'':' AND created_by=?')." AND state IN ('remote_queued','remote_paused','queued','server_paused','remote_running','running','test_queued','test_running','evaluation_queued','evaluation_running')");
-  $q->execute(array_merge([time(),$id],$owner===null?[]:[$owner]));
-  if(!$q->rowCount()){$q=$this->db->prepare('SELECT state FROM community_learning_jobs WHERE id=?');$q->execute([$id]);$state=$q->fetchColumn();throw new CommunityAnalysisError(409,$state===false?'That run was not found. Reload the page.':'This run could not be cancelled (it is '.$state.').');}
-  $q=$this->db->prepare('DELETE FROM community_training_leases WHERE job_id=?');$q->execute([$id]);
-  return ['ok'=>true];
- }
  public function stop(string $id,int $user):array {
   return $this->tx(function()use($id,$user):array{$r=$this->q('SELECT * FROM community_learning_jobs WHERE id=?'.$this->lock(),[$id])->fetch(PDO::FETCH_ASSOC);if(!$r||(int)$r['created_by']!==$user)throw new CommunityAnalysisError(404,'Training run not found.');$c=$this->decode($r);if(!$c)throw new CommunityAnalysisError(409,'This older run must be stopped in its trainer window. Resume it here with v1.5 to use page controls.');$c['stop_requested']=true;$c['run_requested']=false;$this->setControl($id,$c);
    if(in_array($r['state'],['remote_queued','queued','test_queued','evaluation_queued'],true)){$state=$c['kind']==='training'?($c['executor']==='server'?'server_paused':'remote_paused'):'cancelled';$this->q('UPDATE community_learning_jobs SET state=?,message=? WHERE id=?',[$state,'Stopped before starting. Saved files and human labels are kept.',$id]);}

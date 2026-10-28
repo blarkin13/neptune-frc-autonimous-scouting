@@ -4,6 +4,7 @@ require_once dirname(__DIR__,3).'/neptune_secure/bootstrap.php';
 require_once dirname(__DIR__,3).'/neptune_secure/community-analysis-install.php';
 require_once dirname(__DIR__,3).'/neptune_secure/community-training-control.php';
 require_once dirname(__DIR__,3).'/neptune_secure/community-learning.php';
+require_once dirname(__DIR__,3).'/neptune_secure/community-training-cancel.php';
 require_once dirname(__DIR__,3).'/neptune_secure/robot-detector-jobs.php';
 require_once dirname(__DIR__,3).'/neptune_secure/autoscout-train-overview.php';
 require_once dirname(__DIR__,3).'/neptune_secure/external-bumper-training.php';
@@ -60,7 +61,7 @@ try {
   'cancel_run'=>(function()use($pdo,$computer,$jobs,$p){
    if(isset($p['request'])){try{return $jobs->cancel((string)$p['request']);}catch(InvalidArgumentException $e){throw new CommunityAnalysisError(409,$e->getMessage());}}
    $control=new CommunityTrainingControl($pdo);$job=(string)($p['job']??'');
-   return ($p['mode']??'')==='stop'?$control->stop($job,(int)$computer['user_id']):$control->cancel($job,(int)$computer['user_id']);
+   return ($p['mode']??'')==='stop'?$control->stop($job,(int)$computer['user_id']):community_training_cancel($pdo,$job,(int)$computer['user_id']);
   })(),
   'claim'=>['request'=>$jobs->claim($computer)],
   'training_supplement_index'=>['packages'=>(new ExternalBumperTraining(dirname(__DIR__,3).'/neptune_secure',(int)$computer['organization_id']))->index()],

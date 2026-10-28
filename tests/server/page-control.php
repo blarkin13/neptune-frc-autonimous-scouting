@@ -1,6 +1,7 @@
 <?php
 require __DIR__.'/training-computers.php';
 require dirname(__DIR__,2).'/neptune_secure/community-training-control.php';
+require dirname(__DIR__,2).'/neptune_secure/community-training-cancel.php';
 $db->exec('CREATE TABLE community_learning_releases(season INTEGER PRIMARY KEY,job_id TEXT)');
 $db->exec('UPDATE community_training_computers SET revoked=0');$control=new CommunityTrainingControl($db);
 $db->exec("UPDATE community_training_computers SET last_seen=".time().",hardware_json='{".'"training_protocol":"page-v2","robot_tracking":"yolo-botsort-1","engine_version":"2.2.1-clock-camera-preview1","action_features":"robot-r3d18-clip-v1","name":"Test CPU"'."}'");
@@ -35,7 +36,7 @@ $evaluation=$withScores->evaluate(2026,7,'helper',$computer['id'],$model['id'],$
 $benchmark=['model_id'=>$model['model']['model_id'],'release_ready'=>true,'matches'=>[['match_key'=>'2026test_qm7']],'events'=>1,'all_six_robot_gate'=>true,'by_tag'=>[]];$withScores->finishEvaluation($computer,['job_id'=>$evalJob['id'],'lease'=>$evalJob['lease'],'benchmark'=>$benchmark]);$evaluated=$withScores->panel(2026,7,$evalJob['id']);ok($evaluated['selected']['state']==='evaluation_complete'&&!$evaluated['selected']['report']['release_ready'],'one passing-looking preview cannot unlock model release');
 // Cancel from a helper: only the user who started the run, only while it waits or runs; leases are released.
 $db->prepare("UPDATE community_learning_jobs SET state='remote_queued' WHERE id=?")->execute([$created['id']]);
-rejects(fn()=>$control->cancel($created['id'],8),'another user cannot cancel this run from a helper');
-ok($control->cancel($created['id'],7)['ok']&&$db->query("SELECT state FROM community_learning_jobs WHERE id='".$created['id']."'")->fetchColumn()==='cancelled','the owner cancels a waiting run');
-rejects(fn()=>$control->cancel($created['id'],7),'a finished run cannot be cancelled again');
+rejects(fn()=>community_training_cancel($db,$created['id'],8),'another user cannot cancel this run from a helper');
+ok(community_training_cancel($db,$created['id'],7)['ok']&&$db->query("SELECT state FROM community_learning_jobs WHERE id='".$created['id']."'")->fetchColumn()==='cancelled','the owner cancels a waiting run');
+rejects(fn()=>community_training_cancel($db,$created['id'],7),'a finished run cannot be cancelled again');
 ok((int)$db->query("SELECT COUNT(*) FROM community_training_leases WHERE job_id='".$created['id']."'")->fetchColumn()===0,'cancel releases the run lease');

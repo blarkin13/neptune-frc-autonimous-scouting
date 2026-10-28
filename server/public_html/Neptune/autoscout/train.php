@@ -100,7 +100,12 @@ try {
    $q=$pdo->prepare('DELETE FROM community_training_computers WHERE id=? AND user_id=?');$q->execute([$computer,$uid]);
    (new RobotDetectorJobs(dirname(__DIR__,3).'/neptune_secure',(int)$u['organization_id']))->forget($computer);$reply=['ok'=>true];
   }elseif($action==='revoke_computer'){$pdo->beginTransaction();try{$q=$pdo->prepare('UPDATE community_training_computers SET revoked=1 WHERE id=? AND user_id=?');$q->execute([$computer,$uid]);$q=$pdo->prepare("SELECT j.id,j.state,j.control_json,l.computer_id FROM community_learning_jobs j LEFT JOIN community_training_leases l ON l.job_id=j.id WHERE j.created_by=? AND j.state IN ('remote_queued','remote_running','test_queued','test_running','evaluation_queued','evaluation_running') FOR UPDATE");$q->execute([$uid]);foreach($q->fetchAll(PDO::FETCH_ASSOC) as $runningJob){$c=$runningJob['control_json']?json_decode($runningJob['control_json'],true):[];if(($c['computer_id']??$runningJob['computer_id'])!==$computer)continue;$state=in_array($runningJob['state'],['remote_queued','remote_running'],true)?'remote_paused':'failed';$change=$pdo->prepare('UPDATE community_learning_jobs SET state=?,message=? WHERE id=?');$change->execute([$state,'Helper disconnected. Saved files are kept. Reconnect a helper to continue from this page.',$runningJob['id']]);}$pdo->commit();}catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}$reply=['ok'=>true];
-  }elseif($action==='cancel'){$reply=$control->cancel((string)($_POST['job']??''),null);}
+  }elseif($action==='cancel'){
+   // Also a running job: the helper may be gone (closed, asleep). A helper that is still working is refused on its next update and stops.
+   $q=$pdo->prepare("UPDATE community_learning_jobs SET state='cancelled',finished_at=?,message='Cancelled by the owner. Saved files and human labels are kept.' WHERE id=? AND ?>0 AND state IN ('remote_queued','remote_paused','queued','server_paused','remote_running','running','test_queued','test_running','evaluation_queued','evaluation_running')");$q->execute([time(),(string)($_POST['job']??''),$uid]);
+   if(!$q->rowCount()){$q=$pdo->prepare('SELECT state FROM community_learning_jobs WHERE id=?');$q->execute([(string)($_POST['job']??'')]);$state=$q->fetchColumn();throw new CommunityAnalysisError(409,$state===false?'That run was not found. Reload the page.':'This run could not be cancelled (it is '.$state.').');}
+   $q=$pdo->prepare('DELETE FROM community_training_leases WHERE job_id=?');$q->execute([(string)($_POST['job']??'')]);
+   $reply=['ok'=>true];}
   else throw new CommunityAnalysisError(422,'Choose a training action.');
   json_response($reply);exit;
  }
