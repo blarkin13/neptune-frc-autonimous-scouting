@@ -2,6 +2,15 @@
 
 The owner approved the release: the reconnect fixes (entry below) plus the server pairing change. It is built on 9636a78 (the robot session's captions-off, already deployed). The installed 6.5.43 / 6.6.34 updaters accept these updates.
 
+Deployed through AWS SSM: 59 files hash-checked, 64 changed, including `community-training-pairing.php`, whose live copy matched 9636a78. Backup: `/root/reconnect-release-backup-20261028`.
+- The server's prune command now prints a JSON summary, so someone replaced `/usr/local/sbin/neptune-prune-releases` since it was installed. It removed 3 old releases.
+- The deploy script, previously kept only in a scratch folder, is now `trainer-app/scripts/deploy-release-server.py`.
+
+Checked from outside:
+- The appcast offers 3.2.73 at the local zip's size.
+- Windows and Linux `latest.json` show 6.5.44 and 6.6.35 on engine 2.7.58, and both update zips match their local SHA-256. apt lists 6.6.35.
+- `connect_exchange` answers 422 to a malformed request.
+
 ## 2026-10-28 — Reconnect keeps the computer; Windows/Linux Reconnect opens at once (Claude, local, not released)
 
 The owner found every helper signed out at once, the Windows Reconnect not working, and each reconnect adding a new computer named "Neptune Training Helper".
