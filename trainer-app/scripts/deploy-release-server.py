@@ -26,7 +26,9 @@ with tarfile.open(stage/'src.tgz') as t:
     for rel in M['code']:t.extract(top+'/'+rel,stage,filter='data')
 src=stage/top
 for rel,h in M['code'].items():assert sha(src/rel)==h,rel
-for rel,h in M['before'].items():assert sha(root/rel[len('server/'):])==h,('live file differs from the last deployed commit',rel)
+for rel,h in M['before'].items():
+    live = root/rel[len('server/'):] if rel.startswith('server/') else root/'neptune_secure/community-learning'/rel[len('engine/'):]
+    assert sha(live)==h,('live file differs from the last deployed commit',rel)
 files={}
 for group in ('mac','windows','linux'):
     for name,(url,h) in M[group].items():
