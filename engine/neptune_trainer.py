@@ -307,6 +307,7 @@ def main():
     # One window: a sidebar of pages (overview, the three models, computers, activity) beside a page of cards.
     emblem=Path(__file__).with_name('neptune-logo-square.png')
     view={'page':'overview','dash':{},'models':{}}
+    ui.load_state(HOME/'ui-state.json')
     shell=ui.Shell(root,logo=Path(__file__).with_name('neptune-logo-wide.png'),on_page=lambda key:show_page(key));top_status=shell.status
     page=frame=shell.page
     from neptune_engine import VERSION as engine_version
@@ -469,8 +470,8 @@ def main():
         key=view['page'];page.show_only(pinned,top=view.get('shown')!=key);view['shown']=key
         if key=='overview':
             page.add(computer_card)
-            ui.render_overview(page,view['dash'],view['models'],self_id=self_id,busy=busy['value'],open_page=open_page,open_url=webbrowser.open)
-        elif key in ('robots','field'):ui.render_model(page,'robot' if key=='robots' else 'field',view['models'].get('robot' if key=='robots' else 'field'),open_url=webbrowser.open)
+            ui.render_overview(page,view['dash'],view['models'],self_id=self_id,busy=busy['value'],open_page=open_page,open_url=webbrowser.open,on_cancel=cancel_run)
+        elif key in ('robots','field'):ui.render_model(page,'robot' if key=='robots' else 'field',view['models'].get('robot' if key=='robots' else 'field'),open_url=webbrowser.open,on_cancel=cancel_run)
         elif key=='actions':ui.render_actions(page,view['models'].get('actions'))
         elif key=='computers':ui.render_computers(page,view['dash'],self_id=self_id,on_update=change_update)
         else:page.add(activity_box)
@@ -486,6 +487,16 @@ def main():
             import neptune_robot_jobs
             try:neptune_robot_jobs.api(config,'queue_training',{'kind':kind,**({'computer':chosen} if chosen else {})},timeout=30);messages.put(('queued',None))
             except Exception as error:messages.put(('queued',str(error)))
+        threading.Thread(target=work,daemon=True).start()
+    def cancel_run(run):
+        # Cancel or stop a run from the helper; Neptune refuses the helper doing it at its next update, at a safe point.
+        question=('Stop this run after the current match? Progress is saved and it can be continued from Neptune.' if run.get('mode')=='stop'
+                  else 'Cancel this run now? Saved video work and human labels are kept.')
+        if not messagebox.askyesno('Stop the run?' if run.get('mode')=='stop' else 'Cancel the run?',question):return
+        def work():
+            import neptune_robot_jobs
+            try:neptune_robot_jobs.api(config,'cancel_run',run,timeout=30);messages.put(('run_cancelled',None))
+            except Exception as error:messages.put(('run_cancelled',str(error)))
         threading.Thread(target=work,daemon=True).start()
     def change_update(computer,change):
         # Owner's choice from the Computers page: Neptune passes it to that computer's helper at its next check-in.
@@ -543,6 +554,7 @@ def main():
                 if view['page'] in ('overview','robots','field','actions'):render()
                 continue
             if kind=='queued':top_status.set('Run queued' if message is None else 'Couldn’t start the run: '+message);continue
+            if kind=='run_cancelled':top_status.set('Run stopped or cancelled · updating…' if message is None else 'Couldn’t cancel the run: '+message);continue
             if kind=='update_sent':top_status.set('Update request sent' if message is None else 'Couldn’t send the update request: '+message);continue
             if kind=='review_closed':review_button.config(text='  Review tracking…');continue
             if kind=='remote_settings':remote_settings(message);continue

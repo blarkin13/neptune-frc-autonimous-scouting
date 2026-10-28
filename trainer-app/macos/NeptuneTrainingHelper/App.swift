@@ -89,6 +89,7 @@ func loadCredential() -> Data? {
     var task:Process?;var input:FileHandle?;var buffer=Data();var busy=false;var quitting=false
     var cachedCredential:Data?;var pendingCommand:String?;var installHandler:(()->Void)?;var logFile:FileHandle?
     // Remote updates: the owner asks Neptune to update this Mac, or turns on automatic updates for it.
+    var thisMacDetails:[NSView]=[]
     var remoteUpdate=false;var autoUpdate=false;var remoteTried=Date.distantPast
     var status=NSTextField(wrappingLabelWithString:"Connect this Mac to Neptune to begin.")
     var connection=NSTextField(wrappingLabelWithString:"Disconnected")
@@ -176,13 +177,47 @@ func loadCredential() -> Data? {
         parent.addArrangedSubview(view)
         view.widthAnchor.constraint(equalTo:parent.widthAnchor,constant:-(parent.edgeInsets.left+parent.edgeInsets.right)).isActive=true
     }
-    func makeCard(_ title:String?)->(StatusCard,NSStackView) {
+    /// Sections the owner has collapsed (kept between launches).
+    var collapsed=Set(UserDefaults.standard.stringArray(forKey:"collapsedSections") ?? [])
+    /// A card; a titled one gets a caret that collapses everything below its title row. Returns (panel, body).
+    func makeCard(_ title:String?,key:String?=nil,leading:[NSView]=[],header:[NSView]=[])->(StatusCard,NSStackView) {
         let panel=StatusCard(fill:panelFill,outline:lineColor),stack=vstack([],spacing:10);stack.translatesAutoresizingMaskIntoConstraints=false;panel.addSubview(stack)
         NSLayoutConstraint.activate([stack.leadingAnchor.constraint(equalTo:panel.leadingAnchor,constant:16),stack.trailingAnchor.constraint(equalTo:panel.trailingAnchor,constant:-16),stack.topAnchor.constraint(equalTo:panel.topAnchor,constant:14),stack.bottomAnchor.constraint(equalTo:panel.bottomAnchor,constant:-14)])
-        if let title {stack.addArrangedSubview(text(title,13,.white,.semibold))}
-        return (panel,stack)
+        guard let title else {return (panel,stack)}
+        let k=key ?? title,closed=collapsed.contains(k)
+        let name=text(title,13,.white,.semibold);name.lineBreakMode = .byTruncatingTail;name.setContentCompressionResistancePriority(.defaultLow,for:.horizontal)
+        add(hstack([caretButton(k,closed)]+leading+[name]+header,spacing:8),to:stack)
+        let body=vstack([],spacing:10);add(body,to:stack);body.isHidden=closed
+        return (panel,body)
     }
-    @discardableResult func card(_ title:String?)->NSStackView {let (panel,stack)=makeCard(title);add(panel,to:dashboardBody);return stack}
+    func caretButton(_ key:String,_ closed:Bool)->NSButton {
+        let b=NSButton(image:NSImage(systemSymbolName:closed ? "chevron.right":"chevron.down",accessibilityDescription:closed ? "Expand":"Collapse") ?? NSImage(),target:self,action:#selector(toggleSection(_:)))
+        b.isBordered=false;b.contentTintColor=muted;b.identifier=NSUserInterfaceItemIdentifier(key);b.widthAnchor.constraint(equalToConstant:16).isActive=true;return b
+    }
+    @objc func toggleSection(_ sender:NSButton) {
+        guard let k=sender.identifier?.rawValue else {return}
+        if collapsed.contains(k) {collapsed.remove(k)} else {collapsed.insert(k)}
+        UserDefaults.standard.set(Array(collapsed),forKey:"collapsedSections")
+        if k=="this-computer" {thisMacDetails.forEach {$0.isHidden=collapsed.contains(k)};sender.image=NSImage(systemSymbolName:collapsed.contains(k) ? "chevron.right":"chevron.down",accessibilityDescription:nil)} else {render()}
+    }
+    @discardableResult func card(_ title:String?,key:String?=nil,leading:[NSView]=[],header:[NSView]=[])->NSStackView {let (panel,stack)=makeCard(title,key:key,leading:leading,header:header);add(panel,to:dashboardBody);return stack}
+    /// Cancel for a detector run; Stop after this match / Cancel now for an Actions run.
+    func cancelButtons(_ run:[String:Any])->[NSView] {
+        func b(_ title:String,_ id:String)->NSButton {let x=button(title,#selector(cancelRun(_:)));x.controlSize = .small;x.identifier=NSUserInterfaceItemIdentifier(id);return x}
+        if let r=run["request"] as? String {return [b("Cancel","request:"+r)]}
+        guard let j=run["job"] as? String else {return []}
+        return ((run["state"] as? String)=="running" ? [b("Stop after this match","stop:"+j)]:[])+[b("Cancel now","cancel:"+j)]
+    }
+    @objc func cancelRun(_ sender:NSButton) {
+        guard let id=sender.identifier?.rawValue,let colon=id.firstIndex(of:":") else {return}
+        let kind=String(id[..<colon]),value=String(id[id.index(after:colon)...])
+        let alert=NSAlert();alert.messageText=kind=="stop" ? "Stop the run?":"Cancel the run?"
+        alert.informativeText=kind=="stop" ? "It stops after the current match. Progress is saved and it can be continued from Neptune.":"It stops now. Saved video work and human labels are kept."
+        alert.addButton(withTitle:kind=="stop" ? "Stop after this match":"Cancel run");alert.addButton(withTitle:"Keep running")
+        guard alert.runModal() == .alertFirstButtonReturn else {return}
+        let body:[String:Any]=kind=="request" ? ["action":"cancel_run","request":value]:["action":"cancel_run","job":value,"mode":kind]
+        post(body) {ok,reply in self.dashboardStatus.stringValue=ok ? "Run stopped or cancelled · updating…":(reply?["error"] as? String ?? "Couldn't cancel the run. Check the connection and try again.");self.reloadDashboard();self.reloadModels()}
+    }
     func button(_ title:String,_ action:Selector,primary:Bool=false)->NSButton {
         let b=NSButton(title:title,target:self,action:action);b.bezelStyle = .rounded;b.font = .systemFont(ofSize:12,weight:.medium)
         if primary {b.bezelColor=accent;b.contentTintColor=ink};return b
@@ -254,7 +289,9 @@ func loadCredential() -> Data? {
         device.addItems(withTitles:["Automatic","Mac GPU","CPU"]);device.selectItem(withTitle:UserDefaults.standard.string(forKey:"device") ?? "Automatic");device.target=self;device.action=#selector(changeDevice)
         stop=button("Stop after this match",#selector(stopMatch));stop.isHidden=true
         let controls=vstack([text("Training device",10,muted),device,stop],spacing:6);controls.widthAnchor.constraint(equalToConstant:170).isActive=true
-        for v in [who,meters,controls] as [NSView] {row.addArrangedSubview(v)}
+        // A caret collapses this computer's meters and device controls down to its name row.
+        let closed=collapsed.contains("this-computer");thisMacDetails=[meters,controls];thisMacDetails.forEach {$0.isHidden=closed}
+        row.alignment = .top;for v in [caretButton("this-computer",closed),who,meters,controls] as [NSView] {row.addArrangedSubview(v)}
         thisMacStrip=strip
         // This Mac's own job, shown while it is working.
         let (job,jobStack)=makeCard(nil);jobStack.spacing=6
@@ -434,7 +471,7 @@ func loadCredential() -> Data? {
             let start=card(nil);start.addArrangedSubview(hstack([text("Nothing running. Start a run:",12,muted),startButton("Robot detector","viewfinder","robots"),startButton("Field detector","map","field"),startButton("Actions on Neptune","arrow.up.right.square","actions")],spacing:10))
         } else {modelTiles(Set(running.map(jobKind)))}
         let waiting=queue.filter {($0["state"] as? String)=="waiting"}
-        if !waiting.isEmpty {let q=card("Queue · \(waiting.count) waiting");for item in waiting {add(text((item["title"] as? String ?? "Run")+" · "+(item["message"] as? String ?? "Waiting"),12),to:q)}}
+        if !waiting.isEmpty {let q=card("Queue · \(waiting.count) waiting",key:"queue");for item in waiting {add(hstack([text((item["title"] as? String ?? "Run")+" · "+(item["message"] as? String ?? "Waiting"),12),spacer()]+cancelButtons(item)),to:q)}}
     }
     func startButton(_ title:String,_ symbol:String,_ page:String)->NSButton {
         let b=button(title,page=="actions" ? #selector(openTrainPage):#selector(navTap(_:)));b.identifier=NSUserInterfaceItemIdentifier(page);b.controlSize = .small
@@ -477,9 +514,8 @@ func loadCredential() -> Data? {
         let sys=[number(gpu,"util").map {"GPU \(Int($0))%"},number(gpu,"mem_used_mb").map {"VRAM "+gb($0)+(number(gpu,"mem_total_mb").map {"/"+gb($0)} ?? "")+" GB"},number(gpu,"temp_c").map {"\(Int($0))°C"},
                  number(stats,"cpu").map {"CPU \(Int($0))%"},number(stats,"ram_total_mb").map {"RAM "+gb(number(stats,"ram_used_mb") ?? 0)+"/"+gb($0)+" GB"}].compactMap {$0}.joined(separator:" · ")
         let gpuName=(gpu["name"] as? String).map {" · "+$0.replacingOccurrences(of:"NVIDIA GeForce ",with:"")} ?? ""
-        let c=card(nil);c.spacing=5
-        add(hstack([line("● "+(job["label"] as? String ?? job["title"] as? String ?? "Training"),12,accent,.semibold),spacer(),
-                    line(worker.map {($0["name"] as? String ?? "Computer")+(($0["id"] as? String)==me ? " (this Mac)":"")+gpuName} ?? "waiting for its helper",11,muted)]),to:c)
+        let label=job["label"] as? String ?? job["title"] as? String ?? "Training"
+        let c=card("● "+label,key:"run:"+label,header:[spacer(),line(worker.map {($0["name"] as? String ?? "Computer")+(($0["id"] as? String)==me ? " (this Mac)":"")+gpuName} ?? "waiting for its helper",11,muted)]+cancelButtons(job));c.spacing=5
         add(line((step ?? job["title"] as? String ?? "")+(matchKey.map {" · "+$0} ?? ""),13,.white,.semibold),to:c)
         add(line(sys.isEmpty ? "no live readings from this helper yet":sys,11,accent),to:c)
         func pct(_ p:Double?)->String {p.map {String(format:"%3.0f%%",$0)} ?? "  —"}
@@ -511,13 +547,14 @@ func loadCredential() -> Data? {
         tileRow([tile("Model in use",inUse,since),tile("Checked on",m["holdout"] as? String ?? "—","Held out · never trained on"),tile(kind=="robot" ? "Labelled data":"Marked data",data.0,data.1.isEmpty ? "—":data.1)])
         if kind=="field" {card(nil).addArrangedSubview(text("Scouting uses your marked zones. Mark one match at each event you scout; training this detector is optional.",12,muted))}
         else if (m["ready"] as? Bool) != true {card(nil).addArrangedSubview(text("Label robots in at least two matches on Neptune before training.",12,warn))}
-        let runs=m["runs"] as? [[String:Any]] ?? [],c=card("Recent runs")
+        let runs=m["runs"] as? [[String:Any]] ?? [],c=card("Recent runs",key:"runs:"+kind)
         if runs.isEmpty {c.addArrangedSubview(text("No runs yet.",12,muted))}
         for r in runs {
             let (label,color)=runResult(r),date=text(when(r["created_at"]),12,muted),result=text(label,12,color,.semibold)
             date.widthAnchor.constraint(equalToConstant:130).isActive=true;result.widthAnchor.constraint(equalToConstant:150).isActive=true
             let versus=text(!(r["new"] is [String:Any]) ? "—":"\(score(kind,r["new"])) vs \(!(r["current"] is [String:Any]) ? "none":score(kind,r["current"]))",12)
             var cells:[NSView]=[date,result,versus,spacer()]
+            if ["queued","claimed"].contains(r["state"] as? String ?? ""),let id=r["id"] as? String {cells+=cancelButtons(["request":id])}
             if let review=r["review"] as? [String:Any],let id=review["youtube_id"] as? String,id.range(of:"^[A-Za-z0-9_-]{11}$",options:.regularExpression) != nil {
                 let watch=NSButton(title:"Watch",image:NSImage(systemSymbolName:"play.fill",accessibilityDescription:nil) ?? NSImage(),target:self,action:#selector(openLink(_:)))
                 watch.isBordered=false;watch.contentTintColor=accent;watch.imagePosition = .imageLeading;watch.identifier=NSUserInterfaceItemIdentifier("https://youtu.be/"+id);cells.append(watch)
@@ -543,8 +580,7 @@ func loadCredential() -> Data? {
         for w in computers.sorted(by:{(($0["id"] as? String)==me ? 0:1)<(($1["id"] as? String)==me ? 0:1)}) {
             let isThisMac=(w["id"] as? String)==me
             let state=isThisMac && reviewing ? ("Tracking review",warn):isThisMac && folderReview ? ("Image review",warn):(w["job"] as? [String:Any]) != nil ? ("Training",accent):((w["online"] as? Bool)==true ? ("Available",good):("Offline",muted))
-            let c=card(nil)
-            c.addArrangedSubview(hstack([formIcon(w["form"] as? String),text((w["name"] as? String ?? "Computer")+(isThisMac ? " · this Mac":""),14,.white,.semibold),text(state.0,12,state.1,.semibold)],spacing:10))
+            let c=card((w["name"] as? String ?? "Computer")+(isThisMac ? " · this Mac":""),key:"computer:"+(w["id"] as? String ?? ""),leading:[formIcon(w["form"] as? String)],header:[text(state.0,12,state.1,.semibold)])
             add(text([w["platform"],w["device"],w["version"]].compactMap {$0 as? String}.filter {!$0.isEmpty}.joined(separator:" · "),11,muted),to:c)
             add(updateRow(w),to:c)
             add(meterRow(w["stats"] as? [String:Any] ?? [:]),to:c)

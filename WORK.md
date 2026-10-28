@@ -1,3 +1,25 @@
+## 2026-10-28 — Cancel runs from the helper; collapsible sections (Claude, local, not released)
+
+The owner asked to cancel runs directly in the helper, and for every section to collapse with a caret. They briefly asked for other computers on the Overview, then withdrew it (the Computers page covers it); it was removed before commit.
+
+Server:
+- The dashboard queue now carries each run's id: `request` for detector runs, `job` for Actions runs.
+- New helper action `cancel_run`:
+  - `request` cancels a detector run (`RobotDetectorJobs::cancel`);
+  - `job` + `mode=stop` stops an Actions run after its current match (`CommunityTrainingControl::stop`, owner-checked);
+  - `job` + `mode=cancel` cancels it now.
+- The website's cancel SQL moved into `CommunityTrainingControl::cancel($id, $owner)`, with no owner limit when called from the website and limited to the starting user when called from a helper. Leases are released either way.
+
+Helpers (Tk and Mac), each with a confirmation:
+- Cancel buttons appear on the running-job console and on waiting queue rows: Cancel for detector runs; Stop after this match and Cancel now for Actions runs.
+- Waiting or running rows under Recent runs get Cancel too.
+- Every titled section has a ▾/▸ caret: the console, queue, Recent runs, each computer, Improve this model, and this computer's own card. The choice is remembered (Tk `~/.neptune-trainer/ui-state.json`, Mac UserDefaults).
+
+Checked:
+- 545 engine tests OK; `page-control.php` covers the new cancel (owner only, waiting runs, lease released) and the other helper server tests pass.
+- Tk and Mac previews show the carets, a collapsed card and the Cancel buttons; the real Tk window opened without errors.
+- Cancelling has not been run against the live server.
+
 ## 2026-10-28 — One-artwork release: Mac 3.2.67, Windows 6.5.38, Linux 6.6.29, engine 2.7.52 (Claude)
 
 The owner approved the release.

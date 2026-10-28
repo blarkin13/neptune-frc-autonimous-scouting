@@ -216,8 +216,10 @@ class ComputerCard(tk.Frame):
     def __init__(self,parent,*,name,logo=None,form=None):
         super().__init__(parent,bg=LINE,padx=1,pady=1)
         self.pack(fill='x',pady=(0,8));self.connected=False;self.working=False
-        inner=self.inner=tk.Frame(self,bg=PANEL,padx=14,pady=12);inner.pack(fill='both',expand=True)
-        head=tk.Frame(inner,bg=PANEL);head.pack(fill='x',pady=(0,8))
+        box=tk.Frame(self,bg=PANEL,padx=14,pady=12);box.pack(fill='both',expand=True)
+        head=tk.Frame(box,bg=PANEL);head.pack(fill='x')
+        # Everything below the name row collapses with the caret; callers add their rows to .inner.
+        inner=self.inner=tk.Frame(box,bg=PANEL);caret(head,'this-computer',inner).pack(side='left')
         # This computer's kind (laptop, desktop or server) in place of a logo.
         picture=icon(FORM_ICON.get(form,'computers'),'accent')
         if picture:tk.Label(head,image=picture,bg=PANEL_ALT,padx=7,pady=7).pack(side='left',padx=(0,10))
@@ -336,12 +338,50 @@ class BubblePage(tk.Canvas):
         if y+self.pad>height+2:
             if not self.scroll.winfo_ismapped():self.scroll.pack(side='right',fill='y',before=self)
         elif self.scroll.winfo_ismapped():self.scroll.pack_forget();self.yview_moveto(0)
-def page_card(page,title):
-    """A bordered card placed on a BubblePage; returns (outer, inner)."""
-    outer=tk.Frame(page,bg=LINE,padx=1,pady=1)
+COLLAPSED=set();_state_file=None
+
+
+def load_state(path):
+    """Remember which sections are collapsed between runs (a small JSON file in the helper's folder)."""
+    global _state_file
+    import json
+    _state_file=Path(path)
+    try:COLLAPSED.update(json.loads(_state_file.read_text()).get('collapsed') or [])
+    except (OSError,ValueError,AttributeError):pass
+
+
+def _save_state():
+    import json
+    if _state_file:
+        try:_state_file.write_text(json.dumps({'collapsed':sorted(COLLAPSED)}))
+        except OSError:pass
+
+
+def caret(parent,key,body,*,bg=PANEL,pack=lambda b:b.pack(fill='x',pady=(8,0))):
+    """A ▾/▸ toggle that shows or hides `body`; returns the caret label (clicking any bound label toggles too)."""
+    label=tk.Label(parent,text='▸' if key in COLLAPSED else '▾',font=('Arial',12),fg=MUTED,bg=bg,cursor='hand2',width=2,anchor='w')
+    def toggle(event=None):
+        if key in COLLAPSED:COLLAPSED.discard(key);pack(body);label.config(text='▾')
+        else:COLLAPSED.add(key);body.pack_forget();label.config(text='▸')
+        _save_state()
+    label.toggle=toggle;label.bind('<Button-1>',toggle)
+    if key not in COLLAPSED:pack(body)
+    return label
+
+
+def page_card(page,title,*,key=None,icon_name=None):
+    """A bordered card placed on a BubblePage; returns (outer, body). A titled card collapses with a caret;
+    outer.head is its title row, for controls on the right."""
+    outer=tk.Frame(page,bg=LINE,padx=1,pady=1);outer.head=None
     inner=tk.Frame(outer,bg=PANEL,padx=14,pady=12);inner.pack(fill='both',expand=True)
-    if title:tk.Label(inner,text=title,font=('Arial',12,'bold'),fg=TEXT,bg=PANEL,anchor='w').pack(fill='x',pady=(0,6))
-    page.add(outer);return outer,inner
+    if not title:page.add(outer);return outer,inner
+    head=tk.Frame(inner,bg=PANEL);head.pack(fill='x');outer.head=head;body=tk.Frame(inner,bg=PANEL)
+    toggle=caret(head,key or title,body);toggle.pack(side='left')
+    picture=icon(icon_name,'accent') if icon_name else None
+    if picture:tk.Label(head,image=picture,bg=PANEL_ALT,padx=5,pady=5).pack(side='left',padx=(0,8))
+    name=tk.Label(head,text=title,font=('Arial',12,'bold'),fg=TEXT,bg=PANEL,anchor='w',cursor='hand2');name.pack(side='left')
+    name.bind('<Button-1>',toggle.toggle)
+    page.add(outer);return outer,body
 
 
 def _meter(parent,label,fraction,text):
@@ -441,7 +481,16 @@ def _clock(seconds):
     s=max(0,round(seconds));return '%d:%02d:%02d'%(s//3600,s//60%60,s%60) if s>=3600 else '%d:%02d'%(s//60,s%60)
 
 
-def console(page,job,worker,*,self_id=None):
+def cancel_buttons(parent,run,on_cancel):
+    """Cancel for a detector run (request); Stop after this match / Cancel now for an Actions run (job)."""
+    if not on_cancel:return
+    if run.get('request'):Button(parent,'Cancel',lambda:on_cancel({'request':run['request']}),small=True).pack(side='right',padx=(8,0))
+    elif run.get('job'):
+        Button(parent,'Cancel now',lambda:on_cancel({'job':run['job'],'mode':'cancel'}),small=True).pack(side='right',padx=(8,0))
+        if run.get('state')=='running':Button(parent,'Stop after this match',lambda:on_cancel({'job':run['job'],'mode':'stop'}),small=True).pack(side='right',padx=(8,0))
+
+
+def console(page,job,worker,*,self_id=None,on_cancel=None):
     """One running job as the website's console: part and helper, step and match, live readings,
     stage and overall bars, next steps and recent log."""
     import re,time
@@ -477,11 +526,11 @@ def console(page,job,worker,*,self_id=None):
         '%d°C'%gpu['temp_c'] if isinstance(gpu.get('temp_c'),(int,float)) else '','CPU %d%%'%stats['cpu'] if isinstance(stats.get('cpu'),(int,float)) else '',
         'RAM %s/%s GB'%(gb(stats.get('ram_used_mb') or 0),gb(stats['ram_total_mb'])) if stats.get('ram_total_mb') else ''] if x)
     mono='Menlo'
-    _,card=page_card(page,None)
-    head=tk.Frame(card,bg=PANEL);head.pack(fill='x',pady=(0,4))
-    tk.Label(head,text='● '+(job.get('label') or job.get('title') or 'Training'),font=(mono,11,'bold'),fg=ACCENT,bg=PANEL).pack(side='left')
+    label=job.get('label') or job.get('title') or 'Training'
+    outer,card=page_card(page,'● '+label,key='run:'+label)
+    cancel_buttons(outer.head,job,on_cancel)
     helper='waiting for its helper' if not worker else (worker.get('name') or 'Computer')+(' (this computer)' if worker.get('id')==self_id else '')+(' · '+gpu['name'].replace('NVIDIA GeForce ','') if gpu.get('name') else '')
-    tk.Label(head,text=helper,font=(mono,10),fg=MUTED,bg=PANEL).pack(side='right')
+    tk.Label(outer.head,text=helper,font=(mono,10),fg=MUTED,bg=PANEL).pack(side='right')
     _label(card,(step or job.get('title') or '')+(' · '+match.group(1) if match else ''),12,TEXT,'bold',mono)
     _label(card,sys_line or 'no live readings from this helper yet',10,ACCENT,font=mono)
     def bar_row(label,p,detail):
@@ -506,14 +555,14 @@ def job_kind(job):
     return 'field' if 'Field' in text or 'field' in text else 'robots' if 'Robot' in text or 'robot' in text or 'frames' in text else 'actions'
 
 
-def render_overview(page,dash,models,*,self_id=None,busy=False,open_page=lambda k:None,open_url=lambda url:None):
+def render_overview(page,dash,models,*,self_id=None,busy=False,open_page=lambda k:None,open_url=lambda url:None,on_cancel=None):
     """Running now as the centerpiece; a model's tile only while it trains; a compact Ready-to-train row when idle; the queue when it has runs."""
     computers=dash.get('computers') or [];queue=dash.get('queue') or []
     running=[q for q in queue if q.get('state')=='running']
     for job in running[:3]:
         # Detector runs name their helper in computer_id; action runs in target.
         helper=job.get('computer_id') or job.get('target')
-        console(page,job,next((c for c in computers if helper and c.get('id')==helper),None),self_id=self_id)
+        console(page,job,next((c for c in computers if helper and c.get('id')==helper),None),self_id=self_id,on_cancel=on_cancel)
     active={job_kind(q) for q in running}
     if active:
         robot,field,actions=models.get('robot'),models.get('field'),models.get('actions')
@@ -530,11 +579,14 @@ def render_overview(page,dash,models,*,self_id=None,busy=False,open_page=lambda 
         Button(row,'Actions on Neptune',lambda:open_url('https://neptunefrc.com/autoscout/train.php#train'),icon_name='open',small=True).pack(side='left')
     waiting=[q for q in queue if q.get('state')=='waiting']
     if waiting:
-        _,card=page_card(page,'Queue · %d waiting'%len(waiting))
-        for item in waiting:_label(card,(item.get('title') or 'Run')+' · '+(item.get('message') or 'Waiting'),10)
+        _,card=page_card(page,'Queue · %d waiting'%len(waiting),key='queue')
+        for item in waiting:
+            row=tk.Frame(card,bg=PANEL);row.pack(fill='x',pady=2)
+            cancel_buttons(row,item,on_cancel)
+            tk.Label(row,text=(item.get('title') or 'Run')+' · '+(item.get('message') or 'Waiting'),font=('Arial',10),fg=TEXT,bg=PANEL,anchor='w').pack(side='left')
 
 
-def render_model(page,kind,m,*,open_url=lambda url:None,connected=True):
+def render_model(page,kind,m,*,open_url=lambda url:None,connected=True,on_cancel=None):
     """A detector's page: the model in use, its held-out match, its data and the last runs."""
     if not m:
         _,card=page_card(page,None);_label(card,'Loading this model’s status…' if connected else 'Connect this computer to Neptune to see this model.',10,MUTED);return
@@ -545,7 +597,7 @@ def render_model(page,kind,m,*,open_url=lambda url:None,connected=True):
                 ('Labelled data' if kind=='robot' else 'Marked data',data[0],data[1],None,None)])
     if kind=='field':_,card=page_card(page,None);_label(card,'Scouting uses your marked zones. Mark one match at each event you scout; training this detector is optional.',10,MUTED)
     elif not m.get('ready'):_,card=page_card(page,None);_label(card,'Label robots in at least two matches on Neptune before training.',10,WARN)
-    _,card=page_card(page,'Recent runs')
+    _,card=page_card(page,'Recent runs',key='runs:'+kind)
     runs=m.get('runs') or []
     if not runs:_label(card,'No runs yet.',10,MUTED)
     for i,r in enumerate(runs):
@@ -555,6 +607,7 @@ def render_model(page,kind,m,*,open_url=lambda url:None,connected=True):
         tk.Label(row,text=result,font=('Arial',10,'bold'),fg=color,bg=PANEL,width=17,anchor='w').pack(side='left')
         versus='—' if not isinstance(r.get('new'),dict) else score(kind,r['new'])+' vs '+(score(kind,r['current']) if isinstance(r.get('current'),dict) else 'none')
         tk.Label(row,text=versus,font=('Arial',10),fg=TEXT,bg=PANEL,anchor='w').pack(side='left')
+        if r.get('state') in ('queued','claimed') and r.get('id'):cancel_buttons(row,{'request':r['id']},on_cancel)
         review=r.get('review') or {}
         if isinstance(review.get('youtube_id'),str) and len(review['youtube_id'])==11:
             watch=tk.Label(row,text='▶ Watch',font=('Arial',10),fg=ACCENT,bg=PANEL,cursor='hand2');watch.pack(side='right')
@@ -571,7 +624,7 @@ def render_actions(page,a,*,connected=True):
     tiles(page,[('Model in use','Released' if a.get('released') else 'None released','Latest trained '+_when(latest.get('created_at')) if latest else 'No model trained yet',None,None),
                 ('Tagged matches',str(tagged),'Needs tagged matches from more events' if tagged<6 else 'Human-tagged',WARN if tagged<6 else None,None),
                 ('Human tags',str(counts.get('tags') or 0),'%d imported actions'%(counts.get('external') or 0),None,None)])
-    _,card=page_card(page,'Improve this model')
+    _,card=page_card(page,'Improve this model',key='improve-actions')
     _label(card,'Tag scoring, climbing and defense in matches from events not tagged yet; more variety helps more than more of one event.',10,MUTED)
     _label(card,'Train on Neptune picks the matches and the computer, then Test & release checks the new model before it’s used.',10,MUTED)
 
@@ -591,13 +644,9 @@ def render_computers(page,dash,*,self_id=None,on_update=None):
     computers=sorted(dash.get('computers') or [],key=lambda c:c.get('id')!=self_id)
     if not computers:_,card=page_card(page,None);_label(card,'No computer readouts yet.',10,MUTED)
     for w in computers:
-        _,card=page_card(page,None)
         state,color=('Training',ACCENT) if w.get('job') else (('Available',GOOD) if w.get('online') else ('Offline',MUTED))
-        head=tk.Frame(card,bg=PANEL);head.pack(fill='x')
-        picture=icon(FORM_ICON.get(w.get('form'),'computers'),'accent')
-        if picture:tk.Label(head,image=picture,bg=PANEL_ALT,padx=6,pady=6).pack(side='left',padx=(0,10))
-        tk.Label(head,text=(w.get('name') or 'Computer')+(' · this computer' if w.get('id')==self_id else ''),font=('Arial',12,'bold'),fg=TEXT,bg=PANEL).pack(side='left')
-        tk.Label(head,text=state,font=('Arial',10,'bold'),fg=color,bg=PANEL).pack(side='left',padx=10)
+        outer,card=page_card(page,(w.get('name') or 'Computer')+(' · this computer' if w.get('id')==self_id else ''),key='computer:'+str(w.get('id')),icon_name=FORM_ICON.get(w.get('form'),'computers'))
+        tk.Label(outer.head,text=state,font=('Arial',10,'bold'),fg=color,bg=PANEL).pack(side='left',padx=10)
         _label(card,' · '.join(x for x in (w.get('platform'),w.get('device'),w.get('version')) if x),9,MUTED)
         text,color,button=update_line(w);row=tk.Frame(card,bg=PANEL);row.pack(fill='x',pady=(2,0))
         tk.Label(row,text=text,font=('Arial',9),fg=color,bg=PANEL,wraplength=520,justify='left').pack(side='left')
