@@ -64,6 +64,17 @@ func loadCredential() -> Data? {
     required init?(coder: NSCoder) {fatalError("init(coder:) is unavailable")}
     override func draw(_ dirtyRect: NSRect) {fill.setFill();bounds.fill();edge.setFill();NSRect(x:bounds.maxX-1,y:0,width:1,height:bounds.height).fill()}
 }
+// Page artwork behind the main area: scaled to fill, dimmed so the cards stay readable.
+@MainActor final class ArtView: NSView {
+    let image=CALayer(),dim=CALayer()
+    override init(frame:NSRect) {
+        super.init(frame:frame);wantsLayer=true;layer?.addSublayer(image);layer?.addSublayer(dim)
+        image.contentsGravity = .resizeAspectFill;image.masksToBounds=true;dim.backgroundColor=NSColor(srgbRed:0.07,green:0.14,blue:0.24,alpha:0.5).cgColor
+    }
+    required init?(coder: NSCoder) {fatalError("init(coder:) is unavailable")}
+    override func layout() {super.layout();CATransaction.begin();CATransaction.setDisableActions(true);image.frame=bounds;dim.frame=bounds;CATransaction.commit()}
+    func show(_ url:URL?) {image.contents=url.flatMap {NSImage(contentsOf:$0)}}
+}
 @MainActor final class FlippedStackView:NSStackView {
     override var isFlipped:Bool {true}
 }
@@ -114,8 +125,19 @@ func loadCredential() -> Data? {
     }
     // ---------- Window: sidebar of pages, one page of cards at a time ----------
     let ink=NSColor(srgbRed:0.07,green:0.14,blue:0.24,alpha:1)
-    let sidebarFill=NSColor(srgbRed:0.05,green:0.11,blue:0.20,alpha:0.94)
-    let panelFill=NSColor(srgbRed:0.09,green:0.18,blue:0.30,alpha:0.92)
+    let sidebarFill=NSColor(srgbRed:0.04,green:0.086,blue:0.157,alpha:1)
+    let panelFill=NSColor(srgbRed:0.09,green:0.18,blue:0.30,alpha:0.95)
+    let art=ArtView()
+    let artFor=["overview":"poseidon","robots":"seahorse","field":"seahorse","actions":"seahorse","computers":"circuit","activity":"circuit"]
+    /// This Mac's kind for its icon: a battery means a laptop.
+    lazy var formFactor:String={let p=Process(),out=Pipe();p.executableURL=URL(fileURLWithPath:"/usr/bin/pmset");p.arguments=["-g","batt"];p.standardOutput=out;try? p.run();p.waitUntilExit()
+        return String(data:out.fileHandleForReading.readDataToEndOfFile(),encoding:.utf8)?.contains("InternalBattery")==true ? "laptop":"desktop"}()
+    func formSymbol(_ form:String?)->String {form=="laptop" ? "laptopcomputer":form=="server" ? "server.rack":"desktopcomputer"}
+    func formIcon(_ form:String?)->NSView {
+        let v=NSImageView(image:NSImage(systemSymbolName:formSymbol(form),accessibilityDescription:form) ?? NSImage());v.contentTintColor=accent;v.symbolConfiguration = .init(pointSize:16,weight:.regular)
+        let box=NSView();box.wantsLayer=true;box.layer?.cornerRadius=8;box.layer?.backgroundColor=NSColor(white:1,alpha:0.08).cgColor;v.translatesAutoresizingMaskIntoConstraints=false;box.addSubview(v)
+        NSLayoutConstraint.activate([box.widthAnchor.constraint(equalToConstant:34),box.heightAnchor.constraint(equalToConstant:34),v.centerXAnchor.constraint(equalTo:box.centerXAnchor),v.centerYAnchor.constraint(equalTo:box.centerYAnchor)]);return box
+    }
     let lineColor=NSColor(srgbRed:0.22,green:0.36,blue:0.50,alpha:1)
     let accent=NSColor(srgbRed:0.325,green:0.831,blue:0.929,alpha:1)
     let muted=NSColor(srgbRed:0.61,green:0.68,blue:0.77,alpha:1)
@@ -202,6 +224,8 @@ func loadCredential() -> Data? {
         stack.addArrangedSubview(connect);add(panel,to:col)
     }
     func buildMain(_ main:NSView) {
+        art.translatesAutoresizingMaskIntoConstraints=false;main.addSubview(art)
+        NSLayoutConstraint.activate([art.leadingAnchor.constraint(equalTo:main.leadingAnchor),art.trailingAnchor.constraint(equalTo:main.trailingAnchor),art.topAnchor.constraint(equalTo:main.topAnchor),art.bottomAnchor.constraint(equalTo:main.bottomAnchor)])
         pageTitle.font = .systemFont(ofSize:22,weight:.bold);pageTitle.textColor = .white
         dashboardStatus.font = .systemFont(ofSize:12);dashboardStatus.textColor=muted;dashboardStatus.lineBreakMode = .byTruncatingTail
         dashboardStatus.setContentCompressionResistancePriority(.defaultLow,for:.horizontal)
@@ -222,7 +246,8 @@ func loadCredential() -> Data? {
         NSLayoutConstraint.activate([row.leadingAnchor.constraint(equalTo:strip.leadingAnchor,constant:16),row.trailingAnchor.constraint(equalTo:strip.trailingAnchor,constant:-16),row.topAnchor.constraint(equalTo:strip.topAnchor,constant:14),row.bottomAnchor.constraint(equalTo:strip.bottomAnchor,constant:-14)])
         computerDetail.font = .systemFont(ofSize:11);computerDetail.textColor=muted;computerDetail.stringValue="Mac · reading hardware…";computerDetail.lineBreakMode = .byTruncatingTail
         availability.font = .systemFont(ofSize:11,weight:.semibold);availability.textColor=good
-        let who=vstack([text(Host.current().localizedName ?? "This Mac",14,.white,.semibold),computerDetail,availability],spacing:3);who.widthAnchor.constraint(equalToConstant:200).isActive=true
+        let words=vstack([text(Host.current().localizedName ?? "This Mac",14,.white,.semibold),computerDetail,availability],spacing:3)
+        let who=hstack([formIcon(formFactor),words],spacing:10);who.alignment = .top;who.widthAnchor.constraint(equalToConstant:240).isActive=true
         let top=hstack([cpuMeter,gpuMeter],spacing:16),bottom=hstack([ramMeter,vramMeter],spacing:16)
         for r in [top,bottom] {r.distribution = .fillEqually}
         let meters=vstack([top,bottom],spacing:10);meters.setContentHuggingPriority(NSLayoutConstraint.Priority(1),for:.horizontal)
@@ -269,6 +294,7 @@ func loadCredential() -> Data? {
         page=pages.contains(where:{$0.key==key}) ? key:"overview"
         for (k,b) in navButtons {let on=k==page;b.layer?.backgroundColor=(on ? NSColor(white:1,alpha:0.10):NSColor.clear).cgColor;b.contentTintColor=on ? accent:.white}
         pageTitle.stringValue=pages.first(where:{$0.key==page})?.title ?? "Overview"
+        art.show(Bundle.main.resourceURL?.appendingPathComponent("engine/neptune-art-\(artFor[page] ?? "circuit").jpg"))
         for v in headerActions.arrangedSubviews {headerActions.removeArrangedSubview(v);v.removeFromSuperview()}
         switch page {
         case "robots","field":
@@ -380,30 +406,41 @@ func loadCredential() -> Data? {
         let meters:[(String,Double?,String)]=[("CPU",cpu.map {$0/100},percent(cpu)),("GPU",gpuUse.map {$0/100},percent(gpuUse)),("RAM",share(ram,ramTotal),memory(ram,ramTotal)),("GPU memory",share(vram,vramTotal),memory(vram,vramTotal))]
         let row=hstack(meters.map {m in let meter=HardwareMeter(m.0);meter.show(m.1,m.2);return meter},spacing:16);row.distribution = .fillEqually;return row
     }
-    func modelTiles() {
+    /// Which model a queued or running job trains.
+    func jobKind(_ job:[String:Any])->String {
+        let t=((job["label"] as? String) ?? "")+" "+((job["title"] as? String) ?? "")
+        return t.localizedCaseInsensitiveContains("field") ? "field":(t.localizedCaseInsensitiveContains("robot") || t.contains("frames")) ? "robots":"actions"
+    }
+    /// A tile for each model that is training right now; idle models stay on their own pages.
+    func modelTiles(_ active:Set<String>) {
         let robot=models["robot"] as? [String:Any],field=models["field"] as? [String:Any],actions=models["actions"] as? [String:Any]
         let rc=robot?["current"] as? [String:Any],fc=field?["current"] as? [String:Any],counts=actions?["counts"] as? [String:Any]
         let tagged=Int(number(counts,"matches") ?? 0)
-        tileRow([
-            tile("Robots",rc.map {score("robot",$0["new"])} ?? (robot==nil ? "—":"Built-in"),robot.map {"\(Int(number($0,"matches") ?? 0)) labelled matches"} ?? "Loading…",link:"robots"),
-            tile("Field",fc.map {score("field",$0["new"])} ?? (field==nil ? "—":"Marked zones"),field.map {"\(($0["events"] as? [Any])?.count ?? 0) events marked"} ?? "Loading…",link:"field"),
-            tile("Actions",actions==nil ? "—":(actions?["released"] is String ? "Released":"Not released"),actions==nil ? "Loading…":(tagged<6 ? "\(tagged) tagged matches · needs more":"\(tagged) tagged matches"),noteColor:actions != nil && tagged<6 ? warn:nil,link:"actions"),
-        ])
+        var tiles:[NSView]=[]
+        if active.contains("robots") {tiles.append(tile("Robots · training",rc.map {score("robot",$0["new"])} ?? "Built-in",robot.map {"in use · \(Int(number($0,"matches") ?? 0)) labelled matches"} ?? "",link:"robots"))}
+        if active.contains("field") {tiles.append(tile("Field · training",fc.map {score("field",$0["new"])} ?? "Marked zones",field.map {"in use · \(($0["events"] as? [Any])?.count ?? 0) events marked"} ?? "",link:"field"))}
+        if active.contains("actions") {tiles.append(tile("Actions · training",actions?["released"] is String ? "Released":"Not released","\(tagged) tagged matches",link:"actions"))}
+        if !tiles.isEmpty {tileRow(tiles)}
     }
     func renderOverview() {
         add(thisMacStrip,to:dashboardBody)
         let computers=dash["computers"] as? [[String:Any]] ?? [],queue=dash["queue"] as? [[String:Any]] ?? [],me=computerID()
         let running=queue.filter {($0["state"] as? String)=="running"}
-        if running.isEmpty {card("Running now").addArrangedSubview(text("Nothing is running. Start a run from a model page.",12,muted))}
         for job in running.prefix(3) {
             // Detector runs name their helper in computer_id; action runs in target.
             let id=(job["computer_id"] as? String) ?? (job["target"] as? String)
             console(job,computers.first(where:{id != nil && ($0["id"] as? String)==id}),me:me)
         }
-        modelTiles()
-        let waiting=queue.filter {($0["state"] as? String)=="waiting"},q=card("Queue · \(waiting.count) waiting")
-        if waiting.isEmpty {q.addArrangedSubview(text("No runs waiting.",12,muted))}
-        for item in waiting {add(text((item["title"] as? String ?? "Run")+" · "+(item["message"] as? String ?? "Waiting"),12),to:q)}
+        if running.isEmpty {
+            // Idle: one compact row to start a run instead of empty cards.
+            let start=card(nil);start.addArrangedSubview(hstack([text("Nothing running. Start a run:",12,muted),startButton("Robot detector","viewfinder","robots"),startButton("Field detector","map","field"),startButton("Actions on Neptune","arrow.up.right.square","actions")],spacing:10))
+        } else {modelTiles(Set(running.map(jobKind)))}
+        let waiting=queue.filter {($0["state"] as? String)=="waiting"}
+        if !waiting.isEmpty {let q=card("Queue · \(waiting.count) waiting");for item in waiting {add(text((item["title"] as? String ?? "Run")+" · "+(item["message"] as? String ?? "Waiting"),12),to:q)}}
+    }
+    func startButton(_ title:String,_ symbol:String,_ page:String)->NSButton {
+        let b=button(title,page=="actions" ? #selector(openTrainPage):#selector(navTap(_:)));b.identifier=NSUserInterfaceItemIdentifier(page);b.controlSize = .small
+        b.image=NSImage(systemSymbolName:symbol,accessibilityDescription:nil);b.imagePosition = .imageLeading;return b
     }
     func clock(_ seconds:Double)->String {
         let s=max(0,Int(seconds.rounded()));return s>=3600 ? String(format:"%d:%02d:%02d",s/3600,s/60%60,s%60):String(format:"%d:%02d",s/60,s%60)
@@ -433,7 +470,7 @@ func loadCredential() -> Data? {
         if let passes=number(k,"passes"),passes>0 {
             let pass=number(k,"pass") ?? 1,batch=number(k,"batch") ?? 0,batches=number(k,"batches") ?? 0
             stage=100*((pass-1)+(batches>0 ? batch/batches:0))/passes
-            stageText=String(format:"pass %.0f/%.0f · batch %.0f/%.0f",pass,passes,batch,batches)+(number(k,"it_s").map {String(format:" · %.2f it/s",$0)} ?? "")
+            stageText=String(format:"epoch %.0f/%.0f · batch %.0f/%.0f",pass,passes,batch,batches)+(number(k,"loss").map {String(format:" · loss %.3f",$0)} ?? "")+(number(k,"it_s").map {String(format:" · %.2f it/s",$0)} ?? "")
         } else if let n=number(k,"matches"),n>0 {let i=number(k,"match") ?? 0;stage=100*max(0,i-1)/n;stageText=String(format:"match %.0f of %.0f",i,n)}
         else if let m=([now]+log.map {$0.1}.reversed()).lazy.compactMap({self.firstMatch("\\[([0-9]+)/([0-9]+)\\]",$0)}).first,let i=Double(m[1]),let n=Double(m[2]),n>0 {stage=100*(i-1)/n;stageText=String(format:"match %.0f of %.0f",i,n)}
         let key="\\b([0-9]{4}[a-z0-9]+_[a-z0-9]+)\\b",matchKey=firstMatch(key,now)?[1] ?? log.last.flatMap {firstMatch(key,$0.1)?[1]}
@@ -509,7 +546,7 @@ func loadCredential() -> Data? {
             let isThisMac=(w["id"] as? String)==me
             let state=isThisMac && reviewing ? ("Tracking review",warn):isThisMac && folderReview ? ("Image review",warn):(w["job"] as? [String:Any]) != nil ? ("Training",accent):((w["online"] as? Bool)==true ? ("Available",good):("Offline",muted))
             let c=card(nil)
-            c.addArrangedSubview(hstack([text((w["name"] as? String ?? "Computer")+(isThisMac ? " · this Mac":""),14,.white,.semibold),text(state.0,12,state.1,.semibold)],spacing:10))
+            c.addArrangedSubview(hstack([formIcon(w["form"] as? String),text((w["name"] as? String ?? "Computer")+(isThisMac ? " · this Mac":""),14,.white,.semibold),text(state.0,12,state.1,.semibold)],spacing:10))
             add(text([w["platform"],w["device"],w["version"]].compactMap {$0 as? String}.filter {!$0.isEmpty}.joined(separator:" · "),11,muted),to:c)
             add(updateRow(w),to:c)
             add(meterRow(w["stats"] as? [String:Any] ?? [:]),to:c)
@@ -607,7 +644,7 @@ func loadCredential() -> Data? {
             if value["connected"] as? Bool == false {connection.stringValue="Reconnecting to Neptune…";dashboardStatus.stringValue="Reconnecting…";availability.stringValue="Offline";return}
             let config=cachedCredential.flatMap {try? JSONSerialization.jsonObject(with:$0) as? [String:Any]}
             let shortID=(config?["computer_id"] as? String).map {String($0.prefix(4)).uppercased()}
-            connection.stringValue="Connected to Neptune"+(shortID.map {" · "+$0} ?? "");dashboardStatus.stringValue="Connected"+(shortID.map {" · "+$0} ?? "");availability.stringValue=busy ? "Working":"Available"
+            connection.stringValue="Connected to Neptune"+(shortID.map {" · "+$0} ?? "");dashboardStatus.stringValue="Connected"+(shortID.map {" · "+$0} ?? "");availability.stringValue=busy ? "Working":"Ready to train"
         case "busy":setBusy(value["value"] as? Bool ?? false);if !(value["value"] as? Bool ?? false) {progress.doubleValue=0;remaining.stringValue="No job running"}
         case "error":status.stringValue=value["message"] as? String ?? "Needs attention";connection.stringValue="Needs attention — your saved work is kept";append(status.stringValue)
         case "status":
@@ -627,7 +664,7 @@ func loadCredential() -> Data? {
         }
     }
     func setBusy(_ value:Bool) {
-        busy=value;dashboardStatus.stringValue=value ? "Training on this Mac":"Mac available";availability.stringValue=value ? "Working":"Available";folderButton.isEnabled = !value;reviewButton.isEnabled = !value && !folderReview;stop.isEnabled=value;connect.isEnabled = !value;device.isEnabled = !value
+        busy=value;dashboardStatus.stringValue=value ? "Training on this Mac":"Mac available";availability.stringValue=value ? "Working":"Ready to train";folderButton.isEnabled = !value;reviewButton.isEnabled = !value && !folderReview;stop.isEnabled=value;connect.isEnabled = !value;device.isEnabled = !value
         stageRow.isHidden = !value;progressRow.isHidden = !value;nextStatus.isHidden = !value;stop.isHidden = !value
         if !value {jobTitle.stringValue="THIS MAC";status.stringValue="No assigned job"}
         if page=="overview" {render()}

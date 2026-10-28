@@ -193,7 +193,7 @@ final class RobotDetectorJobs {
  public function poll(array $computer,array $p):array{
   $cid=(string)$computer['id'];$version=mb_substr((string)($p['version']??''),0,40);$platform=mb_substr((string)($p['platform']??''),0,80);
   self::write($this->dir('computers').'/'.self::cid($cid).'.status.json',['at'=>time(),'busy'=>!empty($p['busy']),'awake'=>!empty($p['awake']),'message'=>mb_substr((string)($p['message']??''),0,600),'version'=>$version,'platform'=>$platform,
-   'stats'=>self::numbers($p['stats']??null,2),'counters'=>self::numbers($p['counters']??null,1),'remote_update'=>!empty($p['remote_update']),'update'=>mb_substr((string)($p['update']??''),0,200),
+   'stats'=>self::numbers($p['stats']??null,2),'counters'=>self::numbers($p['counters']??null,1),'remote_update'=>!empty($p['remote_update']),'form'=>in_array($p['form']??null,['laptop','desktop','server'],true)?$p['form']:null,'update'=>mb_substr((string)($p['update']??''),0,200),
    'log'=>array_values(array_map(fn($l)=>[(int)($l[0]??0),mb_substr((string)($l[1]??''),0,220)],array_slice(is_array($p['log']??null)?array_filter($p['log'],'is_array'):[],-14)))]);
   // A requested update is done once this computer reports the newest published version for its platform; a day-old request lapses.
   $s=$this->settings($cid);$latest=helper_latest_version($platform);

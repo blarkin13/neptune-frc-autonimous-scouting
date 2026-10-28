@@ -1,3 +1,41 @@
+## 2026-10-28 — Helper redesign pass: no flashing, modern buttons, icons, artwork, console-first Overview (Claude, local, not released)
+
+The owner's notes:
+- Linux helper blinks.
+- Scrollbar always shows.
+- Buttons look dated.
+- No icons like the Mac.
+
+Also asked for:
+- the artwork behind the main content only, with a solid sidebar and near-opaque cards;
+- Running now as the centerpiece with epoch, loss, GPU memory, elapsed, ETA and log;
+- model cards only while that model trains;
+- a compact Ready-to-train idle state;
+- an icon for each computer's kind.
+
+Tk (Windows/Linux, `neptune_ui.py`, `neptune_trainer.py`):
+- Blinking: every refresh destroyed and rebuilt every card. New cards are now built hidden and swapped in at once (`BubblePage.show_only` → `finish`); a refresh of the same page keeps its scroll position.
+- The scrollbar is a thin arrowless bar that only shows when cards overflow.
+- `ui.Button` is a rounded flat button (antialiased with Pillow) with icons, replacing the ttk buttons.
+- Meters are thin rounded bars (`ui.Meter`), and the dropdown is flat.
+- Icons come from Lucide (ISC, `neptune-icons-LICENSE.txt`), pre-rendered into `neptune-icons.png`, on the sidebar, tools and buttons.
+- The sidebar is solid navy. Page artwork (`neptune-art-*.jpg`, the owner's images) is cover-scaled and dimmed behind the cards.
+
+Both apps:
+- Overview: console first, a model tile only while that model trains, and the queue only when it has runs.
+- When idle: "Nothing running. Start a run" with Robot detector / Field detector / Actions on Neptune buttons, and the computer card says "Ready to train".
+- The console shows `epoch n/N · batch · loss · it/s`: `telemetry.batch_counter` now records the running loss.
+- Computers pages and the this-computer card show a laptop/desktop/server icon. `telemetry.form_factor()` works this out from a battery, or the Linux chassis type. Helpers report `form`; the server stores it and the dashboard returns it.
+- Mac (`App.swift`): `ArtView` artwork behind the main area, opaque sidebar, cards at 0.95 alpha, SF Symbols for computer kinds.
+
+New engine files (flat names, so existing updaters accept them): `neptune-icons.png`, `neptune-icons-LICENSE.txt`, and three `neptune-art-*.jpg`, about 1 MB in all.
+
+Checked:
+- 543 engine tests OK on the bundled Python 3.13. Server tests helper-updates 10, my-computers 15 and helper-models 6 PASS. Updater tests 8 OK.
+- Tk pages previewed with sample data (running and idle Overview, Computers). The real `neptune_trainer.main()` opened from a temp copy with a dummy connection and rendered without errors.
+- Mac preview: Overview and Computers.
+- Not run on Linux or Windows hardware, so the end of the blinking is unconfirmed there.
+
 ## 2026-10-28 — Remote updates release: Mac 3.2.64, Windows 6.5.35, Linux 6.6.26, engine 2.7.49 (Claude)
 
 The owner approved the release. Builds:

@@ -27,7 +27,7 @@ function autoscout_computers(PDO $pdo,RobotDetectorJobs $jobs,array $computers,a
   $waiting=array_values(array_map(fn($r)=>['kind'=>$r['kind']==='train_field'?'field':'robot','request'=>$r['id']],array_filter($requests,fn($r)=>$r['state']==='queued'&&($r['target']??null)===$c['id'])));
   $seen=max((int)$c['last_seen'],(int)($st['at']??0));$online=!$c['revoked']&&(int)$c['expires_at']>time()&&$seen>time()-90;
   $out[]=['id'=>$c['id'],'name'=>$c['name'],'device'=>$c['device'],'online'=>$online||(bool)$job,'ready'=>$c['ready'],'status'=>$job?'Working':($online?'Idle':$c['status']),'last_seen'=>$seen?:null,
-   'platform'=>$st['platform']??null,'stats'=>($online||$job)?($st['stats']??null):null,'counters'=>$job?($st['counters']??null):null,'log'=>$st['log']??[],'reported_at'=>$st['at']??null,'version'=>$st['version']??null,'awake'=>!empty($st['awake']),'polls'=>$st!==null,'job'=>$job,'waiting'=>$waiting,'settings'=>$settings=$jobs->settings((string)$c['id']),'selfcheck'=>$jobs->selfcheck((string)$c['id']),
+   'platform'=>$st['platform']??null,'stats'=>($online||$job)?($st['stats']??null):null,'counters'=>$job?($st['counters']??null):null,'log'=>$st['log']??[],'reported_at'=>$st['at']??null,'version'=>$st['version']??null,'form'=>$st['form']??null,'awake'=>!empty($st['awake']),'polls'=>$st!==null,'job'=>$job,'waiting'=>$waiting,'settings'=>$settings=$jobs->settings((string)$c['id']),'selfcheck'=>$jobs->selfcheck((string)$c['id']),
    'update'=>autoscout_update_state($st,$settings)];
  }
  return $out;
