@@ -1,3 +1,14 @@
+## 2026-10-28 — Windows/Linux helpers failed to start (missing neptune_layouts); remove offline computers (Claude, local, not released)
+
+The owner found Connect/Reconnect closing the Linux and Windows helpers, with `ModuleNotFoundError: No module named 'neptune_layouts'`.
+
+- **Cause:** learned layouts (d4dee8d, released as 3.2.71 / 6.5.42 / 6.6.33) added `engine/neptune_layouts.py`, imported through `neptune_facts`, but not to `neptune_engine.FILES`. The Windows/Linux builders ship only FILES, so 6.5.42–6.5.44 and 6.6.33–6.6.35 can't start, while the Mac (which copies every engine `.py`) was fine.
+- **Also:** `neptune_helper`, `neptune_learning`, `neptune_setup` and `neptune_shared_models` shipped only as stale copies from the original base packages, so later repo changes to them never reached Windows/Linux.
+- **Fix:** all five are added to FILES. The new `engine/test_package_files.py` fails if any engine module reachable from `neptune_trainer`, `neptune_ui` or `neptune_telemetry` isn't in FILES or a builder's launcher list. It was checked against the old list, where it fails.
+- **Remove offline computers:** new helper API action `remove_computer`, with the website's rules: owner's own computer, not connected, holding no run, not the calling helper. The Tk and Mac Computers pages show ✕ on offline entries, with a confirmation.
+
+Checked: the engine suite (incl. the new test); helper server tests; the Tk Computers preview (✕ only on the offline entry); the Mac app compiles.
+
 ## 2026-10-28 — Reconnect release: Mac 3.2.73, Windows 6.5.44, Linux 6.6.35, engine 2.7.58 (Claude)
 
 The owner approved the release: the reconnect fixes (entry below) plus the server pairing change. It is built on 9636a78 (the robot session's captions-off, already deployed). The installed 6.5.43 / 6.6.34 updaters accept these updates.

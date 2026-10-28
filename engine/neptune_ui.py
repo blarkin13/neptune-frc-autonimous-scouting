@@ -673,7 +673,7 @@ def update_line(w):
     return ('Up to date · '+latest) if latest else 'Up to date',GOOD,None
 
 
-def render_computers(page,dash,*,self_id=None,on_update=None):
+def render_computers(page,dash,*,self_id=None,on_update=None,on_remove=None):
     """Every connected computer with its live readings; this one first. on_update(computer_id, change) requests, cancels or sets auto-update."""
     computers=sorted(dash.get('computers') or [],key=lambda c:c.get('id')!=self_id)
     if not computers:_,card=page_card(page,None);_label(card,'No computer readouts yet.',10,MUTED)
@@ -681,6 +681,11 @@ def render_computers(page,dash,*,self_id=None,on_update=None):
         state,color=('Training',ACCENT) if w.get('job') else (('Available',GOOD) if w.get('online') else ('Offline',MUTED))
         outer,card=page_card(page,(w.get('name') or 'Computer')+(' · this computer' if w.get('id')==self_id else ''),key='computer:'+str(w.get('id')),icon_name=FORM_ICON.get(w.get('form'),'computers'))
         tk.Label(outer.head,text=state,font=('Arial',10,'bold'),fg=color,bg=PANEL).pack(side='left',padx=10)
+        if on_remove and not w.get('online') and not w.get('job') and w.get('id') and w.get('id')!=self_id:
+            # An offline entry (an old connection or a duplicate) can be removed; it would have to connect again to come back.
+            x=tk.Label(outer.head,text='✕',font=('Arial',13),fg=MUTED,bg=PANEL,cursor='hand2');x.pack(side='right')
+            x.bind('<Enter>',lambda e,l=x:l.config(fg=WARN));x.bind('<Leave>',lambda e,l=x:l.config(fg=MUTED))
+            x.bind('<Button-1>',lambda e,c=w['id'],n=w.get('name') or 'this computer':on_remove(c,n))
         _label(card,' · '.join(x for x in (w.get('platform'),w.get('device'),w.get('version')) if x),9,MUTED)
         text,color,button=update_line(w);row=tk.Frame(card,bg=PANEL);row.pack(fill='x',pady=(2,0))
         tk.Label(row,text=text,font=('Arial',9),fg=color,bg=PANEL,wraplength=520,justify='left').pack(side='left')

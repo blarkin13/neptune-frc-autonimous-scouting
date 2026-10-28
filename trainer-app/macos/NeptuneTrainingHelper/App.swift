@@ -595,7 +595,13 @@ func loadCredential() -> Data? {
         for w in computers.sorted(by:{(($0["id"] as? String)==me ? 0:1)<(($1["id"] as? String)==me ? 0:1)}) {
             let isThisMac=(w["id"] as? String)==me
             let state=isThisMac && reviewing ? ("Tracking review",warn):isThisMac && folderReview ? ("Image review",warn):(w["job"] as? [String:Any]) != nil ? ("Training",accent):((w["online"] as? Bool)==true ? ("Available",good):("Offline",muted))
-            let c=card((w["name"] as? String ?? "Computer")+(isThisMac ? " · this Mac":""),key:"computer:"+(w["id"] as? String ?? ""),leading:[formIcon(w["form"] as? String)],header:[text(state.0,12,state.1,.semibold)])
+            var header:[NSView]=[text(state.0,12,state.1,.semibold)]
+            if !isThisMac,(w["online"] as? Bool) != true,(w["job"] as? [String:Any])==nil,let id=w["id"] as? String {
+                // An offline entry (an old connection or a duplicate) can be removed; it would have to connect again to come back.
+                let x=NSButton(image:NSImage(systemSymbolName:"xmark",accessibilityDescription:"Remove") ?? NSImage(),target:self,action:#selector(removeComputer(_:)))
+                x.isBordered=false;x.contentTintColor=muted;x.identifier=NSUserInterfaceItemIdentifier(id);x.toolTip="Remove "+(w["name"] as? String ?? "this computer");header+=[spacer(),x]
+            }
+            let c=card((w["name"] as? String ?? "Computer")+(isThisMac ? " · this Mac":""),key:"computer:"+(w["id"] as? String ?? ""),leading:[formIcon(w["form"] as? String)],header:header)
             add(text([w["platform"],w["device"],w["version"]].compactMap {$0 as? String}.filter {!$0.isEmpty}.joined(separator:" · "),11,muted),to:c)
             add(updateRow(w),to:c)
             add(meterRow(w["stats"] as? [String:Any] ?? [:]),to:c)
@@ -618,6 +624,12 @@ func loadCredential() -> Data? {
             row.append(hstack([auto,text("Update automatically",11,.white)],spacing:6))
         }
         return hstack(row,spacing:10)
+    }
+    @objc func removeComputer(_ sender:NSButton) {
+        guard let id=sender.identifier?.rawValue else {return};let name=(dash["computers"] as? [[String:Any]])?.first(where:{($0["id"] as? String)==id})?["name"] as? String ?? "this computer"
+        let alert=NSAlert();alert.messageText="Remove \(name)?";alert.informativeText="It would have to connect again to come back.";alert.addButton(withTitle:"Remove");alert.addButton(withTitle:"Keep")
+        guard alert.runModal() == .alertFirstButtonReturn else {return}
+        post(["action":"remove_computer","computer":id]) {ok,reply in self.dashboardStatus.stringValue=ok ? "Computer removed":(reply?["error"] as? String ?? "Couldn't remove the computer. Try again.");self.reloadDashboard()}
     }
     @objc func updateTapped(_ sender:NSButton) {changeUpdate(sender.identifier?.rawValue ?? "",["update":"request"])}
     @objc func cancelUpdateTapped(_ sender:NSButton) {changeUpdate(sender.identifier?.rawValue ?? "",["update":"cancel"])}

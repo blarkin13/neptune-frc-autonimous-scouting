@@ -504,7 +504,7 @@ def main():
             ui.render_overview(page,view['dash'],view['models'],self_id=self_id,busy=busy['value'],open_page=open_page,open_url=webbrowser.open,on_cancel=cancel_run)
         elif key in ('robots','field'):ui.render_model(page,'robot' if key=='robots' else 'field',view['models'].get('robot' if key=='robots' else 'field'),open_url=webbrowser.open,on_cancel=cancel_run)
         elif key=='actions':ui.render_actions(page,view['models'].get('actions'))
-        elif key=='computers':ui.render_computers(page,view['dash'],self_id=self_id,on_update=change_update)
+        elif key=='computers':ui.render_computers(page,view['dash'],self_id=self_id,on_update=change_update,on_remove=remove_computer)
         else:page.add(activity_box)
     target=tk.StringVar(value='Any free helper')
     def targets():
@@ -528,6 +528,13 @@ def main():
             import neptune_robot_jobs
             try:neptune_robot_jobs.api(config,'cancel_run',run,timeout=30);messages.put(('run_cancelled',None))
             except Exception as error:messages.put(('run_cancelled',str(error)))
+        threading.Thread(target=work,daemon=True).start()
+    def remove_computer(computer,name):
+        if not messagebox.askyesno('Remove %s?'%name,'Remove %s from your computers? It would have to connect again to come back.'%name):return
+        def work():
+            import neptune_robot_jobs
+            try:neptune_robot_jobs.api(config,'remove_computer',{'computer':computer},timeout=30);messages.put(('removed',None))
+            except Exception as error:messages.put(('removed',str(error)))
         threading.Thread(target=work,daemon=True).start()
     def change_update(computer,change):
         # Owner's choice from the Computers page: Neptune passes it to that computer's helper at its next check-in.
@@ -586,6 +593,7 @@ def main():
                 continue
             if kind=='queued':top_status.set('Run queued' if message is None else 'Couldn’t start the run: '+message);continue
             if kind=='run_cancelled':top_status.set('Run stopped or cancelled · updating…' if message is None else 'Couldn’t cancel the run: '+message);continue
+            if kind=='removed':top_status.set('Computer removed · updating…' if message is None else 'Couldn’t remove the computer: '+message);continue
             if kind=='update_sent':top_status.set('Update request sent' if message is None else 'Couldn’t send the update request: '+message);continue
             if kind=='review_closed':review_button.config(text='  Review tracking…');continue
             if kind=='remote_settings':remote_settings(message);continue
