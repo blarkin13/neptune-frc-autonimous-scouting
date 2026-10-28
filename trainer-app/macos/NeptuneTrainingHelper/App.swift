@@ -128,7 +128,6 @@ func loadCredential() -> Data? {
     let sidebarFill=NSColor(srgbRed:0.04,green:0.086,blue:0.157,alpha:1)
     let panelFill=NSColor(srgbRed:0.09,green:0.18,blue:0.30,alpha:0.95)
     let art=ArtView()
-    let artFor=["overview":"poseidon","robots":"seahorse","field":"seahorse","actions":"seahorse","computers":"circuit","activity":"circuit"]
     /// This Mac's kind for its icon: a battery means a laptop.
     lazy var formFactor:String={let p=Process(),out=Pipe();p.executableURL=URL(fileURLWithPath:"/usr/bin/pmset");p.arguments=["-g","batt"];p.standardOutput=out;try? p.run();p.waitUntilExit()
         return String(data:out.fileHandleForReading.readDataToEndOfFile(),encoding:.utf8)?.contains("InternalBattery")==true ? "laptop":"desktop"}()
@@ -224,7 +223,7 @@ func loadCredential() -> Data? {
         stack.addArrangedSubview(connect);add(panel,to:col)
     }
     func buildMain(_ main:NSView) {
-        art.translatesAutoresizingMaskIntoConstraints=false;main.addSubview(art)
+        art.translatesAutoresizingMaskIntoConstraints=false;main.addSubview(art);art.show(Bundle.main.resourceURL?.appendingPathComponent("engine/neptune-art.jpg"))
         NSLayoutConstraint.activate([art.leadingAnchor.constraint(equalTo:main.leadingAnchor),art.trailingAnchor.constraint(equalTo:main.trailingAnchor),art.topAnchor.constraint(equalTo:main.topAnchor),art.bottomAnchor.constraint(equalTo:main.bottomAnchor)])
         pageTitle.font = .systemFont(ofSize:22,weight:.bold);pageTitle.textColor = .white
         dashboardStatus.font = .systemFont(ofSize:12);dashboardStatus.textColor=muted;dashboardStatus.lineBreakMode = .byTruncatingTail
@@ -294,7 +293,6 @@ func loadCredential() -> Data? {
         page=pages.contains(where:{$0.key==key}) ? key:"overview"
         for (k,b) in navButtons {let on=k==page;b.layer?.backgroundColor=(on ? NSColor(white:1,alpha:0.10):NSColor.clear).cgColor;b.contentTintColor=on ? accent:.white}
         pageTitle.stringValue=pages.first(where:{$0.key==page})?.title ?? "Overview"
-        art.show(Bundle.main.resourceURL?.appendingPathComponent("engine/neptune-art-\(artFor[page] ?? "circuit").jpg"))
         for v in headerActions.arrangedSubviews {headerActions.removeArrangedSubview(v);v.removeFromSuperview()}
         switch page {
         case "robots","field":

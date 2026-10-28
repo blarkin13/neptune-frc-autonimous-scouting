@@ -1,3 +1,9 @@
+## 2026-10-28 — One background artwork for every page (Claude, local, not released)
+
+The owner chose a single image, the sea-horse in deep water, for every page in every app. It is `engine/neptune-art.jpg` (300 KB) and replaces the three per-page `neptune-art-*.jpg` files, which are removed from the repo and from `neptune_engine.FILES`. Tk (`Shell.select`) and Mac (`ArtView`, set once in `buildMain`) both load it.
+
+Checked: the engine suite on the bundled Python; the real Tk window and the Mac preview both show it.
+
 ## 2026-10-28 — Helper redesign release: Mac 3.2.66, Windows 6.5.37, Linux 6.6.28, engine 2.7.51 (Claude)
 
 The owner approved releasing the redesign (entry below) as 3.2.65 / 6.5.36 / 6.6.27. Those numbers had just gone to the tracking session's constant-identity v4 release (GitHub only, not deployed), so this one is 3.2.66 / 6.5.37 / 6.6.28, built on top of 36e5984. It ships both changes, and that session was asked not to deploy its own.

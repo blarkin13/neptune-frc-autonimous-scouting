@@ -389,12 +389,9 @@ class Shell:
         self.page=BubblePage(holder)
     def select(self,key):
         for k,item in self.nav.items():item.configure(bg=PANEL_ALT if k==key else SIDEBAR,fg=ACCENT if k==key else TEXT,image=icon(k,'accent' if k==key else 'text'))
-        self.page.set_art(HERE/('neptune-art-'+ART.get(key,'circuit')+'.jpg'))
+        self.page.set_art(HERE/'neptune-art.jpg')
         self.title.set(dict(self.PAGES).get(key,'Overview'))
         for child in self.actions.winfo_children():child.destroy()
-
-
-ART={'overview':'poseidon','robots':'seahorse','field':'seahorse','actions':'seahorse','computers':'circuit','activity':'circuit'}
 
 
 def tool_button(shell,text,command,icon_name=None):
