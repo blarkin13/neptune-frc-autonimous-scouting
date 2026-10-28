@@ -1,3 +1,9 @@
+## 2026-10-28 — Cancel, carets and switches release: Mac 3.2.68, Windows 6.5.39, Linux 6.6.30, engine 2.7.53 (Claude)
+
+The owner approved the release. It ships cancel and stop from the helper, collapsible sections, themed switches, and the server's `cancel_run` action and run ids.
+- Windows update 0.94 MB, Linux update 0.80 MB.
+- The installed 6.5.38 / 6.6.29 updaters accept them.
+
 ## 2026-10-28 — Themed switches instead of checkboxes (Claude, local, not released)
 
 The owner disliked the old web-style checkboxes. "Update automatically" is now a switch in the app's colours, accent when on and slate when off: `ui.Switch` (antialiased with Pillow) on Windows/Linux, `ThemedSwitch` on the Mac. It was the only checkbox in either app. The native NSSwitch was tried first and dropped, because it looks blue even when off against the dark cards.
