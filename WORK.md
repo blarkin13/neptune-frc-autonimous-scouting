@@ -1,4 +1,12 @@
-## 2026-10-28 — Remote helper updates from Neptune (Claude, local, not released)
+## 2026-10-28 — Remote updates release: Mac 3.2.64, Windows 6.5.35, Linux 6.6.26, engine 2.7.49 (Claude)
+
+The owner approved the release. Builds:
+- Mac: 542 engine tests OK on the bundled Python, Sparkle signature verified, DMG verified.
+- Windows: update 605 KB, Setup.exe 10.2 MB.
+- Linux: .deb 10.4 MB with the new launcher and updater, apt repo signed. The Linux update zip is 469 KB and verified by the updater itself, with 74 files and no .pt.
+- The deploy adds `downloads/linux/latest.json`, the Linux update zip, and a linux `.htaccess` that allows only that zip.
+
+## 2026-10-28 — Remote helper updates from Neptune (Claude)
 
 The owner asked for helper updates to install by themselves and reopen, and to be started remotely from Neptune, on Mac, Windows and Linux.
 
