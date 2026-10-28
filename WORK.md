@@ -4,6 +4,13 @@ The owner approved shipping the Hippocampus name and app icon (entry below).
 - Windows update 1.06 MB, carrying the new `Neptune.ico`; Linux update 0.85 MB.
 - The installed 6.5.39 / 6.6.30 updaters accept them.
 
+Deployed through AWS SSM: 58 files hash-checked, 63 changed (engine and downloads; no server code changed). Backup: `/root/hippocampus-release-backup-20261028`.
+
+Checked from outside:
+- The appcast offers 3.2.69 at the local zip's size.
+- Windows and Linux `latest.json` show 6.5.40 and 6.6.31 on engine 2.7.54, and both update zips match their local SHA-256. apt lists 6.6.31.
+- The Mac bundle's `Neptune.icns` matches the repo's.
+
 ## 2026-10-28 — Hippocampus branding (Claude, local, not released)
 
 The owner named the helper Hippocampus, as display text only:
