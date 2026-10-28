@@ -1,3 +1,10 @@
+## 2026-10-28 — One-artwork release: Mac 3.2.67, Windows 6.5.38, Linux 6.6.29, engine 2.7.52 (Claude)
+
+The owner approved the release.
+- The Windows and Mac builds start from the previous package, so files that are no longer shipped were carried over: the three retired `neptune-art-*.jpg`. Both builders now drop them: `RETIRED` in `build-windows-training-helper.py`, and an `rm` in `release-mac-helper.sh`.
+- Helpers that update in place keep any old copies; they are unused, about 1 MB.
+- Windows update 0.94 MB, Linux update 0.80 MB. The installed 6.5.37 / 6.6.28 updaters accept them.
+
 ## 2026-10-28 — One background artwork for every page (Claude, local, not released)
 
 The owner chose a single image, the sea-horse in deep water, for every page in every app. It is `engine/neptune-art.jpg` (300 KB) and replaces the three per-page `neptune-art-*.jpg` files, which are removed from the repo and from `neptune_engine.FILES`. Tk (`Shell.select`) and Mac (`ArtView`, set once in `buildMain`) both load it.

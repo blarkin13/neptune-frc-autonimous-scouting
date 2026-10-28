@@ -16,8 +16,9 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[2]
 ENGINE = ROOT / 'engine'
 WINDOWS = ROOT / 'trainer-app/windows'
-VERSION = '6.5.37'
+VERSION = '6.5.38'
 URL = 'https://neptunefrc.com/community/downloads/windows/'
+RETIRED = ('neptune-art-poseidon.jpg', 'neptune-art-seahorse.jpg', 'neptune-art-circuit.jpg')
 
 
 def sha(path):
@@ -52,6 +53,9 @@ def build(base, output):
             raise ValueError('The prior Windows package is missing its engine.')
         for name in neptune_engine.FILES:
             shutil.copy2(ENGINE / name, app / name)
+        # Files the prior package had that this release no longer ships.
+        for name in RETIRED:
+            (app / name).unlink(missing_ok=True)
         # Shipped detectors and region data live in folders next to the engine files.
         for name in ('robot-detector', 'field-detector', 'field-regions'):
             shutil.rmtree(app / name, ignore_errors=True)
