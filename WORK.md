@@ -3,7 +3,12 @@
 The owner named the helper Hippocampus, as display text only:
 - Under the Neptune logo in the sidebar it reads "HIPPOCAMPUS / Model Training Helper", on both Tk and Mac.
 - The window title is "Hippocampus - Neptune Training Helper": Tk main window, the Linux setup window, and the Mac `window.title` (hidden by the Mac's full-size content, but shown in the Window menu and Mission Control).
-- Package names, bundle ids, download names and feeds are unchanged. The owner is making a new app icon.
+- Package names, bundle ids, download names and feeds are unchanged.
+
+App icon: the owner's Hippocampus artwork, with the 1024-px master in `trainer-app/icons/hippocampus-1024.png`.
+- Mac: `Resources/Neptune.icns`, 16–1024 px. `release-mac-helper.sh` now copies it into each build, since builds copy the previous app and would otherwise keep the old icon.
+- Windows: `trainer-app/windows/Neptune.ico`, seven sizes from 16 to 256 px, for the installer, shortcuts and window.
+- Linux: `trainer-app/linux/Neptune.png`, 256 px, for the hicolor icon and now also the Tk window via `iconphoto`. Before this, only Windows set a window icon.
 
 ## 2026-10-28 — Cancel, carets and switches release: Mac 3.2.68, Windows 6.5.39, Linux 6.6.30, engine 2.7.53 (Claude)
 

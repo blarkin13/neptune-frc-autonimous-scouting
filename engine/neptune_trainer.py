@@ -304,6 +304,9 @@ def main():
     if sys.platform == 'win32':
         try:root.iconbitmap(str(source.with_name('Neptune.ico')))
         except tk.TclError:pass
+    else:
+        try:root.iconphoto(True,tk.PhotoImage(file=str(source.with_name('Neptune.png'))))   # taskbar and title-bar icon on Linux
+        except tk.TclError:pass
     # One window: a sidebar of pages (overview, the three models, computers, activity) beside a page of cards.
     emblem=Path(__file__).with_name('neptune-logo-square.png')
     view={'page':'overview','dash':{},'models':{}}

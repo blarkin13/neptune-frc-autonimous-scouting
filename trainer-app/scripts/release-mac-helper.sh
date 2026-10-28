@@ -18,6 +18,8 @@ rm -rf "${B:?}"; mkdir -p "$B/build" "$O"
 find "${E:?}" -maxdepth 1 -type f \( -name 'neptune_*.py' -o -name 'requirements*.json' -o -name 'requirements-*.txt' -o -name 'season_rules.json' \) -delete
 # Files earlier releases shipped that this one no longer does.
 rm -f "$E/neptune-art-poseidon.jpg" "$E/neptune-art-seahorse.jpg" "$E/neptune-art-circuit.jpg"
+# The app icon (Dock, Finder, DMG) comes from the repo, not the previous build.
+cp -p "$R/trainer-app/macos/NeptuneTrainingHelper/Resources/Neptune.icns" "$A/Contents/Resources/Neptune.icns"
 for s in "$R"/engine/*; do n=$(basename "$s")
   if [ -f "$s" ] && { { [ "${n##*.}" = py ] && [ "${n#test_}" = "$n" ]; } || [ "$n" = requirements.json ] || [ "$n" = requirements-yolo.txt ] || [ "$n" = requirements-videomae.txt ] || [ "$n" = season_rules.json ]; }; then cp -p "$s" "$E/$n"; fi
 done
