@@ -1,3 +1,12 @@
+## 2026-10-28 — Helper redesign release: Mac 3.2.66, Windows 6.5.37, Linux 6.6.28, engine 2.7.51 (Claude)
+
+The owner approved releasing the redesign (entry below) as 3.2.65 / 6.5.36 / 6.6.27. Those numbers had just gone to the tracking session's constant-identity v4 release (GitHub only, not deployed), so this one is 3.2.66 / 6.5.37 / 6.6.28, built on top of 36e5984. It ships both changes, and that session was asked not to deploy its own.
+
+Builds:
+- Windows: update 1.67 MB, Setup.exe 11.3 MB.
+- Linux: update 1.54 MB, .deb 11.5 MB, apt repo signed and packed from inside `apt/`.
+- The updaters already installed on 6.5.35 and 6.6.26 accept these updates (checked with their own code from f97324f). This is the first release those computers can get from Neptune's Update button.
+
 ## 2026-10-28 — Helper redesign pass: no flashing, modern buttons, icons, artwork, console-first Overview (Claude, local, not released)
 
 The owner's notes:
