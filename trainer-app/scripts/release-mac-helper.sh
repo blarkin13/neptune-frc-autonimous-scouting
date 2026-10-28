@@ -16,6 +16,10 @@ BUILD=$(( $(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$OLD/Contents/I
 rm -rf "${B:?}"; mkdir -p "$B/build" "$O"
 /bin/cp -cR "$OLD" "$A"
 find "${E:?}" -maxdepth 1 -type f \( -name 'neptune_*.py' -o -name 'requirements*.json' -o -name 'requirements-*.txt' -o -name 'season_rules.json' \) -delete
+# Files earlier releases shipped that this one no longer does.
+rm -f "$E/neptune-art-poseidon.jpg" "$E/neptune-art-seahorse.jpg" "$E/neptune-art-circuit.jpg"
+# The app icon (Dock, Finder, DMG) comes from the repo, not the previous build.
+cp -p "$R/trainer-app/macos/NeptuneTrainingHelper/Resources/Neptune.icns" "$A/Contents/Resources/Neptune.icns"
 for s in "$R"/engine/*; do n=$(basename "$s")
   if [ -f "$s" ] && { { [ "${n##*.}" = py ] && [ "${n#test_}" = "$n" ]; } || [ "$n" = requirements.json ] || [ "$n" = requirements-yolo.txt ] || [ "$n" = requirements-videomae.txt ] || [ "$n" = season_rules.json ]; }; then cp -p "$s" "$E/$n"; fi
 done
@@ -31,6 +35,8 @@ MC=$(mktemp -d); /usr/bin/swiftc -module-cache-path "$MC" -O -parse-as-library -
   -framework Sparkle -framework AppKit -framework Security -Xlinker -rpath -Xlinker @executable_path/../Frameworks \
   "$R/trainer-app/macos/NeptuneTrainingHelper/App.swift" -o "$A/Contents/MacOS/NeptuneTrainingHelper"; rm -rf "${MC:?}"
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $NEW" -c "Set :CFBundleVersion $BUILD" "$A/Contents/Info.plist"
+# The name in the menu bar, Quit menu and update windows. The bundle id, Keychain item and app file name stay the same.
+/usr/libexec/PlistBuddy -c "Set :CFBundleName Hippocampus" -c "Set :CFBundleDisplayName Hippocampus" "$A/Contents/Info.plist"
 (cd "$R/engine" && python3 -c "import json,neptune_engine;print(json.dumps(neptune_engine.identity()))") > "$A/Contents/Resources/engine-identity.json"
 find "$R/engine" -name __pycache__ -prune -exec rm -rf {} +
 codesign --force --sign - "$A" 2>/dev/null; codesign --verify --deep --strict "$A"

@@ -4,6 +4,7 @@ require_once dirname(__DIR__,3).'/neptune_secure/bootstrap.php';
 require_once dirname(__DIR__,3).'/neptune_secure/community-analysis-install.php';
 require_once dirname(__DIR__,3).'/neptune_secure/community-training-control.php';
 require_once dirname(__DIR__,3).'/neptune_secure/community-learning.php';
+require_once dirname(__DIR__,3).'/neptune_secure/community-training-cancel.php';
 require_once dirname(__DIR__,3).'/neptune_secure/robot-detector-jobs.php';
 require_once dirname(__DIR__,3).'/neptune_secure/autoscout-train-overview.php';
 require_once dirname(__DIR__,3).'/neptune_secure/external-bumper-training.php';
@@ -26,12 +27,12 @@ try {
    $control=new CommunityTrainingControl($pdo);$owner=(int)$computer['user_id'];
    $computers=autoscout_computers($pdo,$jobs,$control->computers($owner),$jobs->requests());
    $queue=[];foreach($jobs->requests() as $request)if(in_array($request['state']??'', ['queued','claimed'],true))
-    $queue[]=['title'=>match($request['kind']??''){'train'=>'Train robot detector','train_field'=>'Train field detector','prepare'=>'Prepare frames',default=>'Training'},'state'=>$request['state']==='claimed'?'running':'waiting','message'=>$request['message']??'','target'=>$request['target']??null,'computer_id'=>$request['computer_id']??null,
+    $queue[]=['request'=>$request['id'],'title'=>match($request['kind']??''){'train'=>'Train robot detector','train_field'=>'Train field detector','prepare'=>'Prepare frames',default=>'Training'},'state'=>$request['state']==='claimed'?'running':'waiting','message'=>$request['message']??'','target'=>$request['target']??null,'computer_id'=>$request['computer_id']??null,
      'label'=>match($request['kind']??''){'train_field'=>'2 · Field — field detector','prepare'=>'1 · Robots — prepare frames',default=>'1 · Robots — robot detector'},'started'=>$request['claimed_at']??null];
-   $q=$pdo->prepare("SELECT state,message,control_json,created_at,started_at FROM community_learning_jobs WHERE season=? AND state IN ('remote_queued','remote_running','queued','running','test_queued','test_running','evaluation_queued','evaluation_running') ORDER BY created_at DESC LIMIT 20");$q->execute([(int)gmdate('Y')]);
-   foreach($q as $row){$control=json_decode((string)($row['control_json']??''),true)?:[];$state=(string)$row['state'];$queue[]=['title'=>str_starts_with($state,'test_')?'Test a match':(str_starts_with($state,'evaluation_')?'Independent evaluation':'Train action models & scoring'),'state'=>str_ends_with($state,'queued')?'waiting':'running','message'=>$row['message']??'','target'=>$control['computer_id']??null,
+   $q=$pdo->prepare("SELECT id,state,message,control_json,created_at,started_at FROM community_learning_jobs WHERE season=? AND state IN ('remote_queued','remote_running','queued','running','test_queued','test_running','evaluation_queued','evaluation_running') ORDER BY created_at DESC LIMIT 20");$q->execute([(int)gmdate('Y')]);
+   foreach($q as $row){$control=json_decode((string)($row['control_json']??''),true)?:[];$state=(string)$row['state'];$queue[]=['job'=>$row['id'],'title'=>str_starts_with($state,'test_')?'Test a match':(str_starts_with($state,'evaluation_')?'Independent evaluation':'Train action models & scoring'),'state'=>str_ends_with($state,'queued')?'waiting':'running','message'=>$row['message']??'','target'=>$control['computer_id']??null,
      'label'=>str_starts_with($state,'test_')||str_starts_with($state,'evaluation_')?'Test & release':'3 · Actions — action & scoring models','started'=>(int)($row['started_at']??0)?:(isset($row['created_at'])?(int)$row['created_at']:null)];}
-   foreach($computers as &$row){$row=array_intersect_key($row,array_flip(['id','name','device','online','status','last_seen','platform','stats','counters','log','reported_at','version','job','waiting']));$row['log']=array_slice($row['log']??[],-35);}unset($row);
+   foreach($computers as &$row){$row=array_intersect_key($row,array_flip(['id','name','device','online','status','last_seen','platform','stats','counters','log','reported_at','version','job','waiting','update','form']));$row['log']=array_slice($row['log']??[],-35);}unset($row);
    return ['game'=>RobotDetectorJobs::defaultGame(),'computers'=>$computers,'queue'=>$queue,'generated_at'=>time()];
   })(),
   // A helper's model pages: the owner's Train page overview, trimmed. Queue starts a detector run like the Train page.
@@ -47,6 +48,20 @@ try {
    $o=autoscout_train_overview($pdo,$control->panel($season,$owner),(int)$computer['organization_id'],$owner,$game);
    try{return ['request'=>$jobs->queue($kind,['computer'=>$target,'game_key'=>$game,'holdout'=>$o[$kind==='train'?'robot':'field']['holdout']],$owner)];}
    catch(InvalidArgumentException $e){throw new CommunityAnalysisError(422,$e->getMessage());}
+  })(),
+  // Owner's Computers page in a helper: request or cancel a helper update, or switch auto-update, on one of the owner's computers or all of them.
+  'update_computer'=>(function()use($pdo,$computer,$jobs,$p){
+   $mine=array_column(array_filter((new CommunityTrainingControl($pdo))->computers((int)$computer['user_id']),fn($c)=>!$c['revoked']),'id');$target=(string)($p['computer']??'');
+   if($target!=='all'&&!in_array($target,$mine,true))throw new CommunityAnalysisError(422,'Choose one of your connected computers.');
+   $change=array_intersect_key($p,array_flip(['update','auto_update']));if(!$change)throw new CommunityAnalysisError(422,'Nothing to change.');
+   try{foreach($target==='all'?$mine:[$target] as $id)$jobs->setSettings($id,$change);}catch(InvalidArgumentException $e){throw new CommunityAnalysisError(422,$e->getMessage());}
+   return ['ok'=>true];
+  })(),
+  // Cancel from a helper: a detector run (request), or an Actions run (job) stopped after its current match or cancelled now.
+  'cancel_run'=>(function()use($pdo,$computer,$jobs,$p){
+   if(isset($p['request'])){try{return $jobs->cancel((string)$p['request']);}catch(InvalidArgumentException $e){throw new CommunityAnalysisError(409,$e->getMessage());}}
+   $control=new CommunityTrainingControl($pdo);$job=(string)($p['job']??'');
+   return ($p['mode']??'')==='stop'?$control->stop($job,(int)$computer['user_id']):community_training_cancel($pdo,$job,(int)$computer['user_id']);
   })(),
   'claim'=>['request'=>$jobs->claim($computer)],
   'training_supplement_index'=>['packages'=>(new ExternalBumperTraining(dirname(__DIR__,3).'/neptune_secure',(int)$computer['organization_id']))->index()],

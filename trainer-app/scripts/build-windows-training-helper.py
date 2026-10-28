@@ -16,8 +16,9 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[2]
 ENGINE = ROOT / 'engine'
 WINDOWS = ROOT / 'trainer-app/windows'
-VERSION = '6.5.32'
+VERSION = '6.5.41'
 URL = 'https://neptunefrc.com/community/downloads/windows/'
+RETIRED = ('neptune-art-poseidon.jpg', 'neptune-art-seahorse.jpg', 'neptune-art-circuit.jpg')
 
 
 def sha(path):
@@ -52,6 +53,9 @@ def build(base, output):
             raise ValueError('The prior Windows package is missing its engine.')
         for name in neptune_engine.FILES:
             shutil.copy2(ENGINE / name, app / name)
+        # Files the prior package had that this release no longer ships.
+        for name in RETIRED:
+            (app / name).unlink(missing_ok=True)
         # Shipped detectors and region data live in folders next to the engine files.
         for name in ('robot-detector', 'field-detector', 'field-regions'):
             shutil.rmtree(app / name, ignore_errors=True)
@@ -72,6 +76,7 @@ def build(base, output):
             'then leave it open and select this computer on Neptune’s Training & Models page.\n\n'
             'Version ' + VERSION + ' includes engine ' + neptune_engine.VERSION + '. It checks for updates when opened; '
             'use Check for updates in its window to check again and install a newer release. '
+            'From 6.5.35 it also installs updates requested from Neptune’s Computers page (or automatically, if turned on there) and reopens itself. '
             'A running match finishes before the app installs an update. The connection, labels, and saved '
             'local match work remain in place. Version 6.2 and older need this one fresh ZIP install '
             'to gain the updater. Windows on ARM is not supported.\n'

@@ -14,7 +14,7 @@ $check($jobs->claim($mac)===null,'another computer cannot claim it');
 $claimed=$jobs->claim($pc);$check(($claimed['id']??null)===$r['id'],'the chosen computer claims it');
 $jobs->finish($pc,['request_id'=>$r['id'],'lease'=>$claimed['lease'],'ok'=>true]);
 $any=$jobs->queue('train',[],7);$check(!isset($any['target'])&&($jobs->claim($mac)['id']??null)===$any['id'],'untargeted run goes to any helper');
-$check($jobs->settings($mac['id'])===['keep_awake'=>'jobs'],'keep awake defaults to during jobs');
+$check($jobs->settings($mac['id'])===['keep_awake'=>'jobs','auto_update'=>false,'update_requested'=>null],'keep awake defaults to during jobs; no update requested');
 $hard=$jobs->queue('prepare',['video_id'=>'abcdefghijk','match_key'=>'2026txcmp1_qm1','times_ms'=>[9000,1200,9000]],7);
 $check($hard['times_ms']===[1200,9000],'picked hard frames saved once, in order');
 $prep=['id'=>str_repeat('d',32)];$jobs->poll($prep,['version'=>'engine 2.7.41']);$check($jobs->claim($prep)===null,'older helpers leave picked hard frames for one that prepares them');

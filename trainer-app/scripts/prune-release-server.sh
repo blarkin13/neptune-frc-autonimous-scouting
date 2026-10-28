@@ -1,6 +1,6 @@
 #!/bin/bash
 # Run on the Neptune server as the last step of every helper release or code deploy (AGENTS.md rule 10).
-# Keeps the two newest Mac zips and Windows update zips (plus anything a live feed points at),
+# Keeps the two newest Mac zips and Windows/Linux update zips (plus anything a live feed points at),
 # the two newest /root rollback backups, and about 100 MB of journal. Never touches database dumps.
 # Usage: prune-release-server.sh [--dry-run]
 set -euo pipefail
@@ -20,6 +20,7 @@ prune_versions() {
 
 prune_versions "$D/mac" 'Neptune-Training-Helper-[0-9]*.zip' "$D/mac/appcast.xml"
 prune_versions "$D/windows" 'Neptune-Training-Helper-[0-9]*-update.zip' "$D/windows/latest.json"
+prune_versions "$D/linux" 'Neptune-Training-Helper-[0-9]*-update.zip' "$D/linux/latest.json"
 
 ls -dt /root/*-backup-20[0-9][0-9]* 2>/dev/null | grep -v '\.sql$' | tail -n +$((KEEP+1)) | while read -r b; do remove "$b"; done
 

@@ -1,4 +1,4 @@
-## 2026-10-28 — Learned scoreboard layouts (Claude, not released)
+## 2026-10-28 — Learned scoreboard layouts; Mac 3.2.71, Windows 6.5.42, Linux 6.6.33, engine 2.7.56 (Claude)
 
 Owner request: learn each new scoreboard instead of hand-adding profiles. When no profile matches, the generic reader (round 2) settles sides by its roster/RED-BLUE vote. New `engine/neptune_layouts.py` remembers such an overlay in `~/.neptune-helper/learned-layouts/<season>.json` (outside the game pack, so the game fingerprint and trained models are unchanged): a 24x4 colour thumbnail of the band averaged over 8 clock frames, the median clock box, the sides and camera_top.
 
@@ -7,6 +7,246 @@ Owner request: learn each new scoreboard instead of hand-adding profiles. When n
 - **Replay** (`tools/ocr-benchmark/learned_layouts.py`, 14 saved matches with rosters, Q7 excluded): learning formed 4 entries (txcmp1+txsan, ctwat, two week0 framings); every learn vote matched the reference. With team numbers and RED/BLUE words removed (a broadcast that never shows them), sides with no store: 0 of 14; with the learned store **13 right, 0 wrong, 1 unread** (week0 qm3's own provisional entry). Thumbnail distance between opposite-side overlays ≥ 50.9, between same-side matches ≤ 31.3; threshold 18 errs toward a new provisional entry.
 - These saved matches all match built-in profiles, so in normal runs learning only happens on broadcasts that fail today. PIPELINE_VERSION unchanged.
 
+## 2026-10-28 — Single-window and menu-name release: Mac 3.2.70, Windows 6.5.41, Linux 6.6.32, engine 2.7.55 (Claude)
+
+The owner approved the release. It ships one helper window per computer (Windows/Linux) and Hippocampus as the Mac app name. The installed 6.5.40 / 6.6.31 updaters accept these updates.
+
+Deployed through AWS SSM: 58 files hash-checked, 63 changed (engine and downloads only). Backup: `/root/single-window-release-backup-20261028`.
+
+Checked from outside:
+- The appcast offers 3.2.70 at the local zip's size; the bundle's CFBundleName is Hippocampus with the bundle id unchanged.
+- Windows and Linux `latest.json` show 6.5.41 and 6.6.32 on engine 2.7.55, and both update zips match their local SHA-256. apt lists 6.6.32.
+
+## 2026-10-28 — One helper window per computer; Hippocampus in the Mac menu bar (Claude, local, not released)
+
+The owner could open several copies of the Linux helper, and the Mac menu bar still said Neptune Training Helper.
+
+- **Windows/Linux:** `neptune_trainer.single_instance()` holds a lock on `~/.neptune-trainer/helper.lock` for the helper's lifetime (`fcntl`, or `msvcrt` on Windows).
+  - A second copy waits up to 5 s, which covers reconnect and update hand-offs, then says Hippocampus is already open and quits.
+  - Checked with two processes: refused while held, taken once released.
+- **Mac:** `CFBundleName` / `CFBundleDisplayName` are now "Hippocampus", set by `release-mac-helper.sh` on each build and in `build-native-mac.py`. That covers the menu bar, Quit Hippocampus and Sparkle's windows.
+  - Unchanged: the bundle id (updates), the Keychain service (saved connection), the `.app` file name (Sparkle replaces it in place) and the log and support folders.
+- **Icons:** the 3.2.69 bundle already carries the new icon; the Dock and Finder show a cached one until refreshed.
+
+## 2026-10-28 — Hippocampus release: Mac 3.2.69, Windows 6.5.40, Linux 6.6.31, engine 2.7.54 (Claude)
+
+The owner approved shipping the Hippocampus name and app icon (entry below).
+- Windows update 1.06 MB, carrying the new `Neptune.ico`; Linux update 0.85 MB.
+- The installed 6.5.39 / 6.6.30 updaters accept them.
+
+Deployed through AWS SSM: 58 files hash-checked, 63 changed (engine and downloads; no server code changed). Backup: `/root/hippocampus-release-backup-20261028`.
+
+Checked from outside:
+- The appcast offers 3.2.69 at the local zip's size.
+- Windows and Linux `latest.json` show 6.5.40 and 6.6.31 on engine 2.7.54, and both update zips match their local SHA-256. apt lists 6.6.31.
+- The Mac bundle's `Neptune.icns` matches the repo's.
+
+## 2026-10-28 — Hippocampus branding (Claude, local, not released)
+
+The owner named the helper Hippocampus, as display text only:
+- Under the Neptune logo in the sidebar it reads "HIPPOCAMPUS / Model Training Helper", on both Tk and Mac.
+- The window title is "Hippocampus - Neptune Training Helper": Tk main window, the Linux setup window, and the Mac `window.title` (hidden by the Mac's full-size content, but shown in the Window menu and Mission Control).
+- Package names, bundle ids, download names and feeds are unchanged.
+
+App icon: the owner's Hippocampus artwork, with the 1024-px master in `trainer-app/icons/hippocampus-1024.png`.
+- Mac: `Resources/Neptune.icns`, 16–1024 px. `release-mac-helper.sh` now copies it into each build, since builds copy the previous app and would otherwise keep the old icon.
+- Windows: `trainer-app/windows/Neptune.ico`, seven sizes from 16 to 256 px, for the installer, shortcuts and window.
+- Linux: `trainer-app/linux/Neptune.png`, 256 px, for the hicolor icon and now also the Tk window via `iconphoto`. Before this, only Windows set a window icon.
+
+## 2026-10-28 — Cancel, carets and switches release: Mac 3.2.68, Windows 6.5.39, Linux 6.6.30, engine 2.7.53 (Claude)
+
+The owner approved the release. It ships cancel and stop from the helper, collapsible sections, themed switches, and the server's `cancel_run` action and run ids.
+- Windows update 0.94 MB, Linux update 0.80 MB.
+- The installed 6.5.38 / 6.6.29 updaters accept them.
+
+Deploy:
+- The first attempt stopped before changing anything. The live-file check found the server's `community-training-control.php` is an Oct 20 copy that predates the repo's version (the repo file was never deployed), so replacing it would have shipped unrelated changes.
+- The helper cancel moved to a new `community-training-cancel.php` (`community_training_cancel()`). That class and the website's cancel on `train.php` are back to their deployed versions.
+- Redeployed (09d8084): 60 files hash-checked, 65 changed. Backup: `/root/cancel-collapse-release-backup-20261028b`; the failed attempt's backup is empty.
+
+Checked from outside:
+- The appcast offers 3.2.68 at the local zip's size.
+- Windows and Linux `latest.json` show 6.5.39 and 6.6.30 on engine 2.7.53, and both update zips match their local SHA-256. apt lists 6.6.30.
+- `cancel_run` answers 401 without a token.
+
+Not yet tried with a real run.
+
+Follow-up: the repo's `community-training-control.php` differs from what the server runs. Reconcile it before anything else depends on the newer version.
+
+## 2026-10-28 — Themed switches instead of checkboxes (Claude, local, not released)
+
+The owner disliked the old web-style checkboxes. "Update automatically" is now a switch in the app's colours, accent when on and slate when off: `ui.Switch` (antialiased with Pillow) on Windows/Linux, `ThemedSwitch` on the Mac. It was the only checkbox in either app. The native NSSwitch was tried first and dropped, because it looks blue even when off against the dark cards.
+
+Checked: the engine suite; the Tk and Mac Computers previews show both states.
+
+## 2026-10-28 — Cancel runs from the helper; collapsible sections (Claude, local, not released)
+
+The owner asked to cancel runs directly in the helper, and for every section to collapse with a caret. They briefly asked for other computers on the Overview, then withdrew it (the Computers page covers it); it was removed before commit.
+
+Server:
+- The dashboard queue now carries each run's id: `request` for detector runs, `job` for Actions runs.
+- New helper action `cancel_run`:
+  - `request` cancels a detector run (`RobotDetectorJobs::cancel`);
+  - `job` + `mode=stop` stops an Actions run after its current match (`CommunityTrainingControl::stop`, owner-checked);
+  - `job` + `mode=cancel` cancels it now.
+- The website's cancel SQL moved into `CommunityTrainingControl::cancel($id, $owner)`, with no owner limit when called from the website and limited to the starting user when called from a helper. Leases are released either way.
+
+Helpers (Tk and Mac), each with a confirmation:
+- Cancel buttons appear on the running-job console and on waiting queue rows: Cancel for detector runs; Stop after this match and Cancel now for Actions runs.
+- Waiting or running rows under Recent runs get Cancel too.
+- Every titled section has a ▾/▸ caret: the console, queue, Recent runs, each computer, Improve this model, and this computer's own card. The choice is remembered (Tk `~/.neptune-trainer/ui-state.json`, Mac UserDefaults).
+
+Checked:
+- 545 engine tests OK; `page-control.php` covers the new cancel (owner only, waiting runs, lease released) and the other helper server tests pass.
+- Tk and Mac previews show the carets, a collapsed card and the Cancel buttons; the real Tk window opened without errors.
+- Cancelling has not been run against the live server.
+
+## 2026-10-28 — One-artwork release: Mac 3.2.67, Windows 6.5.38, Linux 6.6.29, engine 2.7.52 (Claude)
+
+The owner approved the release.
+- The Windows and Mac builds start from the previous package, so files that are no longer shipped were carried over: the three retired `neptune-art-*.jpg`. Both builders now drop them: `RETIRED` in `build-windows-training-helper.py`, and an `rm` in `release-mac-helper.sh`.
+- Helpers that update in place keep any old copies; they are unused, about 1 MB.
+- Windows update 0.94 MB, Linux update 0.80 MB. The installed 6.5.37 / 6.6.28 updaters accept them.
+
+Deployed through AWS SSM: 58 files hash-checked, 63 changed (engine and downloads; no server code changed). Backup: `/root/one-artwork-release-backup-20261028`.
+
+Checked from outside:
+- The appcast offers 3.2.67 at the local zip's size.
+- Windows and Linux `latest.json` show 6.5.38 and 6.6.29 on engine 2.7.52, and both update zips match their local SHA-256. apt lists 6.6.29.
+
+## 2026-10-28 — One background artwork for every page (Claude, local, not released)
+
+The owner chose a single image, the sea-horse in deep water, for every page in every app. It is `engine/neptune-art.jpg` (300 KB) and replaces the three per-page `neptune-art-*.jpg` files, which are removed from the repo and from `neptune_engine.FILES`. Tk (`Shell.select`) and Mac (`ArtView`, set once in `buildMain`) both load it.
+
+Checked: the engine suite on the bundled Python; the real Tk window and the Mac preview both show it.
+
+## 2026-10-28 — Helper redesign release: Mac 3.2.66, Windows 6.5.37, Linux 6.6.28, engine 2.7.51 (Claude)
+
+The owner approved releasing the redesign (entry below) as 3.2.65 / 6.5.36 / 6.6.27. Those numbers had just gone to the tracking session's constant-identity v4 release (GitHub only, not deployed), so this one is 3.2.66 / 6.5.37 / 6.6.28, built on top of 36e5984. It ships both changes, and that session was asked not to deploy its own.
+
+Builds:
+- Windows: update 1.67 MB, Setup.exe 11.3 MB.
+- Linux: update 1.54 MB, .deb 11.5 MB, apt repo signed and packed from inside `apt/`.
+- The updaters already installed on 6.5.35 and 6.6.26 accept these updates (checked with their own code from f97324f). This is the first release those computers can get from Neptune's Update button.
+
+Deployed through AWS SSM over the tracking session's deploy of 36e5984, which the owner had already run: 61 files hash-checked, 66 changed. Backup: `/root/helper-redesign-2-release-backup-20261028`. The prune removed Mac 3.2.64, Windows 6.5.35 and the OCR-release backup.
+
+Checked from outside:
+- The appcast offers 3.2.66 at the local zip's size.
+- Windows and Linux `latest.json` show 6.5.37 and 6.6.28 on engine 2.7.51, and both update zips match their local SHA-256.
+- apt lists 6.6.28, and the API answers 401 without a token.
+
+Not yet seen on a real helper.
+
+## 2026-10-28 — Helper redesign pass: no flashing, modern buttons, icons, artwork, console-first Overview (Claude, local, not released)
+
+The owner's notes:
+- Linux helper blinks.
+- Scrollbar always shows.
+- Buttons look dated.
+- No icons like the Mac.
+
+Also asked for:
+- the artwork behind the main content only, with a solid sidebar and near-opaque cards;
+- Running now as the centerpiece with epoch, loss, GPU memory, elapsed, ETA and log;
+- model cards only while that model trains;
+- a compact Ready-to-train idle state;
+- an icon for each computer's kind.
+
+Tk (Windows/Linux, `neptune_ui.py`, `neptune_trainer.py`):
+- Blinking: every refresh destroyed and rebuilt every card. New cards are now built hidden and swapped in at once (`BubblePage.show_only` → `finish`); a refresh of the same page keeps its scroll position.
+- The scrollbar is a thin arrowless bar that only shows when cards overflow.
+- `ui.Button` is a rounded flat button (antialiased with Pillow) with icons, replacing the ttk buttons.
+- Meters are thin rounded bars (`ui.Meter`), and the dropdown is flat.
+- Icons come from Lucide (ISC, `neptune-icons-LICENSE.txt`), pre-rendered into `neptune-icons.png`, on the sidebar, tools and buttons.
+- The sidebar is solid navy. Page artwork (`neptune-art-*.jpg`, the owner's images) is cover-scaled and dimmed behind the cards.
+
+Both apps:
+- Overview: console first, a model tile only while that model trains, and the queue only when it has runs.
+- When idle: "Nothing running. Start a run" with Robot detector / Field detector / Actions on Neptune buttons, and the computer card says "Ready to train".
+- The console shows `epoch n/N · batch · loss · it/s`: `telemetry.batch_counter` now records the running loss.
+- Computers pages and the this-computer card show a laptop/desktop/server icon. `telemetry.form_factor()` works this out from a battery, or the Linux chassis type. Helpers report `form`; the server stores it and the dashboard returns it.
+- Mac (`App.swift`): `ArtView` artwork behind the main area, opaque sidebar, cards at 0.95 alpha, SF Symbols for computer kinds.
+
+New engine files (flat names, so existing updaters accept them): `neptune-icons.png`, `neptune-icons-LICENSE.txt`, and three `neptune-art-*.jpg`, about 1 MB in all.
+
+Checked:
+- 543 engine tests OK on the bundled Python 3.13. Server tests helper-updates 10, my-computers 15 and helper-models 6 PASS. Updater tests 8 OK.
+- Tk pages previewed with sample data (running and idle Overview, Computers). The real `neptune_trainer.main()` opened from a temp copy with a dummy connection and rendered without errors.
+- Mac preview: Overview and Computers.
+- Not run on Linux or Windows hardware, so the end of the blinking is unconfirmed there.
+
+## 2026-10-28 — Remote updates release: Mac 3.2.64, Windows 6.5.35, Linux 6.6.26, engine 2.7.49 (Claude)
+
+The owner approved the release. Builds:
+- Mac: 542 engine tests OK on the bundled Python, Sparkle signature verified, DMG verified.
+- Windows: update 605 KB, Setup.exe 10.2 MB.
+- Linux: .deb 10.4 MB with the new launcher and updater, apt repo signed. The Linux update zip is 469 KB and verified by the updater itself, with 74 files and no .pt.
+- The deploy adds `downloads/linux/latest.json`, the Linux update zip, and a linux `.htaccess` that allows only that zip.
+
+Deployed through AWS SSM: 63 files downloaded and hash-checked, 68 changed. Backup: `/root/remote-updates-release-backup-20261028b`.
+- The first attempt stopped before publishing anything and rolled back: apt-repo.tar.gz had been packed one folder too deep (`apt/dists`). It was repacked at the root, replaced on the GitHub release, and redeployed.
+- The prune then removed 3.2.62 and 6.5.33 and the two OCR-release backups. It kept `…20261028b` and the unused backup from the failed attempt.
+
+Checked from outside:
+- The appcast offers 3.2.64 at the local zip's size.
+- Windows and Linux `latest.json` show 6.5.35 and 6.6.26 on engine 2.7.49. Both update zips download with matching SHA-256.
+- apt Packages lists 6.6.26 and InRelease serves.
+- pillar.js v23 is live and the helper API answers 401 without a token.
+
+Not yet seen on a real helper.
+
+## 2026-10-28 — Remote helper updates from Neptune (Claude)
+
+The owner asked for helper updates to install by themselves and reopen, and to be started remotely from Neptune, on Mac, Windows and Linux.
+
+Server:
+- Each computer's settings (`RobotDetectorJobs::settings`) now hold `update_requested` (a time) and `auto_update`.
+- The website (`computer_settings`) and the helpers (new `update_computer` action, for one computer or `all`) set them; only the owner's own computers can be changed.
+- `poll()` returns them with the newest published version. `helper_latest_version()` reads it from the Mac appcast or the Windows/Linux `latest.json`.
+- A request clears once the helper reports that version, and lapses after a day.
+- Check-ins also store `remote_update` (this helper can act on requests) and `update` (its last update message).
+- `autoscout_computers` adds `update` (latest, behind, remote, requested, auto, message) for the Computers pages.
+
+Windows and Linux (`neptune_trainer.main`):
+- An open request, or auto-update (hourly), runs the existing check → verified download → install-after-the-match path. A requested download can start during a job.
+- `neptune_update_apply.py` now reopens the helper after installing, or after rolling back.
+- `neptune_windows_update.py` serves both platforms, each with its own feed (`downloads/linux/latest.json`).
+- The Linux .deb launcher (`bootstrap.py`) now replaces the per-user copy only with a newer packaged version, and sets `NEPTUNE_LINUX_UPDATES` so the helper knows it may update itself.
+- `build-linux-deb.py` writes a Linux update zip and feed in the Windows format, without `.pt` files or the connection.
+
+Mac:
+- `native_worker.py` forwards each check-in reply.
+- `App.swift` turns on Sparkle's silent downloads when a request is open or auto-update is on, checks in the background, and in `willInstallUpdateOnQuit` installs and relaunches now, or after the match.
+- The app reports its own version (`NEPTUNE_HELPER_VERSION`) instead of the engine's.
+
+Computers pages:
+- Mac, Tk and the website (pillar.js v23) show each computer's version against the newest release.
+- Each card has Update / Cancel update and an "Update automatically" checkbox, plus Update all.
+- Helpers that can't act on requests yet say they need one update by hand.
+- `prune-release-server.sh` also prunes Linux update zips.
+
+First release needs, per platform:
+- Mac 3.2.64 and Windows 6.5.35 must be installed once through today's update button. That one install does not reopen by itself, because the old installer runs it.
+- Linux needs 6.6.26 through apt once, for the new launcher.
+- The deploy must publish `linux/latest.json` and its update zip, and allow them in the linux folder's `.htaccess`.
+
+Checked:
+- Server tests: `tests/server/helper-updates.php` (10 PASS), `my-computers.php` and `helper-models.php` updated and passing. catalog, maintenance-package, robot-label-frames, temporal-model and training-progress-mysql fail the same way without this change.
+- `test_windows_update.py`: 8 OK. New tests cover the Linux feed and launcher, and a Linux update zip built, verified, installed and reopened.
+- Engine suite: 542 OK on the bundled Python 3.13. Mac app compiles.
+- Mac and Tk Computers pages previewed with sample data covering every state.
+- Not done: no real install on Windows, Linux or Mac hardware, and the website card was not viewed in a browser.
+
+## 2026-10-27 — OCR round 2 release: Mac 3.2.63, Windows 6.5.34, Linux 6.6.25, engine 2.7.48 (Claude)
+
+Ships OCR round 2 (entry below): saved game packs gain new layouts, generic scoreboard fallback, settled tracks skip the colour retry, score-box re-read.
+
+## 2026-10-27 — Constant identity v3: look fallback in the wide view; QM6 review checked; Mac 3.2.62, Windows 6.5.33, Linux 6.6.24, engine 2.7.47 (Claude)
+
+Owner request: use what each robot looks like when its number cannot be read. `neptune_constant_identity` (v3) adds a last pass: an unnamed wide-view tracklet takes the team whose already-named tracklets in the same match and camera have the clearly closest look profile (the tracker's 24-value colour profile; all three alliance teams must be in the gallery; best within 2x the link limit; margin .1; never in close-ups; the gallery is fixed first so one guess never seeds another; reads and same-time conflicts still veto). Margin chosen on the hidden-OCR check (half of OCR seeds hidden, labels checked against them): .06 named 9 of 36 QM4 boxes wrong, .08 was the first clean margin, .1 keeps a step in hand. At .1: hidden-OCR look labels QM4 9/9, QM1 35/35 right; reviewed boxes unchanged (QM1 175 correct, QM4 46, both 0 wrong), QM4 lost time 94.2 -> 93.7 s per robot. Small gain, kept because nothing it adds has been wrong.
+
+QM6 (first 0-10.7 s plus one long close-up track, 441 corrected / 235 not-robot, retracked with the current engine): 105 correct, 95 "wrong", 0 switches, lost 78.8 s per robot. All 95 are one close-up-right track (track 11, 8.2-24.5 s) the review saved as 324; the frame at 8.3 s clearly shows 8088 on its bumper, which is what the tracker said. Owner asked to correct it. Deployed via SSM 36d71146 (owner ran it): 60 files verified, 64 changed, backup /root/look-fallback-release-backup-20261027, pruned (disk 36%); public feeds show Windows 6.5.33, Mac 3.2.62, apt 6.6.24.
 ## 2026-10-27 — OCR round 2: saved packs gain new layouts, generic scoreboard fallback, held-out bumper test, faster tracking, score re-read (Claude, not released)
 
 - **Saved game packs:** the Mac helper never refreshes `~/.neptune-helper/games/<season>.json` (only the old GUI called `neptune_shared_models.refresh`), so a copy from 2026-10-18 lacked the AGE and Week 0 layouts the server now serves. `neptune_games.profiles` fills layouts a saved pack lacks from the built-in rules when both are the same game (`game_key`); the saved pack wins on conflicts. A different game key is untouched.
@@ -686,3 +926,15 @@ Created an 18-frame local review queue at `/Users/brianlarkin/Documents/ChatGPT/
   changes), because `helper/` there is untracked and this was the only copy.
 - Checked: `scripts/sync-to-neptune.sh … --check` reports no differences against the main repo.
 - Open: see "Known problems" in `SYSTEM_MAP.md`; the review is in `reviews/`.
+
+## 2026-10-28 — Scorer: hidden duplicates are not non-robots
+- `neptune_identity_metrics.evaluate`: a hidden (excluded) box named with the team the reviewer gave another box in the same camera frame now counts as `hidden_duplicates_named`, not `labeled_non_robots`. Test added.
+- QM6 rescore: 490 reviewed, 177 correct, 0 wrong, 0 switches, 6 named non-robots (was 62; 56 were hidden duplicates on wide 8088 at 6–12 s), 78.8 lost s/robot. QM1/QM3/QM4 unchanged.
+
+## 2026-10-28 — Unnamed robots: causes and contact carry (constant-identity-v4); Mac 3.2.65, Windows 6.5.36, Linux 6.6.27, engine 2.7.50 (Claude)
+- Sorted the unnamed reviewed robot boxes (QM1/3/4/6, 1290). Biggest groups: wide tracklets chained only to other unnamed tracklets, with no bumper read anywhere on the chain (469); optical-flow boxes (267, nearly all inside unnamed tracks); no tracker box at all (205, detector); wrong alliance colour (50, QM6 close-up).
+- Fix: a contact stretch keeps the number of the same tracker track from one named side; the two sides naming different teams still leaves it unnamed. Hidden-OCR check: contact carries 28 → 210, all correct; the 22 seeded misses in QM6 were there before.
+- Tried and dropped: naming optical-flow boxes from their track. Few gains on its own; with the contact change it raised QM6 not-a-robot names from 6 to 18.
+- Scores (correct / lost s per robot), before → after; wrong 0 and switches 0 everywhere, not-a-robot unchanged: QM1 175 / 82.2 → 223 / 80.2; QM4 46 / 93.7 → 65 / 93.5; QM6 177 / 78.8 → 187 / 76.2; QM3 0 → 0.
+- Diagnostics: local/identity-constancy-20261026/unnamed.py, unnamed2.py.
+- Deployed via SSM 938f4c30 (owner ran it): 62 files fetched and verified, 67 changed, backup /root/contact-carry-release-backup-20261028, pruned (disk 36%). Live feeds: Windows 6.5.36, Linux 6.6.27 (latest.json and apt), Mac 3.2.65.

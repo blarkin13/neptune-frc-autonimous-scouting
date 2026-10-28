@@ -64,6 +64,31 @@ func loadCredential() -> Data? {
     required init?(coder: NSCoder) {fatalError("init(coder:) is unavailable")}
     override func draw(_ dirtyRect: NSRect) {fill.setFill();bounds.fill();edge.setFill();NSRect(x:bounds.maxX-1,y:0,width:1,height:bounds.height).fill()}
 }
+// An on/off switch in the app's colours: accent track when on, slate when off. Clicking toggles and sends its action.
+@MainActor final class ThemedSwitch: NSControl {
+    var isOn=false {didSet {needsDisplay=true}}
+    let onColor: NSColor
+    init(on:Bool,color:NSColor) {onColor=color;super.init(frame:NSRect(x:0,y:0,width:30,height:17));isOn=on}
+    required init?(coder: NSCoder) {fatalError("init(coder:) is unavailable")}
+    override var intrinsicContentSize:NSSize {NSSize(width:30,height:17)}
+    override func draw(_ dirtyRect:NSRect) {
+        let r=bounds.insetBy(dx:0.5,dy:0.5);(isOn ? onColor:NSColor(srgbRed:0.20,green:0.31,blue:0.44,alpha:1)).setFill()
+        NSBezierPath(roundedRect:r,xRadius:r.height/2,yRadius:r.height/2).fill()
+        let d=r.height-4;NSColor.white.setFill();NSBezierPath(ovalIn:NSRect(x:isOn ? r.maxX-d-2:r.minX+2,y:r.minY+2,width:d,height:d)).fill()
+    }
+    override func mouseDown(with event:NSEvent) {isOn.toggle();if let action {NSApp.sendAction(action,to:target,from:self)}}
+}
+// Page artwork behind the main area: scaled to fill, dimmed so the cards stay readable.
+@MainActor final class ArtView: NSView {
+    let image=CALayer(),dim=CALayer()
+    override init(frame:NSRect) {
+        super.init(frame:frame);wantsLayer=true;layer?.addSublayer(image);layer?.addSublayer(dim)
+        image.contentsGravity = .resizeAspectFill;image.masksToBounds=true;dim.backgroundColor=NSColor(srgbRed:0.07,green:0.14,blue:0.24,alpha:0.5).cgColor
+    }
+    required init?(coder: NSCoder) {fatalError("init(coder:) is unavailable")}
+    override func layout() {super.layout();CATransaction.begin();CATransaction.setDisableActions(true);image.frame=bounds;dim.frame=bounds;CATransaction.commit()}
+    func show(_ url:URL?) {image.contents=url.flatMap {NSImage(contentsOf:$0)}}
+}
 @MainActor final class FlippedStackView:NSStackView {
     override var isFlipped:Bool {true}
 }
@@ -77,6 +102,9 @@ func loadCredential() -> Data? {
     var thisMacStrip:NSView!;var localJob:NSView!;var pinned:Set<ObjectIdentifier>=[]
     var task:Process?;var input:FileHandle?;var buffer=Data();var busy=false;var quitting=false
     var cachedCredential:Data?;var pendingCommand:String?;var installHandler:(()->Void)?;var logFile:FileHandle?
+    // Remote updates: the owner asks Neptune to update this Mac, or turns on automatic updates for it.
+    var thisMacDetails:[NSView]=[]
+    var remoteUpdate=false;var autoUpdate=false;var remoteTried=Date.distantPast
     var status=NSTextField(wrappingLabelWithString:"Connect this Mac to Neptune to begin.")
     var connection=NSTextField(wrappingLabelWithString:"Disconnected")
     var updateStatus=NSTextField(wrappingLabelWithString:"Updates are checked automatically.")
@@ -112,8 +140,18 @@ func loadCredential() -> Data? {
     }
     // ---------- Window: sidebar of pages, one page of cards at a time ----------
     let ink=NSColor(srgbRed:0.07,green:0.14,blue:0.24,alpha:1)
-    let sidebarFill=NSColor(srgbRed:0.05,green:0.11,blue:0.20,alpha:0.94)
-    let panelFill=NSColor(srgbRed:0.09,green:0.18,blue:0.30,alpha:0.92)
+    let sidebarFill=NSColor(srgbRed:0.04,green:0.086,blue:0.157,alpha:1)
+    let panelFill=NSColor(srgbRed:0.09,green:0.18,blue:0.30,alpha:0.95)
+    let art=ArtView()
+    /// This Mac's kind for its icon: a battery means a laptop.
+    lazy var formFactor:String={let p=Process(),out=Pipe();p.executableURL=URL(fileURLWithPath:"/usr/bin/pmset");p.arguments=["-g","batt"];p.standardOutput=out;try? p.run();p.waitUntilExit()
+        return String(data:out.fileHandleForReading.readDataToEndOfFile(),encoding:.utf8)?.contains("InternalBattery")==true ? "laptop":"desktop"}()
+    func formSymbol(_ form:String?)->String {form=="laptop" ? "laptopcomputer":form=="server" ? "server.rack":"desktopcomputer"}
+    func formIcon(_ form:String?)->NSView {
+        let v=NSImageView(image:NSImage(systemSymbolName:formSymbol(form),accessibilityDescription:form) ?? NSImage());v.contentTintColor=accent;v.symbolConfiguration = .init(pointSize:16,weight:.regular)
+        let box=NSView();box.wantsLayer=true;box.layer?.cornerRadius=8;box.layer?.backgroundColor=NSColor(white:1,alpha:0.08).cgColor;v.translatesAutoresizingMaskIntoConstraints=false;box.addSubview(v)
+        NSLayoutConstraint.activate([box.widthAnchor.constraint(equalToConstant:34),box.heightAnchor.constraint(equalToConstant:34),v.centerXAnchor.constraint(equalTo:box.centerXAnchor),v.centerYAnchor.constraint(equalTo:box.centerYAnchor)]);return box
+    }
     let lineColor=NSColor(srgbRed:0.22,green:0.36,blue:0.50,alpha:1)
     let accent=NSColor(srgbRed:0.325,green:0.831,blue:0.929,alpha:1)
     let muted=NSColor(srgbRed:0.61,green:0.68,blue:0.77,alpha:1)
@@ -123,7 +161,7 @@ func loadCredential() -> Data? {
     func buildUI() {
         window=NSWindow(contentRect:NSRect(x:0,y:0,width:1180,height:800),styleMask:[.titled,.closable,.miniaturizable,.resizable,.fullSizeContentView],backing:.buffered,defer:false)
         window.titlebarAppearsTransparent=true;window.titleVisibility = .hidden
-        window.appearance=NSAppearance(named:.darkAqua);window.title="Neptune Training Helper"
+        window.appearance=NSAppearance(named:.darkAqua);window.title="Hippocampus - Neptune Training Helper"
         window.minSize=NSSize(width:880,height:560);window.collectionBehavior=[.fullScreenPrimary];window.delegate=self;window.backgroundColor=ink
         let content=window.contentView!
         let sidebar=Backdrop(fill:sidebarFill,edge:lineColor),main=NSView()
@@ -153,13 +191,47 @@ func loadCredential() -> Data? {
         parent.addArrangedSubview(view)
         view.widthAnchor.constraint(equalTo:parent.widthAnchor,constant:-(parent.edgeInsets.left+parent.edgeInsets.right)).isActive=true
     }
-    func makeCard(_ title:String?)->(StatusCard,NSStackView) {
+    /// Sections the owner has collapsed (kept between launches).
+    var collapsed=Set(UserDefaults.standard.stringArray(forKey:"collapsedSections") ?? [])
+    /// A card; a titled one gets a caret that collapses everything below its title row. Returns (panel, body).
+    func makeCard(_ title:String?,key:String?=nil,leading:[NSView]=[],header:[NSView]=[])->(StatusCard,NSStackView) {
         let panel=StatusCard(fill:panelFill,outline:lineColor),stack=vstack([],spacing:10);stack.translatesAutoresizingMaskIntoConstraints=false;panel.addSubview(stack)
         NSLayoutConstraint.activate([stack.leadingAnchor.constraint(equalTo:panel.leadingAnchor,constant:16),stack.trailingAnchor.constraint(equalTo:panel.trailingAnchor,constant:-16),stack.topAnchor.constraint(equalTo:panel.topAnchor,constant:14),stack.bottomAnchor.constraint(equalTo:panel.bottomAnchor,constant:-14)])
-        if let title {stack.addArrangedSubview(text(title,13,.white,.semibold))}
-        return (panel,stack)
+        guard let title else {return (panel,stack)}
+        let k=key ?? title,closed=collapsed.contains(k)
+        let name=text(title,13,.white,.semibold);name.lineBreakMode = .byTruncatingTail;name.setContentCompressionResistancePriority(.defaultLow,for:.horizontal)
+        add(hstack([caretButton(k,closed)]+leading+[name]+header,spacing:8),to:stack)
+        let body=vstack([],spacing:10);add(body,to:stack);body.isHidden=closed
+        return (panel,body)
     }
-    @discardableResult func card(_ title:String?)->NSStackView {let (panel,stack)=makeCard(title);add(panel,to:dashboardBody);return stack}
+    func caretButton(_ key:String,_ closed:Bool)->NSButton {
+        let b=NSButton(image:NSImage(systemSymbolName:closed ? "chevron.right":"chevron.down",accessibilityDescription:closed ? "Expand":"Collapse") ?? NSImage(),target:self,action:#selector(toggleSection(_:)))
+        b.isBordered=false;b.contentTintColor=muted;b.identifier=NSUserInterfaceItemIdentifier(key);b.widthAnchor.constraint(equalToConstant:16).isActive=true;return b
+    }
+    @objc func toggleSection(_ sender:NSButton) {
+        guard let k=sender.identifier?.rawValue else {return}
+        if collapsed.contains(k) {collapsed.remove(k)} else {collapsed.insert(k)}
+        UserDefaults.standard.set(Array(collapsed),forKey:"collapsedSections")
+        if k=="this-computer" {thisMacDetails.forEach {$0.isHidden=collapsed.contains(k)};sender.image=NSImage(systemSymbolName:collapsed.contains(k) ? "chevron.right":"chevron.down",accessibilityDescription:nil)} else {render()}
+    }
+    @discardableResult func card(_ title:String?,key:String?=nil,leading:[NSView]=[],header:[NSView]=[])->NSStackView {let (panel,stack)=makeCard(title,key:key,leading:leading,header:header);add(panel,to:dashboardBody);return stack}
+    /// Cancel for a detector run; Stop after this match / Cancel now for an Actions run.
+    func cancelButtons(_ run:[String:Any])->[NSView] {
+        func b(_ title:String,_ id:String)->NSButton {let x=button(title,#selector(cancelRun(_:)));x.controlSize = .small;x.identifier=NSUserInterfaceItemIdentifier(id);return x}
+        if let r=run["request"] as? String {return [b("Cancel","request:"+r)]}
+        guard let j=run["job"] as? String else {return []}
+        return ((run["state"] as? String)=="running" ? [b("Stop after this match","stop:"+j)]:[])+[b("Cancel now","cancel:"+j)]
+    }
+    @objc func cancelRun(_ sender:NSButton) {
+        guard let id=sender.identifier?.rawValue,let colon=id.firstIndex(of:":") else {return}
+        let kind=String(id[..<colon]),value=String(id[id.index(after:colon)...])
+        let alert=NSAlert();alert.messageText=kind=="stop" ? "Stop the run?":"Cancel the run?"
+        alert.informativeText=kind=="stop" ? "It stops after the current match. Progress is saved and it can be continued from Neptune.":"It stops now. Saved video work and human labels are kept."
+        alert.addButton(withTitle:kind=="stop" ? "Stop after this match":"Cancel run");alert.addButton(withTitle:"Keep running")
+        guard alert.runModal() == .alertFirstButtonReturn else {return}
+        let body:[String:Any]=kind=="request" ? ["action":"cancel_run","request":value]:["action":"cancel_run","job":value,"mode":kind]
+        post(body) {ok,reply in self.dashboardStatus.stringValue=ok ? "Run stopped or cancelled · updating…":(reply?["error"] as? String ?? "Couldn't cancel the run. Check the connection and try again.");self.reloadDashboard();self.reloadModels()}
+    }
     func button(_ title:String,_ action:Selector,primary:Bool=false)->NSButton {
         let b=NSButton(title:title,target:self,action:action);b.bezelStyle = .rounded;b.font = .systemFont(ofSize:12,weight:.medium)
         if primary {b.bezelColor=accent;b.contentTintColor=ink};return b
@@ -174,7 +246,9 @@ func loadCredential() -> Data? {
         // The wide NEPTUNE wordmark across the sidebar.
         let mark=NSImageView();mark.image=Bundle.main.resourceURL.map {$0.appendingPathComponent("engine/neptune-logo-wide.png")}.flatMap {NSImage(contentsOf:$0)}
         mark.imageScaling = .scaleProportionallyUpOrDown;mark.imageAlignment = .alignLeft;mark.heightAnchor.constraint(equalToConstant:42).isActive=true
-        add(mark,to:col);let tagline=text("TRAINING HELPER",10,muted,.semibold);col.setCustomSpacing(6,after:mark);col.addArrangedSubview(tagline);col.setCustomSpacing(22,after:tagline)
+        // The helper's name under the Neptune mark.
+        let name=text("HIPPOCAMPUS",15,.white,.bold),tagline=text("Model Training Helper",11,muted)
+        add(mark,to:col);col.setCustomSpacing(8,after:mark);col.addArrangedSubview(name);col.setCustomSpacing(2,after:name);col.addArrangedSubview(tagline);col.setCustomSpacing(22,after:tagline)
         func section(_ title:String) {
             if let last=col.arrangedSubviews.last {col.setCustomSpacing(16,after:last)}
             let l=text(title.uppercased(),10,muted,.semibold);col.addArrangedSubview(l);col.setCustomSpacing(6,after:l)
@@ -200,6 +274,8 @@ func loadCredential() -> Data? {
         stack.addArrangedSubview(connect);add(panel,to:col)
     }
     func buildMain(_ main:NSView) {
+        art.translatesAutoresizingMaskIntoConstraints=false;main.addSubview(art);art.show(Bundle.main.resourceURL?.appendingPathComponent("engine/neptune-art.jpg"))
+        NSLayoutConstraint.activate([art.leadingAnchor.constraint(equalTo:main.leadingAnchor),art.trailingAnchor.constraint(equalTo:main.trailingAnchor),art.topAnchor.constraint(equalTo:main.topAnchor),art.bottomAnchor.constraint(equalTo:main.bottomAnchor)])
         pageTitle.font = .systemFont(ofSize:22,weight:.bold);pageTitle.textColor = .white
         dashboardStatus.font = .systemFont(ofSize:12);dashboardStatus.textColor=muted;dashboardStatus.lineBreakMode = .byTruncatingTail
         dashboardStatus.setContentCompressionResistancePriority(.defaultLow,for:.horizontal)
@@ -220,7 +296,8 @@ func loadCredential() -> Data? {
         NSLayoutConstraint.activate([row.leadingAnchor.constraint(equalTo:strip.leadingAnchor,constant:16),row.trailingAnchor.constraint(equalTo:strip.trailingAnchor,constant:-16),row.topAnchor.constraint(equalTo:strip.topAnchor,constant:14),row.bottomAnchor.constraint(equalTo:strip.bottomAnchor,constant:-14)])
         computerDetail.font = .systemFont(ofSize:11);computerDetail.textColor=muted;computerDetail.stringValue="Mac · reading hardware…";computerDetail.lineBreakMode = .byTruncatingTail
         availability.font = .systemFont(ofSize:11,weight:.semibold);availability.textColor=good
-        let who=vstack([text(Host.current().localizedName ?? "This Mac",14,.white,.semibold),computerDetail,availability],spacing:3);who.widthAnchor.constraint(equalToConstant:200).isActive=true
+        let words=vstack([text(Host.current().localizedName ?? "This Mac",14,.white,.semibold),computerDetail,availability],spacing:3)
+        let who=hstack([formIcon(formFactor),words],spacing:10);who.alignment = .top;who.widthAnchor.constraint(equalToConstant:240).isActive=true
         let top=hstack([cpuMeter,gpuMeter],spacing:16),bottom=hstack([ramMeter,vramMeter],spacing:16)
         for r in [top,bottom] {r.distribution = .fillEqually}
         let meters=vstack([top,bottom],spacing:10);meters.setContentHuggingPriority(NSLayoutConstraint.Priority(1),for:.horizontal)
@@ -228,7 +305,9 @@ func loadCredential() -> Data? {
         device.addItems(withTitles:["Automatic","Mac GPU","CPU"]);device.selectItem(withTitle:UserDefaults.standard.string(forKey:"device") ?? "Automatic");device.target=self;device.action=#selector(changeDevice)
         stop=button("Stop after this match",#selector(stopMatch));stop.isHidden=true
         let controls=vstack([text("Training device",10,muted),device,stop],spacing:6);controls.widthAnchor.constraint(equalToConstant:170).isActive=true
-        for v in [who,meters,controls] as [NSView] {row.addArrangedSubview(v)}
+        // A caret collapses this computer's meters and device controls down to its name row.
+        let closed=collapsed.contains("this-computer");thisMacDetails=[meters,controls];thisMacDetails.forEach {$0.isHidden=closed}
+        row.alignment = .top;for v in [caretButton("this-computer",closed),who,meters,controls] as [NSView] {row.addArrangedSubview(v)}
         thisMacStrip=strip
         // This Mac's own job, shown while it is working.
         let (job,jobStack)=makeCard(nil);jobStack.spacing=6
@@ -250,7 +329,7 @@ func loadCredential() -> Data? {
         pinned=Set([strip,job,scroll].map {ObjectIdentifier($0)})
     }
     func buildMenu() {
-        let menu=NSMenu();let item=NSMenuItem();let appMenu=NSMenu();appMenu.addItem(withTitle:"Check for Updates…",action:#selector(checkUpdates),keyEquivalent:"");appMenu.addItem(withTitle:"Import existing helper connection…",action:#selector(importConnection),keyEquivalent:"");appMenu.addItem(withTitle:"Show logs",action:#selector(showLogs),keyEquivalent:"");appMenu.addItem(.separator());appMenu.addItem(withTitle:"Quit Neptune Training Helper",action:#selector(NSApplication.terminate(_:)),keyEquivalent:"q");item.submenu=appMenu;menu.addItem(item)
+        let menu=NSMenu();let item=NSMenuItem();let appMenu=NSMenu();appMenu.addItem(withTitle:"Check for Updates…",action:#selector(checkUpdates),keyEquivalent:"");appMenu.addItem(withTitle:"Import existing helper connection…",action:#selector(importConnection),keyEquivalent:"");appMenu.addItem(withTitle:"Show logs",action:#selector(showLogs),keyEquivalent:"");appMenu.addItem(.separator());appMenu.addItem(withTitle:"Quit Hippocampus",action:#selector(NSApplication.terminate(_:)),keyEquivalent:"q");item.submenu=appMenu;menu.addItem(item)
         let viewItem=NSMenuItem(title:"View",action:nil,keyEquivalent:"");let viewMenu=NSMenu(title:"View")
         for (i,p) in pages.enumerated() {let m=viewMenu.addItem(withTitle:p.title,action:#selector(navTap(_:)),keyEquivalent:"\(i+1)");m.identifier=NSUserInterfaceItemIdentifier(p.key)}
         viewMenu.addItem(.separator());viewMenu.addItem(withTitle:"Refresh",action:#selector(refreshAll),keyEquivalent:"r")
@@ -273,6 +352,7 @@ func loadCredential() -> Data? {
             refreshTargets();trainTarget.widthAnchor.constraint(lessThanOrEqualToConstant:230).isActive=true;headerActions.addArrangedSubview(trainTarget)
             headerActions.addArrangedSubview(button(page=="robots" ? "Train robot detector":"Train field detector",#selector(trainTapped),primary:true));run.bezelColor=nil;run.contentTintColor=nil
         case "actions":headerActions.addArrangedSubview(button("Train on Neptune",#selector(openTrainPage),primary:true));run.bezelColor=nil;run.contentTintColor=nil
+        case "computers":headerActions.addArrangedSubview(button("Update all",#selector(updateAllTapped)));run.bezelColor=accent;run.contentTintColor=ink
         case "activity":headerActions.addArrangedSubview(button("Copy log",#selector(copyLog)));headerActions.addArrangedSubview(button("Show log files",#selector(showLogs)));run.bezelColor=accent;run.contentTintColor=ink
         default:run.bezelColor=accent;run.contentTintColor=ink
         }
@@ -377,30 +457,41 @@ func loadCredential() -> Data? {
         let meters:[(String,Double?,String)]=[("CPU",cpu.map {$0/100},percent(cpu)),("GPU",gpuUse.map {$0/100},percent(gpuUse)),("RAM",share(ram,ramTotal),memory(ram,ramTotal)),("GPU memory",share(vram,vramTotal),memory(vram,vramTotal))]
         let row=hstack(meters.map {m in let meter=HardwareMeter(m.0);meter.show(m.1,m.2);return meter},spacing:16);row.distribution = .fillEqually;return row
     }
-    func modelTiles() {
+    /// Which model a queued or running job trains.
+    func jobKind(_ job:[String:Any])->String {
+        let t=((job["label"] as? String) ?? "")+" "+((job["title"] as? String) ?? "")
+        return t.localizedCaseInsensitiveContains("field") ? "field":(t.localizedCaseInsensitiveContains("robot") || t.contains("frames")) ? "robots":"actions"
+    }
+    /// A tile for each model that is training right now; idle models stay on their own pages.
+    func modelTiles(_ active:Set<String>) {
         let robot=models["robot"] as? [String:Any],field=models["field"] as? [String:Any],actions=models["actions"] as? [String:Any]
         let rc=robot?["current"] as? [String:Any],fc=field?["current"] as? [String:Any],counts=actions?["counts"] as? [String:Any]
         let tagged=Int(number(counts,"matches") ?? 0)
-        tileRow([
-            tile("Robots",rc.map {score("robot",$0["new"])} ?? (robot==nil ? "—":"Built-in"),robot.map {"\(Int(number($0,"matches") ?? 0)) labelled matches"} ?? "Loading…",link:"robots"),
-            tile("Field",fc.map {score("field",$0["new"])} ?? (field==nil ? "—":"Marked zones"),field.map {"\(($0["events"] as? [Any])?.count ?? 0) events marked"} ?? "Loading…",link:"field"),
-            tile("Actions",actions==nil ? "—":(actions?["released"] is String ? "Released":"Not released"),actions==nil ? "Loading…":(tagged<6 ? "\(tagged) tagged matches · needs more":"\(tagged) tagged matches"),noteColor:actions != nil && tagged<6 ? warn:nil,link:"actions"),
-        ])
+        var tiles:[NSView]=[]
+        if active.contains("robots") {tiles.append(tile("Robots · training",rc.map {score("robot",$0["new"])} ?? "Built-in",robot.map {"in use · \(Int(number($0,"matches") ?? 0)) labelled matches"} ?? "",link:"robots"))}
+        if active.contains("field") {tiles.append(tile("Field · training",fc.map {score("field",$0["new"])} ?? "Marked zones",field.map {"in use · \(($0["events"] as? [Any])?.count ?? 0) events marked"} ?? "",link:"field"))}
+        if active.contains("actions") {tiles.append(tile("Actions · training",actions?["released"] is String ? "Released":"Not released","\(tagged) tagged matches",link:"actions"))}
+        if !tiles.isEmpty {tileRow(tiles)}
     }
     func renderOverview() {
         add(thisMacStrip,to:dashboardBody)
         let computers=dash["computers"] as? [[String:Any]] ?? [],queue=dash["queue"] as? [[String:Any]] ?? [],me=computerID()
         let running=queue.filter {($0["state"] as? String)=="running"}
-        if running.isEmpty {card("Running now").addArrangedSubview(text("Nothing is running. Start a run from a model page.",12,muted))}
         for job in running.prefix(3) {
             // Detector runs name their helper in computer_id; action runs in target.
             let id=(job["computer_id"] as? String) ?? (job["target"] as? String)
             console(job,computers.first(where:{id != nil && ($0["id"] as? String)==id}),me:me)
         }
-        modelTiles()
-        let waiting=queue.filter {($0["state"] as? String)=="waiting"},q=card("Queue · \(waiting.count) waiting")
-        if waiting.isEmpty {q.addArrangedSubview(text("No runs waiting.",12,muted))}
-        for item in waiting {add(text((item["title"] as? String ?? "Run")+" · "+(item["message"] as? String ?? "Waiting"),12),to:q)}
+        if running.isEmpty {
+            // Idle: one compact row to start a run instead of empty cards.
+            let start=card(nil);start.addArrangedSubview(hstack([text("Nothing running. Start a run:",12,muted),startButton("Robot detector","viewfinder","robots"),startButton("Field detector","map","field"),startButton("Actions on Neptune","arrow.up.right.square","actions")],spacing:10))
+        } else {modelTiles(Set(running.map(jobKind)))}
+        let waiting=queue.filter {($0["state"] as? String)=="waiting"}
+        if !waiting.isEmpty {let q=card("Queue · \(waiting.count) waiting",key:"queue");for item in waiting {add(hstack([text((item["title"] as? String ?? "Run")+" · "+(item["message"] as? String ?? "Waiting"),12),spacer()]+cancelButtons(item)),to:q)}}
+    }
+    func startButton(_ title:String,_ symbol:String,_ page:String)->NSButton {
+        let b=button(title,page=="actions" ? #selector(openTrainPage):#selector(navTap(_:)));b.identifier=NSUserInterfaceItemIdentifier(page);b.controlSize = .small
+        b.image=NSImage(systemSymbolName:symbol,accessibilityDescription:nil);b.imagePosition = .imageLeading;return b
     }
     func clock(_ seconds:Double)->String {
         let s=max(0,Int(seconds.rounded()));return s>=3600 ? String(format:"%d:%02d:%02d",s/3600,s/60%60,s%60):String(format:"%d:%02d",s/60,s%60)
@@ -430,7 +521,7 @@ func loadCredential() -> Data? {
         if let passes=number(k,"passes"),passes>0 {
             let pass=number(k,"pass") ?? 1,batch=number(k,"batch") ?? 0,batches=number(k,"batches") ?? 0
             stage=100*((pass-1)+(batches>0 ? batch/batches:0))/passes
-            stageText=String(format:"pass %.0f/%.0f · batch %.0f/%.0f",pass,passes,batch,batches)+(number(k,"it_s").map {String(format:" · %.2f it/s",$0)} ?? "")
+            stageText=String(format:"epoch %.0f/%.0f · batch %.0f/%.0f",pass,passes,batch,batches)+(number(k,"loss").map {String(format:" · loss %.3f",$0)} ?? "")+(number(k,"it_s").map {String(format:" · %.2f it/s",$0)} ?? "")
         } else if let n=number(k,"matches"),n>0 {let i=number(k,"match") ?? 0;stage=100*max(0,i-1)/n;stageText=String(format:"match %.0f of %.0f",i,n)}
         else if let m=([now]+log.map {$0.1}.reversed()).lazy.compactMap({self.firstMatch("\\[([0-9]+)/([0-9]+)\\]",$0)}).first,let i=Double(m[1]),let n=Double(m[2]),n>0 {stage=100*(i-1)/n;stageText=String(format:"match %.0f of %.0f",i,n)}
         let key="\\b([0-9]{4}[a-z0-9]+_[a-z0-9]+)\\b",matchKey=firstMatch(key,now)?[1] ?? log.last.flatMap {firstMatch(key,$0.1)?[1]}
@@ -439,9 +530,8 @@ func loadCredential() -> Data? {
         let sys=[number(gpu,"util").map {"GPU \(Int($0))%"},number(gpu,"mem_used_mb").map {"VRAM "+gb($0)+(number(gpu,"mem_total_mb").map {"/"+gb($0)} ?? "")+" GB"},number(gpu,"temp_c").map {"\(Int($0))°C"},
                  number(stats,"cpu").map {"CPU \(Int($0))%"},number(stats,"ram_total_mb").map {"RAM "+gb(number(stats,"ram_used_mb") ?? 0)+"/"+gb($0)+" GB"}].compactMap {$0}.joined(separator:" · ")
         let gpuName=(gpu["name"] as? String).map {" · "+$0.replacingOccurrences(of:"NVIDIA GeForce ",with:"")} ?? ""
-        let c=card(nil);c.spacing=5
-        add(hstack([line("● "+(job["label"] as? String ?? job["title"] as? String ?? "Training"),12,accent,.semibold),spacer(),
-                    line(worker.map {($0["name"] as? String ?? "Computer")+(($0["id"] as? String)==me ? " (this Mac)":"")+gpuName} ?? "waiting for its helper",11,muted)]),to:c)
+        let label=job["label"] as? String ?? job["title"] as? String ?? "Training"
+        let c=card("● "+label,key:"run:"+label,header:[spacer(),line(worker.map {($0["name"] as? String ?? "Computer")+(($0["id"] as? String)==me ? " (this Mac)":"")+gpuName} ?? "waiting for its helper",11,muted)]+cancelButtons(job));c.spacing=5
         add(line((step ?? job["title"] as? String ?? "")+(matchKey.map {" · "+$0} ?? ""),13,.white,.semibold),to:c)
         add(line(sys.isEmpty ? "no live readings from this helper yet":sys,11,accent),to:c)
         func pct(_ p:Double?)->String {p.map {String(format:"%3.0f%%",$0)} ?? "  —"}
@@ -473,13 +563,14 @@ func loadCredential() -> Data? {
         tileRow([tile("Model in use",inUse,since),tile("Checked on",m["holdout"] as? String ?? "—","Held out · never trained on"),tile(kind=="robot" ? "Labelled data":"Marked data",data.0,data.1.isEmpty ? "—":data.1)])
         if kind=="field" {card(nil).addArrangedSubview(text("Scouting uses your marked zones. Mark one match at each event you scout; training this detector is optional.",12,muted))}
         else if (m["ready"] as? Bool) != true {card(nil).addArrangedSubview(text("Label robots in at least two matches on Neptune before training.",12,warn))}
-        let runs=m["runs"] as? [[String:Any]] ?? [],c=card("Recent runs")
+        let runs=m["runs"] as? [[String:Any]] ?? [],c=card("Recent runs",key:"runs:"+kind)
         if runs.isEmpty {c.addArrangedSubview(text("No runs yet.",12,muted))}
         for r in runs {
             let (label,color)=runResult(r),date=text(when(r["created_at"]),12,muted),result=text(label,12,color,.semibold)
             date.widthAnchor.constraint(equalToConstant:130).isActive=true;result.widthAnchor.constraint(equalToConstant:150).isActive=true
             let versus=text(!(r["new"] is [String:Any]) ? "—":"\(score(kind,r["new"])) vs \(!(r["current"] is [String:Any]) ? "none":score(kind,r["current"]))",12)
             var cells:[NSView]=[date,result,versus,spacer()]
+            if ["queued","claimed"].contains(r["state"] as? String ?? ""),let id=r["id"] as? String {cells+=cancelButtons(["request":id])}
             if let review=r["review"] as? [String:Any],let id=review["youtube_id"] as? String,id.range(of:"^[A-Za-z0-9_-]{11}$",options:.regularExpression) != nil {
                 let watch=NSButton(title:"Watch",image:NSImage(systemSymbolName:"play.fill",accessibilityDescription:nil) ?? NSImage(),target:self,action:#selector(openLink(_:)))
                 watch.isBordered=false;watch.contentTintColor=accent;watch.imagePosition = .imageLeading;watch.identifier=NSUserInterfaceItemIdentifier("https://youtu.be/"+id);cells.append(watch)
@@ -505,13 +596,40 @@ func loadCredential() -> Data? {
         for w in computers.sorted(by:{(($0["id"] as? String)==me ? 0:1)<(($1["id"] as? String)==me ? 0:1)}) {
             let isThisMac=(w["id"] as? String)==me
             let state=isThisMac && reviewing ? ("Tracking review",warn):isThisMac && folderReview ? ("Image review",warn):(w["job"] as? [String:Any]) != nil ? ("Training",accent):((w["online"] as? Bool)==true ? ("Available",good):("Offline",muted))
-            let c=card(nil)
-            c.addArrangedSubview(hstack([text((w["name"] as? String ?? "Computer")+(isThisMac ? " · this Mac":""),14,.white,.semibold),text(state.0,12,state.1,.semibold)],spacing:10))
+            let c=card((w["name"] as? String ?? "Computer")+(isThisMac ? " · this Mac":""),key:"computer:"+(w["id"] as? String ?? ""),leading:[formIcon(w["form"] as? String)],header:[text(state.0,12,state.1,.semibold)])
             add(text([w["platform"],w["device"],w["version"]].compactMap {$0 as? String}.filter {!$0.isEmpty}.joined(separator:" · "),11,muted),to:c)
+            add(updateRow(w),to:c)
             add(meterRow(w["stats"] as? [String:Any] ?? [:]),to:c)
             if isThisMac && (reviewing || folderReview) {add(text("Live helper readings resume when you close the local review.",11,warn),to:c)}
             add(text((w["job"] as? [String:Any])?["message"] as? String ?? "No assigned job",11,muted),to:c)
         }
+    }
+    /// A computer's helper version against the newest release, with Update / Cancel and the auto-update switch.
+    func updateRow(_ w:[String:Any])->NSView {
+        let u=w["update"] as? [String:Any] ?? [:],id=w["id"] as? String ?? "",latest=u["latest"] as? String,remote=(u["remote"] as? Bool)==true
+        let requested=u["requested"] is NSNumber,behind=(u["behind"] as? Bool)==true
+        let line:(String,NSColor) = !remote ? (behind ? "Update \(latest ?? "") available · update this helper once by hand to allow remote updates":"Remote updates arrive with the next helper update",muted)
+            :requested ? ((u["message"] as? String) ?? "Update requested · installs when the helper is idle, then reopens",accent)
+            :behind ? ("Update \(latest ?? "") available",warn):((latest.map {"Up to date · "+$0}) ?? "Up to date",good)
+        var row:[NSView]=[text(line.0,11,line.1)]
+        func act(_ title:String,_ action:Selector)->NSButton {let b=button(title,action);b.identifier=NSUserInterfaceItemIdentifier(id);b.controlSize = .small;return b}
+        if remote {
+            if requested {row.append(act("Cancel update",#selector(cancelUpdateTapped(_:))))} else if behind {row.append(act("Update",#selector(updateTapped(_:))))}
+            let auto=ThemedSwitch(on:(u["auto"] as? Bool)==true,color:accent);auto.target=self;auto.action=#selector(autoUpdateTapped(_:));auto.identifier=NSUserInterfaceItemIdentifier(id)
+            row.append(hstack([auto,text("Update automatically",11,.white)],spacing:6))
+        }
+        return hstack(row,spacing:10)
+    }
+    @objc func updateTapped(_ sender:NSButton) {changeUpdate(sender.identifier?.rawValue ?? "",["update":"request"])}
+    @objc func cancelUpdateTapped(_ sender:NSButton) {changeUpdate(sender.identifier?.rawValue ?? "",["update":"cancel"])}
+    @objc func autoUpdateTapped(_ sender:ThemedSwitch) {changeUpdate(sender.identifier?.rawValue ?? "",["auto_update":sender.isOn])}
+    @objc func updateAllTapped() {
+        let alert=NSAlert();alert.messageText="Update every computer?";alert.informativeText="Each helper downloads the newest version, installs it once it has no job running, then reopens. Computers that are off update the next time the helper opens."
+        alert.addButton(withTitle:"Update all");alert.addButton(withTitle:"Cancel");guard alert.runModal() == .alertFirstButtonReturn else {return};changeUpdate("all",["update":"request"])
+    }
+    func changeUpdate(_ id:String,_ change:[String:Any]) {
+        guard !id.isEmpty else {return};var body:[String:Any]=["action":"update_computer","computer":id];body.merge(change) {$1}
+        post(body) {ok,reply in self.dashboardStatus.stringValue=ok ? "Update request sent":(reply?["error"] as? String ?? "Couldn't reach Neptune. Try again.");self.reloadDashboard()}
     }
     func updateTelemetry(_ payload:[String:Any]) {
         let stats=payload["stats"] as? [String:Any] ?? [:],gpu=stats["gpu"] as? [String:Any] ?? [:],counters=payload["counters"] as? [String:Any] ?? [:]
@@ -554,7 +672,7 @@ func loadCredential() -> Data? {
         let models=support.appendingPathComponent("robot-models");try? FileManager.default.createDirectory(at:models,withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])
         var env=ProcessInfo.processInfo.environment
         for key in ["PYTHONPATH","PYTHONHOME","DYLD_LIBRARY_PATH","DYLD_INSERT_LIBRARIES"] {env.removeValue(forKey:key)}
-        env["PATH"]=resources.appendingPathComponent("engine/vendor/bin").path+":/usr/bin:/bin:/usr/sbin:/sbin";env["NEPTUNE_ROBOT_MODELS"]=models.path;env["PYTHONDONTWRITEBYTECODE"]="1";env["NEPTUNE_HELPER_PIPELINE"]="facts";env["MPLCONFIGDIR"]=support.appendingPathComponent("matplotlib").path;process.environment=env
+        env["PATH"]=resources.appendingPathComponent("engine/vendor/bin").path+":/usr/bin:/bin:/usr/sbin:/sbin";env["NEPTUNE_ROBOT_MODELS"]=models.path;env["PYTHONDONTWRITEBYTECODE"]="1";env["NEPTUNE_HELPER_PIPELINE"]="facts";env["NEPTUNE_HELPER_VERSION"]=Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "";env["MPLCONFIGDIR"]=support.appendingPathComponent("matplotlib").path;process.environment=env
         let incoming=Pipe(),outgoing=Pipe();process.standardInput=incoming;process.standardOutput=outgoing
         process.standardError=logFile;input=incoming.fileHandleForWriting;buffer=Data();task=process
         outgoing.fileHandleForReading.readabilityHandler={handle in let data=handle.availableData;if data.isEmpty {handle.readabilityHandler=nil;return};DispatchQueue.main.async {self.buffer.append(data);while let end=self.buffer.firstIndex(of:10) {let row=self.buffer.prefix(upTo:end);self.buffer.removeSubrange(...end);if let event=(try? JSONSerialization.jsonObject(with:row)) as? [String:Any] {self.event(event)}}}}
@@ -565,6 +683,7 @@ func loadCredential() -> Data? {
         switch value["event"] as? String {
         case "telemetry":
             if let payload=value["payload"] as? [String:Any] {updateTelemetry(payload)}
+        case "settings":remoteSettings(value["settings"] as? [String:Any] ?? [:])
         case "image_folder_url":
             if let text=value["url"] as? String,let url=URL(string:text),url.scheme=="http",url.host=="127.0.0.1" {NSWorkspace.shared.open(url);connection.stringValue="Local image labeling";status.stringValue="Correct bumper boxes in the image labeler. Only checked frames enter the local YOLO export.";folderButton.title="Close image labeler";reviewButton.isEnabled=false;stop.isEnabled=false}
         case "review_url":
@@ -575,7 +694,7 @@ func loadCredential() -> Data? {
             if value["connected"] as? Bool == false {connection.stringValue="Reconnecting to Neptune…";dashboardStatus.stringValue="Reconnecting…";availability.stringValue="Offline";return}
             let config=cachedCredential.flatMap {try? JSONSerialization.jsonObject(with:$0) as? [String:Any]}
             let shortID=(config?["computer_id"] as? String).map {String($0.prefix(4)).uppercased()}
-            connection.stringValue="Connected to Neptune"+(shortID.map {" · "+$0} ?? "");dashboardStatus.stringValue="Connected"+(shortID.map {" · "+$0} ?? "");availability.stringValue=busy ? "Working":"Available"
+            connection.stringValue="Connected to Neptune"+(shortID.map {" · "+$0} ?? "");dashboardStatus.stringValue="Connected"+(shortID.map {" · "+$0} ?? "");availability.stringValue=busy ? "Working":"Ready to train"
         case "busy":setBusy(value["value"] as? Bool ?? false);if !(value["value"] as? Bool ?? false) {progress.doubleValue=0;remaining.stringValue="No job running"}
         case "error":status.stringValue=value["message"] as? String ?? "Needs attention";connection.stringValue="Needs attention — your saved work is kept";append(status.stringValue)
         case "status":
@@ -595,7 +714,7 @@ func loadCredential() -> Data? {
         }
     }
     func setBusy(_ value:Bool) {
-        busy=value;dashboardStatus.stringValue=value ? "Training on this Mac":"Mac available";availability.stringValue=value ? "Working":"Available";folderButton.isEnabled = !value;reviewButton.isEnabled = !value && !folderReview;stop.isEnabled=value;connect.isEnabled = !value;device.isEnabled = !value
+        busy=value;dashboardStatus.stringValue=value ? "Training on this Mac":"Mac available";availability.stringValue=value ? "Working":"Ready to train";folderButton.isEnabled = !value;reviewButton.isEnabled = !value && !folderReview;stop.isEnabled=value;connect.isEnabled = !value;device.isEnabled = !value
         stageRow.isHidden = !value;progressRow.isHidden = !value;nextStatus.isHidden = !value;stop.isHidden = !value
         if !value {jobTitle.stringValue="THIS MAC";status.stringValue="No assigned job"}
         if page=="overview" {render()}
@@ -634,8 +753,24 @@ func loadCredential() -> Data? {
             append("Existing connection imported to Keychain. Training files stay in place.");if task != nil {pendingCommand="run";send(["command":"quit"])} else {launch("run")}
         } catch {append(error.localizedDescription)}}
     }
-    func updater(_ updater:SPUUpdater,didFindValidUpdate item:SUAppcastItem) {updateStatus.stringValue="Update \(item.displayVersionString) is available. Install using the update window."}
-    func updater(_ updater:SPUUpdater,didAbortWithError error:Error) {updateStatus.stringValue="Update check: "+error.localizedDescription}
+    /// Neptune's reply to each check-in: an open update request starts a silent Sparkle download; auto-update keeps downloads silent.
+    func remoteSettings(_ s:[String:Any]) {
+        autoUpdate=(s["auto_update"] as? Bool)==true;let requested=s["update_requested"] is NSNumber
+        if (requested || autoUpdate) && !updater.updater.automaticallyDownloadsUpdates {updater.updater.automaticallyDownloadsUpdates=true}
+        if requested && !remoteUpdate && Date().timeIntervalSince(remoteTried)>600 {remoteUpdate=true;remoteTried=Date();updateNote("Checking for updates…");updater.updater.checkForUpdatesInBackground()}
+    }
+    func updateNote(_ text:String) {updateStatus.stringValue=text;send(["command":"update_note","text":text])}
+    func updater(_ updater:SPUUpdater,didFindValidUpdate item:SUAppcastItem) {
+        if remoteUpdate || autoUpdate {updateNote("Downloading \(item.displayVersionString)…")} else {updateStatus.stringValue="Update \(item.displayVersionString) is available. Install using the update window."}
+    }
+    func updaterDidNotFindUpdate(_ updater:SPUUpdater) {if remoteUpdate {remoteUpdate=false;updateNote("You’re up to date.")}}
+    func updater(_ updater:SPUUpdater,didAbortWithError error:Error) {remoteUpdate=false;updateNote("Update check: "+error.localizedDescription)}
+    // Downloaded silently: install and relaunch now (or after this match) when Neptune asked for it or auto-update is on.
+    func updater(_ updater:SPUUpdater,willInstallUpdateOnQuit item:SUAppcastItem,immediateInstallationBlock handler:@escaping ()->Void)->Bool {
+        guard remoteUpdate || autoUpdate else {return false}
+        if busy {installHandler=handler;updateNote("\(item.displayVersionString) downloaded. It installs when this match finishes.");return true}
+        updateNote("Installing \(item.displayVersionString); the helper reopens in a moment.");send(["command":"quit"]);handler();return true
+    }
     func updater(_ updater:SPUUpdater,shouldPostponeRelaunchForUpdate item:SUAppcastItem,untilInvokingBlock handler:@escaping ()->Void)->Bool {if busy {installHandler=handler;stopMatch();updateStatus.stringValue="Update ready. Finishing this match before restarting.";return true};send(["command":"quit"]);return false}
     func applicationShouldTerminate(_ sender:NSApplication)->NSApplication.TerminateReply {
         if busy {let alert=NSAlert();alert.messageText="Finish this match and quit?";alert.informativeText="Progress will be saved before this app closes.";alert.addButton(withTitle:"Finish and quit");alert.addButton(withTitle:"Keep running");if alert.runModal() != .alertFirstButtonReturn {return .terminateCancel};quitting=true;send(["command":"quit"]);return .terminateCancel}
