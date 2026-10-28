@@ -1,3 +1,7 @@
+## 2026-10-28 — Reconnect release: Mac 3.2.73, Windows 6.5.44, Linux 6.6.35, engine 2.7.58 (Claude)
+
+The owner approved the release: the reconnect fixes (entry below) plus the server pairing change. It is built on 9636a78 (the robot session's captions-off, already deployed). The installed 6.5.43 / 6.6.34 updaters accept these updates.
+
 ## 2026-10-28 — Reconnect keeps the computer; Windows/Linux Reconnect opens at once (Claude, local, not released)
 
 The owner found every helper signed out at once, the Windows Reconnect not working, and each reconnect adding a new computer named "Neptune Training Helper".
