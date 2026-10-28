@@ -6,6 +6,18 @@ The owner approved the release. Builds:
 - Linux: .deb 10.4 MB with the new launcher and updater, apt repo signed. The Linux update zip is 469 KB and verified by the updater itself, with 74 files and no .pt.
 - The deploy adds `downloads/linux/latest.json`, the Linux update zip, and a linux `.htaccess` that allows only that zip.
 
+Deployed through AWS SSM: 63 files downloaded and hash-checked, 68 changed. Backup: `/root/remote-updates-release-backup-20261028b`.
+- The first attempt stopped before publishing anything and rolled back: apt-repo.tar.gz had been packed one folder too deep (`apt/dists`). It was repacked at the root, replaced on the GitHub release, and redeployed.
+- The prune then removed 3.2.62 and 6.5.33 and the two OCR-release backups. It kept `…20261028b` and the unused backup from the failed attempt.
+
+Checked from outside:
+- The appcast offers 3.2.64 at the local zip's size.
+- Windows and Linux `latest.json` show 6.5.35 and 6.6.26 on engine 2.7.49. Both update zips download with matching SHA-256.
+- apt Packages lists 6.6.26 and InRelease serves.
+- pillar.js v23 is live and the helper API answers 401 without a token.
+
+Not yet seen on a real helper.
+
 ## 2026-10-28 — Remote helper updates from Neptune (Claude)
 
 The owner asked for helper updates to install by themselves and reopen, and to be started remotely from Neptune, on Mac, Windows and Linux.
