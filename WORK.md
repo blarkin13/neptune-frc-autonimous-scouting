@@ -1,3 +1,7 @@
+## 2026-10-28 — No-flash release: Mac 3.2.75, Windows 6.5.46, Linux 6.6.37, engine 2.7.60 (Claude)
+
+The owner approved the release of in-place refreshes (entry below). The Windows and Linux packages import the helper modules from their own files. The installed 6.5.45 / 6.6.36 updaters accept these updates.
+
 ## 2026-10-28 — Windows/Linux: refreshes update in place instead of rebuilding (Claude, local, not released)
 
 The owner saw Windows redraw every 10 s and Linux more often, while the Mac stayed smooth. Every dashboard refresh (10 s) and every live-reading update rebuilt all cards. Even swapped in at once, Windows paints each new card as it is created, and Linux got extra rebuilds from the `busy` messages.
