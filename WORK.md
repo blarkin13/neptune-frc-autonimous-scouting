@@ -4,6 +4,20 @@ The owner approved the release. It ships cancel and stop from the helper, collap
 - Windows update 0.94 MB, Linux update 0.80 MB.
 - The installed 6.5.38 / 6.6.29 updaters accept them.
 
+Deploy:
+- The first attempt stopped before changing anything. The live-file check found the server's `community-training-control.php` is an Oct 20 copy that predates the repo's version (the repo file was never deployed), so replacing it would have shipped unrelated changes.
+- The helper cancel moved to a new `community-training-cancel.php` (`community_training_cancel()`). That class and the website's cancel on `train.php` are back to their deployed versions.
+- Redeployed (09d8084): 60 files hash-checked, 65 changed. Backup: `/root/cancel-collapse-release-backup-20261028b`; the failed attempt's backup is empty.
+
+Checked from outside:
+- The appcast offers 3.2.68 at the local zip's size.
+- Windows and Linux `latest.json` show 6.5.39 and 6.6.30 on engine 2.7.53, and both update zips match their local SHA-256. apt lists 6.6.30.
+- `cancel_run` answers 401 without a token.
+
+Not yet tried with a real run.
+
+Follow-up: the repo's `community-training-control.php` differs from what the server runs. Reconcile it before anything else depends on the newer version.
+
 ## 2026-10-28 — Themed switches instead of checkboxes (Claude, local, not released)
 
 The owner disliked the old web-style checkboxes. "Update automatically" is now a switch in the app's colours, accent when on and slate when off: `ui.Switch` (antialiased with Pillow) on Windows/Linux, `ThemedSwitch` on the Mac. It was the only checkbox in either app. The native NSSwitch was tried first and dropped, because it looks blue even when off against the dark cards.
