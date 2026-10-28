@@ -128,12 +128,18 @@ def connect_window(path):
     cancel = threading.Event()
     completed = {'value': False}
 
+    # Reconnecting keeps this computer's record on Neptune (and its name); a first connection is named after it.
+    try: previous = json.loads(Path(path).read_text(encoding='utf-8')).get('computer_id')
+    except (OSError, ValueError, AttributeError): previous = None
+    import platform
+
     def begin():
         button.config(state='disabled')
         status.set('Starting secure browser approval…')
         def worker():
             try:
-                grant = connect_account(SITE, lambda message: events.put(('status', message)), cancel)
+                grant = connect_account(SITE, lambda message: events.put(('status', message)), cancel,
+                                        computer_id=previous if isinstance(previous, str) else None, name=platform.node())
                 save_connection(path, grant)
                 events.put(('connected', None))
             except Exception as error:

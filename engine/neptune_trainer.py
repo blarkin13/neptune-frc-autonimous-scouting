@@ -382,7 +382,14 @@ def main():
         reconnect_requested['value']=True
         reconnect_button.config(state='disabled')
         pause.set();closing.set();review_closing.set()
-        status.set('Finishing this match, then opening browser approval…' if busy['value'] else 'Opening browser approval…')
+        if not busy['value']:
+            # Nothing to finish: open browser approval now instead of waiting for the worker, which may be stuck
+            # retrying a connection Neptune no longer accepts.
+            try:start_reconnect_process(source)
+            except Exception as error:
+                reconnect_requested['value']=False;reconnect_button.config(state='normal');messagebox.showerror('Reconnect could not start',str(error));return
+            unsubscribe_meters();root.destroy();return
+        status.set('Finishing this match, then opening browser approval…')
     reconnect_button=ui.Button(shell.footer,'Reconnect',reconnect,icon_name='refresh',small=True)
     reconnect_button.pack(anchor='w',pady=(6,0))
     update={'release':None,'stage':None,'checking':False,'remote':False,'tried':-1e9}

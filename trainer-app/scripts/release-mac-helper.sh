@@ -27,6 +27,7 @@ done
 for n in $(cd "$R/engine" && python3 -c "import neptune_engine as e;print(' '.join(e.FILES))"); do cp -p "$R/engine/$n" "$E/$n"; done
 # The Mac app's worker (starts the engine, runs the self-check) lives with the app source.
 cp -p "$R/trainer-app/macos/NeptuneTrainingHelper/native_worker.py" "$E/native_worker.py"
+cp -p "$R/trainer-app/macos/NeptuneTrainingHelper/native_connect.py" "$E/native_connect.py"
 # Shipped detectors and region data live in folders next to the engine files.
 for d in field-regions field-detector robot-detector; do rm -rf "${E:?}/$d"; cp -R "$R/engine/$d" "$E/$d"; done
 rm -f "${E:?}/server_run.py"; find "$A" -name __pycache__ -prune -exec rm -rf {} +

@@ -22,7 +22,8 @@ def open_browser(url):
 from neptune_helper import public_https, request
 
 
-def connect_account(site, progress, stop):
+def connect_account(site, progress, stop, computer_id=None, name=None):
+    """computer_id: this computer's previous record, reused on reconnect. name: its own name for a first connection."""
     site = site.rstrip('/')
     api = public_https(site + '/api/community-training.php')
     verifier = secrets.token_urlsafe(48)
@@ -68,6 +69,8 @@ def connect_account(site, progress, stop):
     if stop.is_set(): raise ValueError('Connection canceled.')
     if not received: raise ValueError('Connection approval timed out. Try again.')
     if 'error' in received: raise ValueError(received['error'])
-    result = request(api + '?action=connect_exchange',
-                     {'request_id': grant['request_id'], 'code': received['code'], 'verifier': verifier})
+    details = {'request_id': grant['request_id'], 'code': received['code'], 'verifier': verifier}
+    if computer_id: details['computer_id'] = computer_id
+    if name: details['name'] = name[:100]
+    result = request(api + '?action=connect_exchange', details)
     return result

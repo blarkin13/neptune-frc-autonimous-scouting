@@ -1,3 +1,18 @@
+## 2026-10-28 — Reconnect keeps the computer; Windows/Linux Reconnect opens at once (Claude, local, not released)
+
+The owner found every helper signed out at once, the Windows Reconnect not working, and each reconnect adding a new computer named "Neptune Training Helper".
+
+- **Why they all signed out:** `CommunityTrainers::authenticate` refuses a helper whose `credential_revision` (a hash of the owner's password hash) no longer matches, or after its 30-day expiry. All at once points to the owner's password record changing. Not confirmed: the production read was refused.
+- **Pairing** (`CommunityTrainingPairing::exchange`):
+  - A helper may send its previous `computer_id`. If that computer belongs to the approving user, it gets a fresh token, revision and 30 days, and keeps its record, name and settings. Another user's computer is never taken over.
+  - New computers use the helper-sent `name` (its host name) instead of "Neptune Training Helper".
+- **Helpers:**
+  - Tk (`neptune_trainer_entry`/`_pairing`) sends the saved `computer_id` and `platform.node()`.
+  - Mac sends the Keychain connection's `computer_id` and the Mac's name. The Mac pairing module `native_connect.py` is now in the repo, because builds used to carry it over from the previous app, and `release-mac-helper.sh` copies it.
+- **Windows/Linux Reconnect:** it waited for the worker loop to end before opening approval, and a loop retrying a refused connection may not end. Now, when no job runs, it starts the approval window at once and closes. The single-instance lock lets the new window take over.
+
+Checked: the engine suite; `training-pairing.php` (18 checks: reuse, name kept, fresh token, other users' computers safe, host-name naming); other helper server tests; `test_installable_trainer`; the Mac app compiles. Not run against a real reconnect.
+
 ## 2026-10-28 — Logo release: Mac 3.2.72, Windows 6.5.43, Linux 6.6.34, engine 2.7.57 (Claude)
 
 The owner approved releasing the sidebar logo. It is built on the OCR session's learned-layouts release (7f50566: 3.2.71 / 6.5.42 / 6.6.33, engine 2.7.56). That release was found already live, deployed by hand. Neither release changes server code. The installed 6.5.42 / 6.6.33 updaters accept these updates.

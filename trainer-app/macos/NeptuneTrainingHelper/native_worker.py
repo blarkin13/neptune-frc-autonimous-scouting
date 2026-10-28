@@ -32,7 +32,7 @@ def main():
     command=commands.get();config=command.get('connection');device=command.get('device','Automatic')
     if command.get('command')=='connect':
         from native_connect import connect
-        result=connect(command.get('site','https://neptunefrc.com'),lambda s:emit('status',message=s),closing)
+        result=connect(command.get('site','https://neptunefrc.com'),lambda s:emit('status',message=s),closing,computer_id=command.get('computer_id'),name=command.get('name'))
         emit('credential',connection=result);return
     if command.get('command')=='review':
         from neptune_identity_review import choose

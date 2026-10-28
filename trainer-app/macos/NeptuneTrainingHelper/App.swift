@@ -661,7 +661,11 @@ func loadCredential() -> Data? {
         var payload:[String:Any]=["command":command,"device":device.titleOfSelectedItem ?? "Automatic"]
         if command=="image_folder" {
             guard let folder=imageFolderPath else {return};folderReview=true;payload["folder"]=folder
-        } else if command=="connect" {payload["site"]="https://neptunefrc.com"} else if command=="review" {
+        } else if command=="connect" {
+            // Reconnecting keeps this Mac's record on Neptune (and its name); a first connection is named after the Mac.
+            payload["site"]="https://neptunefrc.com";payload["name"]=Host.current().localizedName ?? "Mac"
+            if let data=cachedCredential,let config=try? JSONSerialization.jsonObject(with:data) as? [String:Any],let id=config["computer_id"] as? String {payload["computer_id"]=id}
+        } else if command=="review" {
             reviewing=true
             if let data=cachedCredential,let config=try? JSONSerialization.jsonObject(with:data) as? [String:Any] {payload["connection"]=config}
         } else {
