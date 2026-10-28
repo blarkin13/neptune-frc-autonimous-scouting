@@ -138,5 +138,36 @@ class SavedGamePack(unittest.TestCase):
             self.assertEqual(list(neptune_games.select('2026capoh_qm9', home)['layout_profiles']), ['frc-2026-field-overlay-v1'])
 
 
+class LearnedLayouts(unittest.TestCase):
+    def test_provisional_until_a_second_match_and_conflicts_stop_it(self):
+        import neptune_layouts as L
+        sig, clock = [100] * 288, [0.47, 0.25, 0.06, 0.12]
+        with tempfile.TemporaryDirectory() as home:
+            self.assertIsNone(L.find(2026, sig, clock, home))
+            e = L.learn(2026, sig, clock, 'blue-left', 0.12, '2026capoh_qm9', home)
+            self.assertFalse(L.usable(e))
+            e = L.learn(2026, sig, clock, 'blue-left', 0.12, '2026capoh_qm9', home)
+            self.assertFalse(L.usable(e))   # the same match twice is not a confirmation
+            L.learn(2026, [110] * 288, clock, 'blue-left', 0.12, '2026capoh_qm10', home)
+            self.assertTrue(L.usable(L.find(2026, sig, clock, home)))
+            self.assertIsNone(L.find(2026, [160] * 288, clock, home))                    # looks different
+            self.assertIsNone(L.find(2026, sig, [0.6, 0.25, 0.06, 0.12], home))          # clock elsewhere
+            self.assertIsNone(L.find(2027, sig, clock, home))                            # other season
+            L.learn(2026, sig, clock, 'red-left', 0.12, '2026capoh_qm11', home)
+            self.assertFalse(L.usable(L.find(2026, sig, clock, home)))
+
+    def test_generic_layout_takes_learned_sides_but_keeps_the_clock_gate(self):
+        frames, texts = [], {}
+        for k in range(25):
+            p = '/v/ov_%05d.jpg' % k
+            frames.append((float(k), p))
+            texts[p] = [item('49', x=0.42, y=0.25, w=0.04, h=0.12), item('1:%02d' % (50 - k), x=0.47, y=0.25, w=0.06, h=0.12),
+                        item('13', x=0.54, y=0.25, w=0.03, h=0.12)]
+        self.assertIsNone(neptune_facts.generic_layout(frames, texts, {}, 0.3))
+        sides, top, stats = neptune_facts.generic_layout(frames, texts, {}, 0.3, sides='blue-left')
+        self.assertEqual((sides, stats['agreeing_frames'], stats['clock']), ('blue-left', 0, [0.47, 0.25, 0.06, 0.12]))
+        self.assertIsNone(neptune_facts.generic_layout(frames[:10], texts, {}, 0.3, sides='blue-left'))
+
+
 if __name__ == '__main__':
     unittest.main()

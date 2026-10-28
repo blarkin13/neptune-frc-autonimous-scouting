@@ -1,3 +1,12 @@
+## 2026-10-28 — Learned scoreboard layouts (Claude, not released)
+
+Owner request: learn each new scoreboard instead of hand-adding profiles. When no profile matches, the generic reader (round 2) settles sides by its roster/RED-BLUE vote. New `engine/neptune_layouts.py` remembers such an overlay in `~/.neptune-helper/learned-layouts/<season>.json` (outside the game pack, so the game fingerprint and trained models are unchanged): a 24x4 colour thumbnail of the band averaged over 8 clock frames, the median clock box, the sides and camera_top.
+
+- **Learning:** only when the sides came from the video's own passing vote, teleop was anchored and the overlay roster check is `match` station by station. Official results are not used.
+- **Use:** `settle_generic` — a passing vote always wins (a disagreeing learned entry is noted in `facts.layout.learned_layout`). Only when the vote fails does a **confirmed** entry (2+ different matches, no conflicts) with the same look (thumbnail distance ≤ 18) and clock position (±0.04) decide sides; the 20-clock gate still applies and more frames voting against it still refuses. A later disagreeing vote marks the entry as conflicted and it stops deciding.
+- **Replay** (`tools/ocr-benchmark/learned_layouts.py`, 14 saved matches with rosters, Q7 excluded): learning formed 4 entries (txcmp1+txsan, ctwat, two week0 framings); every learn vote matched the reference. With team numbers and RED/BLUE words removed (a broadcast that never shows them), sides with no store: 0 of 14; with the learned store **13 right, 0 wrong, 1 unread** (week0 qm3's own provisional entry). Thumbnail distance between opposite-side overlays ≥ 50.9, between same-side matches ≤ 31.3; threshold 18 errs toward a new provisional entry.
+- These saved matches all match built-in profiles, so in normal runs learning only happens on broadcasts that fail today. PIPELINE_VERSION unchanged.
+
 ## 2026-10-27 — OCR round 2: saved packs gain new layouts, generic scoreboard fallback, held-out bumper test, faster tracking, score re-read (Claude, not released)
 
 - **Saved game packs:** the Mac helper never refreshes `~/.neptune-helper/games/<season>.json` (only the old GUI called `neptune_shared_models.refresh`), so a copy from 2026-10-18 lacked the AGE and Week 0 layouts the server now serves. `neptune_games.profiles` fills layouts a saved pack lacks from the built-in rules when both are the same game (`game_key`); the saved pack wins on conflicts. A different game key is untouched.
