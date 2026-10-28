@@ -36,7 +36,9 @@ class RobotJobs(unittest.TestCase):
             self.assertEqual(sorted(p.name for p in (data/'images/val').iterdir()), ['t0.jpg', 't5.jpg'])
             self.assertEqual(sorted(p.name for p in (data/'labels/val').iterdir()), ['t0.txt', 't5.txt'])
             self.assertFalse(any('held' in p.name for p in data.rglob('*')))
-            self.assertEqual(len(list((data/'images/train').iterdir())), 10)
+            self.assertEqual(len(list((data/'images/train').iterdir())), 8)
+            self.assertEqual(len(list((data/'labels/train').iterdir())), 8)
+            self.assertFalse({p.name for p in (data/'images/train').iterdir()} & {p.name for p in (data/'images/val').iterdir()})
 
     def test_detector_trains_and_checks_at_one_picture_size(self):
         source = Path(rj.__file__).read_text()

@@ -58,7 +58,7 @@ import base64,re,subprocess,sys,tempfile
 o,new,pub=sys.argv[1:]
 sig=re.search(r'sparkle:edSignature="([^"]+)"',open(o+'/appcast.xml').read()).group(1)
 f=tempfile.NamedTemporaryFile(delete=False);f.write(base64.b64decode(sig));f.close()
-r=subprocess.run(['openssl','pkeyutl','-verify','-pubin','-inkey',pub,'-rawin','-in',f'{o}/Neptune-Training-Helper-{new}.zip','-sigfile',f.name],capture_output=True,text=True)
+r=subprocess.run(['/opt/homebrew/opt/openssl@3/bin/openssl','pkeyutl','-verify','-pubin','-inkey',pub,'-rawin','-in',f'{o}/Neptune-Training-Helper-{new}.zip','-sigfile',f.name],capture_output=True,text=True)
 print(r.stdout.strip() or r.stderr.strip());sys.exit(r.returncode)
 EOF
 hdiutil verify "$O/Neptune-Training-Helper.dmg" >/dev/null 2>&1

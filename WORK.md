@@ -1,3 +1,7 @@
+## 2026-10-28 — Separate YOLO training and validation frames (Codex, release in progress)
+
+The detector job previously copied every fifth training image and label into YOLO validation while leaving the originals in training. It now moves those pairs, so the exact same frame cannot appear in both folders. The independent held-out match remains outside YOLO's model selection and is still used only for the final adoption comparison. Updated the robot-job test to require disjoint training and validation image names and matching counts. `python3 -m unittest test_robot_jobs.py`: 14 OK. No 5060 retrain or held-out F1 comparison has run; the current production helper is unchanged. This is a frame-level separation, so near-adjacent frames from the same match may still share visual content.
+
 ## 2026-10-28 — No-flash release: Mac 3.2.75, Windows 6.5.46, Linux 6.6.37, engine 2.7.60 (Claude)
 
 The owner approved the release of in-place refreshes (entry below). The Windows and Linux packages import the helper modules from their own files. The installed 6.5.45 / 6.6.36 updaters accept these updates.
