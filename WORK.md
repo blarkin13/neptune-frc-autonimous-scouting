@@ -2,6 +2,12 @@
 
 The owner approved releasing the sidebar logo. It is built on the OCR session's learned-layouts release (7f50566: 3.2.71 / 6.5.42 / 6.6.33, engine 2.7.56). That release was found already live, deployed by hand. Neither release changes server code. The installed 6.5.42 / 6.6.33 updaters accept these updates.
 
+Deployed through AWS SSM: 58 files hash-checked, 63 changed (engine and downloads only). Backup: `/root/logo-release-backup-20261028`.
+
+Checked from outside:
+- The appcast offers 3.2.72 at the local zip's size.
+- Windows and Linux `latest.json` show 6.5.43 and 6.6.34 on engine 2.7.57, and both update zips match their local SHA-256. apt lists 6.6.34.
+
 ## 2026-10-28 — Hippocampus logo in the sidebar (Claude, local, not released)
 
 The owner's wide "Hippocampus / Neptune Training Helper" logo replaces the Neptune wordmark and the two text lines at the top of the sidebar, on both Tk and Mac.
