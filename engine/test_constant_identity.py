@@ -81,6 +81,19 @@ class ConstantIdentityTests(unittest.TestCase):
         out = run(a+touch+after, [seed(a[0], 1), seed(after[-1], 1)])
         self.assertEqual(out[(4/3, 7)], 1)
 
+    def test_contact_stretch_kept_from_one_named_side(self):
+        a = [obs(i/3, 7, .2) for i in range(4)]
+        touch = [obs(4/3, 7, .2), obs(4/3, 8, .21)]
+        out = run(a+touch, [seed(a[0], 1)])
+        self.assertEqual(out[(4/3, 7)], 1)
+
+    def test_contact_stretch_between_two_different_numbers_stays_unnamed(self):
+        a = [obs(i/3, 7, .2) for i in range(4)]
+        touch = [obs(4/3, 7, .2), obs(4/3, 8, .21)]
+        after = [obs(5/3+i/3, 7, .2) for i in range(4)]
+        out = run(a+touch+after, [seed(a[0], 1), seed(after[-1], 2)])
+        self.assertIsNone(out[(4/3, 7)])
+
     def test_same_team_twice_in_one_camera_drops_both(self):
         a = [obs(i/3, 7, .2) for i in range(4)]
         b = [obs(i/3, 8, .6) for i in range(4)]

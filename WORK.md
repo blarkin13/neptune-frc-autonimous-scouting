@@ -752,3 +752,10 @@ Created an 18-frame local review queue at `/Users/brianlarkin/Documents/ChatGPT/
 ## 2026-10-28 — Scorer: hidden duplicates are not non-robots
 - `neptune_identity_metrics.evaluate`: a hidden (excluded) box named with the team the reviewer gave another box in the same camera frame now counts as `hidden_duplicates_named`, not `labeled_non_robots`. Test added.
 - QM6 rescore: 490 reviewed, 177 correct, 0 wrong, 0 switches, 6 named non-robots (was 62; 56 were hidden duplicates on wide 8088 at 6–12 s), 78.8 lost s/robot. QM1/QM3/QM4 unchanged.
+
+## 2026-10-28 — Unnamed robots: causes and contact carry (constant-identity-v4)
+- Sorted the unnamed reviewed robot boxes (QM1/3/4/6, 1290). Biggest groups: wide tracklets chained only to other unnamed tracklets, with no bumper read anywhere on the chain (469); optical-flow boxes (267, nearly all inside unnamed tracks); no tracker box at all (205, detector); wrong alliance colour (50, QM6 close-up).
+- Fix: a contact stretch keeps the number of the same tracker track from one named side; the two sides naming different teams still leaves it unnamed. Hidden-OCR check: contact carries 28 → 210, all correct; the 22 seeded misses in QM6 were there before.
+- Tried and dropped: naming optical-flow boxes from their track. Few gains on its own; with the contact change it raised QM6 not-a-robot names from 6 to 18.
+- Scores (correct / lost s per robot), before → after; wrong 0 and switches 0 everywhere, not-a-robot unchanged: QM1 175 / 82.2 → 223 / 80.2; QM4 46 / 93.7 → 65 / 93.5; QM6 177 / 78.8 → 187 / 76.2; QM3 0 → 0.
+- Diagnostics: local/identity-constancy-20261026/unnamed.py, unnamed2.py. Not released.

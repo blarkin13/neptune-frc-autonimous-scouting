@@ -18,7 +18,7 @@ carried labels; reviewed points are never an input.
 import collections
 import math
 
-VERSION = 'constant-identity-v3'
+VERSION = 'constant-identity-v4'
 MAX_GAP = 1.0           # seconds without a sighting that still counts as one tracklet
 LINK_GAP = 1.5          # longest unseen gap a motion/colour link may bridge (2 s carried a 5261 box onto 6672 in QM1)
 APPEARANCE_LIMIT = .11  # same scale as neptune_identity bridges
@@ -187,8 +187,9 @@ def label(tracking, roster, source_sha256=None):
             if rivals:
                 continue
             unknown.update(team=known['team'], how='motion_colour_link'); changed = True
-    # A contact stretch keeps its robot's number only when the same tracker track leaves
-    # the contact with that same number; a swap would carry another team's read out.
+    # A contact stretch keeps the number of the same tracker track next to it. One named side
+    # is enough (hidden-OCR check: 210 carried, 0 wrong over QM1/3/4/6); the two sides
+    # naming different teams means a swap, and the stretch stays unnamed.
     for shot in by_shot.values():
         for n in shot:
             if not n['contact'] or n['team'] is not None:
@@ -197,7 +198,7 @@ def label(tracking, roster, source_sha256=None):
             before = [m for m in shot if m['team'] is not None and str(m['points'][0]['track_id']) == tid and 0 < n['start']-m['end'] <= LINK_GAP]
             after = [m for m in shot if m['team'] is not None and str(m['points'][0]['track_id']) == tid and 0 < m['start']-n['end'] <= LINK_GAP]
             teams = {m['team'] for m in before+after}
-            if before and after and len(teams) == 1:
+            if (before or after) and len(teams) == 1:
                 team = next(iter(teams))
                 if _reads_allow(n, team) and not _busy(nodes, n, team):
                     n.update(team=team, how='same_track_through_contact')
