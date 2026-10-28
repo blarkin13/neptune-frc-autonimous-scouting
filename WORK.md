@@ -2,6 +2,12 @@
 
 The owner approved the release: the missing-module fix and the remove ✕ (entry below), plus the server `remove_computer` action. Before publishing, the Windows full package and the Linux .deb were unpacked, and `neptune_trainer`, `_pairing`, `_entry`, `neptune_ui`, `neptune_telemetry`, `neptune_facts` and `neptune_layouts` were imported from only their files, with an isolated Python. Both passed. Helpers on 6.5.42–6.5.44 / 6.6.33–6.6.35 can't start, so they need a manual install of this version.
 
+Deployed through AWS SSM: 59 files hash-checked, 64 changed, including `api/robot-detector.php`, whose live copy matched e540c0c. Backup: `/root/startup-fix-release-backup-20261028`.
+
+Checked from outside:
+- The appcast offers 3.2.74 at the local zip's size.
+- Windows and Linux `latest.json` show 6.5.45 and 6.6.36 on engine 2.7.59; both update zips and Setup.exe match their local SHA-256. apt lists 6.6.36.
+
 ## 2026-10-28 — Windows/Linux helpers failed to start (missing neptune_layouts); remove offline computers (Claude, local, not released)
 
 The owner found Connect/Reconnect closing the Linux and Windows helpers, with `ModuleNotFoundError: No module named 'neptune_layouts'`.
