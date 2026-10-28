@@ -748,3 +748,7 @@ Created an 18-frame local review queue at `/Users/brianlarkin/Documents/ChatGPT/
   changes), because `helper/` there is untracked and this was the only copy.
 - Checked: `scripts/sync-to-neptune.sh … --check` reports no differences against the main repo.
 - Open: see "Known problems" in `SYSTEM_MAP.md`; the review is in `reviews/`.
+
+## 2026-10-28 — Scorer: hidden duplicates are not non-robots
+- `neptune_identity_metrics.evaluate`: a hidden (excluded) box named with the team the reviewer gave another box in the same camera frame now counts as `hidden_duplicates_named`, not `labeled_non_robots`. Test added.
+- QM6 rescore: 490 reviewed, 177 correct, 0 wrong, 0 switches, 6 named non-robots (was 62; 56 were hidden duplicates on wide 8088 at 6–12 s), 78.8 lost s/robot. QM1/QM3/QM4 unchanged.

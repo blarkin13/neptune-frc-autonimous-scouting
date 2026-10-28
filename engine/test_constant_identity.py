@@ -156,5 +156,14 @@ class IdentityMetricTests(unittest.TestCase):
         self.assertEqual((m['wrong'], m['unlabeled']), (0, 1))
 
 
+    def test_hidden_duplicate_of_a_named_robot_is_not_a_non_robot(self):
+        # QM6: the reviewer hid a loose box on robot 1 and drew a tighter one named 1 in the same frame.
+        review = {'roster': R, 'points': [dict(obs(0, 1, .2), team=1, identity_status='corrected'),
+                                          dict(obs(0, 2, .6), team=None, identity_status='excluded')]}
+        m = evaluate([dict(obs(0, 1, .2), team=1), dict(obs(0, 2, .6), team=1)], review, 0, 0)
+        self.assertEqual((m['labeled_non_robots'], m['hidden_duplicates_named']), (0, 1))
+        m = evaluate([dict(obs(0, 1, .2), team=1), dict(obs(0, 2, .6), team=3)], review, 0, 0)
+        self.assertEqual((m['labeled_non_robots'], m['hidden_duplicates_named']), (1, 0))
+
 if __name__ == '__main__':
     unittest.main()

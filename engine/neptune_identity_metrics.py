@@ -54,6 +54,11 @@ def evaluate(labeled_points, review, start, end, detections=()):
             by_robot[(r['expected'], r['camera'])].append(r['assigned'])
     for labels in by_robot.values():
         switches += sum(a != b for a, b in zip(labels, labels[1:]))
+    named = {(r['camera'], round(r['t'], 2), r['expected']) for r in robots}
+
+    # A hidden box on a robot the reviewer named in the same frame is a duplicate, not a non-robot.
+    def duplicate(r):
+        return any((r['camera'], round(r['t']+dt, 2), r['assigned']) in named for dt in (-.01, 0, .01))
     teams = [t for c in ('red', 'blue') for t in review['roster'][c]]
     times = collections.defaultdict(list)
     for p in labeled_points:
@@ -80,6 +85,7 @@ def evaluate(labeled_points, review, start, end, detections=()):
             'wrong': sum(r['assigned'] is not None and r['assigned'] != r['expected'] for r in robots),
             'unlabeled': sum(r['assigned'] is None for r in robots),
             'identity_switches': switches,
-            'labeled_non_robots': sum(r['expected'] is None and r['assigned'] is not None for r in rows),
+            'labeled_non_robots': sum(r['expected'] is None and r['assigned'] is not None and not duplicate(r) for r in rows),
+            'hidden_duplicates_named': sum(r['expected'] is None and r['assigned'] is not None and duplicate(r) for r in rows),
             'lost_track_seconds_per_robot': round(sum(lost.values())/len(teams), 1),
             'lost_track_seconds': lost, 'match_seconds': round(end-start, 1)}
