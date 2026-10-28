@@ -5,6 +5,12 @@ The owner approved the release.
 - Helpers that update in place keep any old copies; they are unused, about 1 MB.
 - Windows update 0.94 MB, Linux update 0.80 MB. The installed 6.5.37 / 6.6.28 updaters accept them.
 
+Deployed through AWS SSM: 58 files hash-checked, 63 changed (engine and downloads; no server code changed). Backup: `/root/one-artwork-release-backup-20261028`.
+
+Checked from outside:
+- The appcast offers 3.2.67 at the local zip's size.
+- Windows and Linux `latest.json` show 6.5.38 and 6.6.29 on engine 2.7.52, and both update zips match their local SHA-256. apt lists 6.6.29.
+
 ## 2026-10-28 — One background artwork for every page (Claude, local, not released)
 
 The owner chose a single image, the sea-horse in deep water, for every page in every app. It is `engine/neptune-art.jpg` (300 KB) and replaces the three per-page `neptune-art-*.jpg` files, which are removed from the repo and from `neptune_engine.FILES`. Tk (`Shell.select`) and Mac (`ArtView`, set once in `buildMain`) both load it.
