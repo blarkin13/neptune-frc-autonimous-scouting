@@ -759,3 +759,4 @@ Created an 18-frame local review queue at `/Users/brianlarkin/Documents/ChatGPT/
 - Tried and dropped: naming optical-flow boxes from their track. Few gains on its own; with the contact change it raised QM6 not-a-robot names from 6 to 18.
 - Scores (correct / lost s per robot), before → after; wrong 0 and switches 0 everywhere, not-a-robot unchanged: QM1 175 / 82.2 → 223 / 80.2; QM4 46 / 93.7 → 65 / 93.5; QM6 177 / 78.8 → 187 / 76.2; QM3 0 → 0.
 - Diagnostics: local/identity-constancy-20261026/unnamed.py, unnamed2.py.
+- Deployed via SSM 938f4c30 (owner ran it): 62 files fetched and verified, 67 changed, backup /root/contact-carry-release-backup-20261028, pruned (disk 36%). Live feeds: Windows 6.5.36, Linux 6.6.27 (latest.json and apt), Mac 3.2.65.
