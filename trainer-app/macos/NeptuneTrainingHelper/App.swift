@@ -329,7 +329,7 @@ func loadCredential() -> Data? {
         pinned=Set([strip,job,scroll].map {ObjectIdentifier($0)})
     }
     func buildMenu() {
-        let menu=NSMenu();let item=NSMenuItem();let appMenu=NSMenu();appMenu.addItem(withTitle:"Check for Updates…",action:#selector(checkUpdates),keyEquivalent:"");appMenu.addItem(withTitle:"Import existing helper connection…",action:#selector(importConnection),keyEquivalent:"");appMenu.addItem(withTitle:"Show logs",action:#selector(showLogs),keyEquivalent:"");appMenu.addItem(.separator());appMenu.addItem(withTitle:"Quit Neptune Training Helper",action:#selector(NSApplication.terminate(_:)),keyEquivalent:"q");item.submenu=appMenu;menu.addItem(item)
+        let menu=NSMenu();let item=NSMenuItem();let appMenu=NSMenu();appMenu.addItem(withTitle:"Check for Updates…",action:#selector(checkUpdates),keyEquivalent:"");appMenu.addItem(withTitle:"Import existing helper connection…",action:#selector(importConnection),keyEquivalent:"");appMenu.addItem(withTitle:"Show logs",action:#selector(showLogs),keyEquivalent:"");appMenu.addItem(.separator());appMenu.addItem(withTitle:"Quit Hippocampus",action:#selector(NSApplication.terminate(_:)),keyEquivalent:"q");item.submenu=appMenu;menu.addItem(item)
         let viewItem=NSMenuItem(title:"View",action:nil,keyEquivalent:"");let viewMenu=NSMenu(title:"View")
         for (i,p) in pages.enumerated() {let m=viewMenu.addItem(withTitle:p.title,action:#selector(navTap(_:)),keyEquivalent:"\(i+1)");m.identifier=NSUserInterfaceItemIdentifier(p.key)}
         viewMenu.addItem(.separator());viewMenu.addItem(withTitle:"Refresh",action:#selector(refreshAll),keyEquivalent:"r")

@@ -35,6 +35,8 @@ MC=$(mktemp -d); /usr/bin/swiftc -module-cache-path "$MC" -O -parse-as-library -
   -framework Sparkle -framework AppKit -framework Security -Xlinker -rpath -Xlinker @executable_path/../Frameworks \
   "$R/trainer-app/macos/NeptuneTrainingHelper/App.swift" -o "$A/Contents/MacOS/NeptuneTrainingHelper"; rm -rf "${MC:?}"
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $NEW" -c "Set :CFBundleVersion $BUILD" "$A/Contents/Info.plist"
+# The name in the menu bar, Quit menu and update windows. The bundle id, Keychain item and app file name stay the same.
+/usr/libexec/PlistBuddy -c "Set :CFBundleName Hippocampus" -c "Set :CFBundleDisplayName Hippocampus" "$A/Contents/Info.plist"
 (cd "$R/engine" && python3 -c "import json,neptune_engine;print(json.dumps(neptune_engine.identity()))") > "$A/Contents/Resources/engine-identity.json"
 find "$R/engine" -name __pycache__ -prune -exec rm -rf {} +
 codesign --force --sign - "$A" 2>/dev/null; codesign --verify --deep --strict "$A"

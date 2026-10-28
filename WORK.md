@@ -1,3 +1,14 @@
+## 2026-10-28 — One helper window per computer; Hippocampus in the Mac menu bar (Claude, local, not released)
+
+The owner could open several copies of the Linux helper, and the Mac menu bar still said Neptune Training Helper.
+
+- **Windows/Linux:** `neptune_trainer.single_instance()` holds a lock on `~/.neptune-trainer/helper.lock` for the helper's lifetime (`fcntl`, or `msvcrt` on Windows).
+  - A second copy waits up to 5 s, which covers reconnect and update hand-offs, then says Hippocampus is already open and quits.
+  - Checked with two processes: refused while held, taken once released.
+- **Mac:** `CFBundleName` / `CFBundleDisplayName` are now "Hippocampus", set by `release-mac-helper.sh` on each build and in `build-native-mac.py`. That covers the menu bar, Quit Hippocampus and Sparkle's windows.
+  - Unchanged: the bundle id (updates), the Keychain service (saved connection), the `.app` file name (Sparkle replaces it in place) and the log and support folders.
+- **Icons:** the 3.2.69 bundle already carries the new icon; the Dock and Finder show a cached one until refreshed.
+
 ## 2026-10-28 — Hippocampus release: Mac 3.2.69, Windows 6.5.40, Linux 6.6.31, engine 2.7.54 (Claude)
 
 The owner approved shipping the Hippocampus name and app icon (entry below).

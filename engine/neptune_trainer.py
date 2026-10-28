@@ -279,6 +279,23 @@ def result_message(state):
     }.get(state, 'Finished — your report is saved on Neptune.')
 
 
+def single_instance(path,wait=5):
+    """Hold a lock for this helper's lifetime so only one copy runs per user; None if another copy still holds it after
+    `wait` seconds (a reconnect or an update relaunch hands over well within that). The lock ends with the process."""
+    handle=open(path,'a+')
+    deadline=time.monotonic()+wait
+    while True:
+        try:
+            if sys.platform=='win32':
+                import msvcrt;handle.seek(0);msvcrt.locking(handle.fileno(),msvcrt.LK_NBLCK,1)
+            else:
+                import fcntl;fcntl.flock(handle,fcntl.LOCK_EX|fcntl.LOCK_NB)
+            return handle
+        except OSError:
+            if time.monotonic()>deadline:handle.close();return None
+            time.sleep(.25)
+
+
 def start_reconnect_process(source, executable=None):
     """Hand a stopped helper to the installed owner-approval entry point."""
     source=Path(source)
@@ -299,6 +316,10 @@ def main():
     source=Path(__file__).with_name('trainer-connection.json')
     if not source.is_file():raise ValueError('Download the connected training helper from Neptune.')
     config=json.loads(source.read_text());HOME.mkdir(mode=0o700,exist_ok=True)
+    lock=single_instance(HOME/'helper.lock')
+    if lock is None:
+        # Another Hippocampus window is already open for this user: say so instead of starting a second worker.
+        notice=tk.Tk();notice.withdraw();messagebox.showinfo('Hippocampus is already open','Hippocampus is already running on this computer. Use the window that is already open.');notice.destroy();return
     root=tk.Tk();root.title('Hippocampus - Neptune Training Helper');root.geometry('1000x760');root.minsize(640,460)
     ui.apply(root)
     if sys.platform == 'win32':
