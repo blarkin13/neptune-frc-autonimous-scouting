@@ -95,7 +95,7 @@ def main():
     from tkinter import ttk
     import neptune_ui as ui
     root = tk.Tk()
-    root.title('Neptune Training Helper setup')
+    root.title('Hippocampus - Neptune Training Helper setup')
     root.geometry('560x320')
     root.resizable(False, False)
     ui.apply(root)

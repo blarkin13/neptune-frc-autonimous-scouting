@@ -299,7 +299,7 @@ def main():
     source=Path(__file__).with_name('trainer-connection.json')
     if not source.is_file():raise ValueError('Download the connected training helper from Neptune.')
     config=json.loads(source.read_text());HOME.mkdir(mode=0o700,exist_ok=True)
-    root=tk.Tk();root.title('Neptune Training Helper '+helper_version());root.geometry('1000x760');root.minsize(640,460)
+    root=tk.Tk();root.title('Hippocampus - Neptune Training Helper');root.geometry('1000x760');root.minsize(640,460)
     ui.apply(root)
     if sys.platform == 'win32':
         try:root.iconbitmap(str(source.with_name('Neptune.ico')))

@@ -436,7 +436,8 @@ class Shell:
                 picture=tk.PhotoImage(file=str(logo));picture=picture.subsample(max(1,(picture.width()+185)//186))
                 mark=tk.Label(brand,image=picture,bg=SIDEBAR);mark.image=picture;mark.pack(anchor='w')
             except tk.TclError:tk.Label(brand,text='NEPTUNE',font=('Arial',18,'bold'),fg=TEXT,bg=SIDEBAR,anchor='w').pack(fill='x')
-        tk.Label(brand,text='TRAINING HELPER',font=('Arial',8,'bold'),fg=MUTED,bg=SIDEBAR,anchor='w').pack(fill='x',pady=(4,0))
+        tk.Label(brand,text='HIPPOCAMPUS',font=('Arial',13,'bold'),fg=TEXT,bg=SIDEBAR,anchor='w').pack(fill='x',pady=(6,0))
+        tk.Label(brand,text='Model Training Helper',font=('Arial',9),fg=MUTED,bg=SIDEBAR,anchor='w').pack(fill='x')
         def section(title):tk.Label(side,text=title.upper(),font=('Arial',8,'bold'),fg=MUTED,bg=SIDEBAR,anchor='w').pack(fill='x',pady=(14,4))
         for i,(key,title) in enumerate(self.PAGES):
             if i==1:section('Models')

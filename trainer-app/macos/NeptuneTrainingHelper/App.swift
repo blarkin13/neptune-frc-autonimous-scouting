@@ -161,7 +161,7 @@ func loadCredential() -> Data? {
     func buildUI() {
         window=NSWindow(contentRect:NSRect(x:0,y:0,width:1180,height:800),styleMask:[.titled,.closable,.miniaturizable,.resizable,.fullSizeContentView],backing:.buffered,defer:false)
         window.titlebarAppearsTransparent=true;window.titleVisibility = .hidden
-        window.appearance=NSAppearance(named:.darkAqua);window.title="Neptune Training Helper"
+        window.appearance=NSAppearance(named:.darkAqua);window.title="Hippocampus - Neptune Training Helper"
         window.minSize=NSSize(width:880,height:560);window.collectionBehavior=[.fullScreenPrimary];window.delegate=self;window.backgroundColor=ink
         let content=window.contentView!
         let sidebar=Backdrop(fill:sidebarFill,edge:lineColor),main=NSView()
@@ -246,7 +246,9 @@ func loadCredential() -> Data? {
         // The wide NEPTUNE wordmark across the sidebar.
         let mark=NSImageView();mark.image=Bundle.main.resourceURL.map {$0.appendingPathComponent("engine/neptune-logo-wide.png")}.flatMap {NSImage(contentsOf:$0)}
         mark.imageScaling = .scaleProportionallyUpOrDown;mark.imageAlignment = .alignLeft;mark.heightAnchor.constraint(equalToConstant:42).isActive=true
-        add(mark,to:col);let tagline=text("TRAINING HELPER",10,muted,.semibold);col.setCustomSpacing(6,after:mark);col.addArrangedSubview(tagline);col.setCustomSpacing(22,after:tagline)
+        // The helper's name under the Neptune mark.
+        let name=text("HIPPOCAMPUS",15,.white,.bold),tagline=text("Model Training Helper",11,muted)
+        add(mark,to:col);col.setCustomSpacing(8,after:mark);col.addArrangedSubview(name);col.setCustomSpacing(2,after:name);col.addArrangedSubview(tagline);col.setCustomSpacing(22,after:tagline)
         func section(_ title:String) {
             if let last=col.arrangedSubviews.last {col.setCustomSpacing(16,after:last)}
             let l=text(title.uppercased(),10,muted,.semibold);col.addArrangedSubview(l);col.setCustomSpacing(6,after:l)
