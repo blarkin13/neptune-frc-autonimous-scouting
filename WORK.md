@@ -1,3 +1,9 @@
+## 2026-10-28 — Themed switches instead of checkboxes (Claude, local, not released)
+
+The owner disliked the old web-style checkboxes. "Update automatically" is now a switch in the app's colours, accent when on and slate when off: `ui.Switch` (antialiased with Pillow) on Windows/Linux, `ThemedSwitch` on the Mac. It was the only checkbox in either app. The native NSSwitch was tried first and dropped, because it looks blue even when off against the dark cards.
+
+Checked: the engine suite; the Tk and Mac Computers previews show both states.
+
 ## 2026-10-28 — Cancel runs from the helper; collapsible sections (Claude, local, not released)
 
 The owner asked to cancel runs directly in the helper, and for every section to collapse with a caret. They briefly asked for other computers on the Overview, then withdrew it (the Computers page covers it); it was removed before commit.

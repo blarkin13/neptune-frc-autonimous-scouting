@@ -134,6 +134,36 @@ class Button(tk.Canvas):
             self.create_polygon(pts,smooth=True,fill=fill,outline=border or fill)
 
 
+class Switch(tk.Canvas):
+    """An on/off switch in the app's colours (accent track when on), with its label; click either to toggle.
+    command(value) runs after each change."""
+    def __init__(self,parent,text='',value=False,command=None):
+        try:bg=parent.cget('bg')
+        except tk.TclError:bg=PANEL
+        super().__init__(parent,bg=bg,highlightthickness=0,borderwidth=0,cursor='hand2')
+        self.value,self.command,self._bg,self._images=bool(value),command,bg,[]
+        self._font=tkfont.Font(family='Arial',size=9);self._text=text
+        self.bind('<ButtonRelease-1>',self._click);self._draw()
+    def get(self):return self.value
+    def _click(self,event):
+        self.value=not self.value;self._draw()
+        if self.command:self.command(self.value)
+    def _draw(self):
+        tw,th=30,17;w=tw+(8+self._font.measure(self._text) if self._text else 0);h=max(th,20)
+        self.delete('all');self.configure(width=w,height=h);self._images=[]
+        track=ACCENT if self.value else '#33506f';y=(h-th)//2;knob_x=tw-th+2 if self.value else 2
+        try:
+            from PIL import Image,ImageDraw,ImageTk
+            k=4;img=Image.new('RGBA',(tw*k,th*k),(0,0,0,0));d=ImageDraw.Draw(img)
+            d.rounded_rectangle((0,0,tw*k-1,th*k-1),radius=th*k//2,fill=track)
+            d.ellipse((knob_x*k,2*k,(knob_x+th-4)*k,(th-2)*k),fill='#ffffff')
+            image=ImageTk.PhotoImage(img.resize((tw,th),Image.LANCZOS));self._images.append(image);self.create_image(0,y,image=image,anchor='nw')
+        except Exception:
+            self.create_line(th/2,y+th/2,tw-th/2,y+th/2,width=th,capstyle='round',fill=track)
+            self.create_oval(knob_x,y+2,knob_x+th-4,y+th-2,fill='#ffffff',outline='')
+        if self._text:self.create_text(tw+8,h//2,text=self._text,fill=TEXT,font=self._font,anchor='w')
+
+
 def header(parent, *, logo=None, subtitle='LOCAL TRAINING COMPUTER', version=''):
     """Compact brand row; the same information order is used by the Mac app."""
     row = tk.Frame(parent, bg=INK)
@@ -653,8 +683,7 @@ def render_computers(page,dash,*,self_id=None,on_update=None):
         if on_update and (w.get('update') or {}).get('remote') and w.get('id'):
             cid=w['id']
             if button:Button(row,'Update' if button=='request' else 'Cancel update',lambda c=cid,b=button:on_update(c,{'update':b}),kind='primary' if button=='request' else 'secondary',icon_name='download' if button=='request' else None,small=True).pack(side='left',padx=(10,0))
-            auto=tk.BooleanVar(value=bool((w.get('update') or {}).get('auto')))
-            tk.Checkbutton(row,text='Update automatically',variable=auto,command=lambda c=cid,v=auto:on_update(c,{'auto_update':v.get()}),font=('Arial',9),fg=TEXT,bg=PANEL,selectcolor=PANEL_ALT,activebackground=PANEL,activeforeground=TEXT,highlightthickness=0).pack(side='left',padx=(10,0))
+            Switch(row,'Update automatically',bool((w.get('update') or {}).get('auto')),lambda value,c=cid:on_update(c,{'auto_update':value})).pack(side='left',padx=(12,0))
         stats=w.get('stats') or {};gpu=stats.get('gpu') or {}
         def memory(used,total):return '—' if used is None else '%.1f / %.1f GB'%(used/1024,total/1024) if total else '%.1f GB'%(used/1024)
         grid=tk.Frame(card,bg=PANEL);grid.pack(fill='x',pady=(4,4))

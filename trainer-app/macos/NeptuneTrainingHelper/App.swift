@@ -64,6 +64,20 @@ func loadCredential() -> Data? {
     required init?(coder: NSCoder) {fatalError("init(coder:) is unavailable")}
     override func draw(_ dirtyRect: NSRect) {fill.setFill();bounds.fill();edge.setFill();NSRect(x:bounds.maxX-1,y:0,width:1,height:bounds.height).fill()}
 }
+// An on/off switch in the app's colours: accent track when on, slate when off. Clicking toggles and sends its action.
+@MainActor final class ThemedSwitch: NSControl {
+    var isOn=false {didSet {needsDisplay=true}}
+    let onColor: NSColor
+    init(on:Bool,color:NSColor) {onColor=color;super.init(frame:NSRect(x:0,y:0,width:30,height:17));isOn=on}
+    required init?(coder: NSCoder) {fatalError("init(coder:) is unavailable")}
+    override var intrinsicContentSize:NSSize {NSSize(width:30,height:17)}
+    override func draw(_ dirtyRect:NSRect) {
+        let r=bounds.insetBy(dx:0.5,dy:0.5);(isOn ? onColor:NSColor(srgbRed:0.20,green:0.31,blue:0.44,alpha:1)).setFill()
+        NSBezierPath(roundedRect:r,xRadius:r.height/2,yRadius:r.height/2).fill()
+        let d=r.height-4;NSColor.white.setFill();NSBezierPath(ovalIn:NSRect(x:isOn ? r.maxX-d-2:r.minX+2,y:r.minY+2,width:d,height:d)).fill()
+    }
+    override func mouseDown(with event:NSEvent) {isOn.toggle();if let action {NSApp.sendAction(action,to:target,from:self)}}
+}
 // Page artwork behind the main area: scaled to fill, dimmed so the cards stay readable.
 @MainActor final class ArtView: NSView {
     let image=CALayer(),dim=CALayer()
@@ -599,14 +613,14 @@ func loadCredential() -> Data? {
         func act(_ title:String,_ action:Selector)->NSButton {let b=button(title,action);b.identifier=NSUserInterfaceItemIdentifier(id);b.controlSize = .small;return b}
         if remote {
             if requested {row.append(act("Cancel update",#selector(cancelUpdateTapped(_:))))} else if behind {row.append(act("Update",#selector(updateTapped(_:))))}
-            let auto=NSButton(checkboxWithTitle:"Update automatically",target:self,action:#selector(autoUpdateTapped(_:)));auto.identifier=NSUserInterfaceItemIdentifier(id)
-            auto.state=(u["auto"] as? Bool)==true ? .on:.off;auto.attributedTitle=NSAttributedString(string:"Update automatically",attributes:[.foregroundColor:NSColor.white,.font:NSFont.systemFont(ofSize:11)]);row.append(auto)
+            let auto=ThemedSwitch(on:(u["auto"] as? Bool)==true,color:accent);auto.target=self;auto.action=#selector(autoUpdateTapped(_:));auto.identifier=NSUserInterfaceItemIdentifier(id)
+            row.append(hstack([auto,text("Update automatically",11,.white)],spacing:6))
         }
         return hstack(row,spacing:10)
     }
     @objc func updateTapped(_ sender:NSButton) {changeUpdate(sender.identifier?.rawValue ?? "",["update":"request"])}
     @objc func cancelUpdateTapped(_ sender:NSButton) {changeUpdate(sender.identifier?.rawValue ?? "",["update":"cancel"])}
-    @objc func autoUpdateTapped(_ sender:NSButton) {changeUpdate(sender.identifier?.rawValue ?? "",["auto_update":sender.state == .on])}
+    @objc func autoUpdateTapped(_ sender:ThemedSwitch) {changeUpdate(sender.identifier?.rawValue ?? "",["auto_update":sender.isOn])}
     @objc func updateAllTapped() {
         let alert=NSAlert();alert.messageText="Update every computer?";alert.informativeText="Each helper downloads the newest version, installs it once it has no job running, then reopens. Computers that are off update the next time the helper opens."
         alert.addButton(withTitle:"Update all");alert.addButton(withTitle:"Cancel");guard alert.runModal() == .alertFirstButtonReturn else {return};changeUpdate("all",["update":"request"])
