@@ -2,6 +2,12 @@
 
 The owner approved the release of in-place refreshes (entry below). The Windows and Linux packages import the helper modules from their own files. The installed 6.5.45 / 6.6.36 updaters accept these updates.
 
+Deployed through AWS SSM: 58 files hash-checked, 63 changed (engine and downloads only). Backup: `/root/no-flash-release-backup-20261028`.
+
+Checked from outside:
+- The appcast offers 3.2.75 at the local zip's size.
+- Windows and Linux `latest.json` show 6.5.46 and 6.6.37 on engine 2.7.60, and both update zips match their local SHA-256. apt lists 6.6.37.
+
 ## 2026-10-28 — Windows/Linux: refreshes update in place instead of rebuilding (Claude, local, not released)
 
 The owner saw Windows redraw every 10 s and Linux more often, while the Mac stayed smooth. Every dashboard refresh (10 s) and every live-reading update rebuilt all cards. Even swapped in at once, Windows paints each new card as it is created, and Linux got extra rebuilds from the `busy` messages.
