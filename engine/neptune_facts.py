@@ -206,13 +206,14 @@ def parse_overlay(items, profile):
     return out
 
 
-def parse_overlay_generic(items, roster=None):
+def parse_overlay_generic(items, roster=None, sides=None):
     """Scoreboard read without a layout profile, for broadcasts no profile matches.
 
     The clock is the tallest M:SS text; each alliance score is the nearest 1-3 digit number of similar height
     on the clock's row, one on each side. Which side is red comes from where the match's own roster numbers
     (or the words RED and BLUE) appear on the overlay; when neither shows, the scores stay unread. Returns
-    None without a clock. Game-independent: nothing here names a season or an overlay design."""
+    None without a clock. Game-independent: nothing here names a season or an overlay design. `sides`
+    ('red-left' or 'blue-left'), once settled for the whole video, overrides the per-frame vote."""
     clocks = [i for i in items if CLOCK.match(i['t'].strip().replace('O', '0').replace('o', '0'))]
     if not clocks:
         return None
@@ -232,6 +233,8 @@ def parse_overlay_generic(items, roster=None):
                 for i in items:
                     if i['t'].strip() == str(t):
                         vote += sign if i['x'] + i['w'] / 2 < cx else -sign
+    if sides:
+        vote = 1 if sides == 'red-left' else -1
     if vote == 0:
         for i in items:
             word = i['t'].strip().upper()
@@ -292,6 +295,64 @@ def detect_layout(frames, texts, season, layouts=None, roster=None):
             ', red and blue on the other sides' if v.get('roster_numbers_on_other_side', 0) > v.get('roster_numbers_on_own_side', 0) else '') for k, v in report.items()))
 
 
+def generic_layout(frames, texts, roster, band):
+    """Settle a broadcast no profile matched: (sides, camera_top, stats), or None.
+
+    Needs MIN_LAYOUT_FRAMES clocks and, among frames whose roster numbers or RED/BLUE words show the sides,
+    at least 90% agreeing; otherwise the video stays unsupported. camera_top is just below the clock row."""
+    clocks, votes, bottoms = 0, Counter(), []
+    for _, p in frames:
+        r = parse_overlay_generic(texts.get(str(p), []), roster)
+        if r is None:
+            continue
+        clocks += 1
+        bottoms.append(r['clock']['y'] + r['clock']['h'])
+        if r['sides']:
+            votes[r['sides']] += 1
+    stats = {'overlay_frames': clocks, 'sided_frames': sum(votes.values())}
+    if clocks < MIN_LAYOUT_FRAMES or not votes:
+        return None
+    sides, n = votes.most_common(1)[0]
+    stats['agreeing_frames'] = n
+    if n < MIN_LAYOUT_FRAMES or n < 0.9 * sum(votes.values()):
+        return None
+    camera_top = round(min(band, sorted(bottoms)[len(bottoms) // 2] * band + 0.01), 3)
+    return sides, camera_top, stats
+
+
+def generic_samples(band, texts, sides, rules, root):
+    """overlay_samples() for a broadcast read by parse_overlay_generic with settled sides."""
+    samples, clock_rejects = [], []
+    for t, p in band:
+        items = split_numbers(texts.get(str(p), []))
+        r = parse_overlay_generic(items, sides=sides)
+        frame = str(Path(p).relative_to(root))
+        s = {'t': t, 'frame': frame, 'roster': {'red': [], 'blue': []}, 'shift': None, 'labels': r is not None}
+        title = next((i for i in items if TITLE.search(i['t'])), None)
+        if title:
+            s['title_text'] = TITLE.search(title['t']).group(0)
+            s['title_ev'] = evidence(title, frame, t)
+        if r is None:
+            samples.append(s)
+            continue
+        cx = r['clock']['x'] + r['clock']['w'] / 2
+        for i in items:
+            tok = team_token(i)
+            if tok and i is not r['red'] and i is not r['blue']:
+                left = i['x'] + i['w'] / 2 < cx
+                s['roster']['red' if left == (sides == 'red-left') else 'blue'].append(tok)
+        if r['clock_value'] <= rules['teleop_seconds'] + 1:
+            s['clock'] = r['clock_value']
+            s['ev'] = evidence(r['clock'], frame, t)
+        else:
+            clock_rejects.append(dict(evidence(r['clock'], frame, t), reason='clock above the teleop length'))
+        for side in ('red', 'blue'):
+            if r[side] is not None:
+                s[side] = {'value': r[side + '_value'], 't': t, 'ev': evidence(r[side], frame, t)}
+        samples.append(s)
+    return samples, clock_rejects
+
+
 def overlay_samples(band, texts, profile, rules, root):
     """Raw overlay readings per frame (clock, scores, title, roster, shift) with evidence."""
     samples, clock_rejects = [], []
@@ -318,6 +379,53 @@ def overlay_samples(band, texts, profile, rules, root):
                 s[side] = {'value': int(r[side]['t']), 't': t, 'ev': evidence(r[side], frame, t)}
         samples.append(s)
     return samples, clock_rejects
+
+
+SCORE_REREAD_SCALE = 3   # single-digit scores the whole-band read misses are re-read from the enlarged score box
+
+
+def score_region(profile, side, margin=0.02):
+    """The score box of one side as (x, y, w, h) fractions of the overlay band, with a small margin."""
+    x0, x1, y0, y1 = profile['regions'][side + '_score']
+    x0, y0, x1, y1 = max(0, x0 - margin), max(0, y0 - margin), min(1, x1 + margin), min(1, y1 + margin)
+    return x0, y0, x1 - x0, y1 - y0
+
+
+def pick_score(items):
+    """The tallest 1-3 digit text in a score-box crop, or None. Inside the score box alone, a lone round
+    letter is the zero Apple Vision reads as O (measured on the OCR benchmark)."""
+    found = [dict(i, t='0') if i['t'].strip() in ('O', 'o', 'D', 'Q') else i for i in items]
+    found = [i for i in found if re.fullmatch(r'\d{1,3}', i['t'].strip())]
+    return max(found, key=lambda i: i['h']) if found else None
+
+
+def reread_scores(samples, profile, backend, root):
+    """Fill scores the whole-band read missed on frames with an accepted clock and both alliance labels."""
+    jobs = []
+    folder = Path(root) / 'score-reread'
+    for s in samples:
+        if 'clock' not in s or not s['labels']:
+            continue
+        for side in ('red', 'blue'):
+            if side in s:
+                continue
+            x, y, w, h = score_region(profile, side)
+            out = folder / ('%s-%s.png' % (Path(s['frame']).stem, side))
+            jobs.append((s, side, out, (x, y, w, h)))
+    if not jobs:
+        return 0
+    clear(folder, '*.png')
+    for s, side, out, (x, y, w, h) in jobs:
+        ffmpeg(['-i', str(Path(root) / s['frame']), '-vf', 'crop=iw*%g:ih*%g:iw*%g:ih*%g,scale=iw*%d:ih*%d:flags=bicubic' % (w, h, x, y, SCORE_REREAD_SCALE, SCORE_REREAD_SCALE),
+                str(out)], timeout=60)
+    texts = backend.recognize([str(j[2]) for j in jobs])
+    filled = 0
+    for s, side, out, region in jobs:
+        item = pick_score(texts.get(str(out), []))
+        if item is not None:
+            s[side] = {'value': int(item['t'].strip()), 't': s['t'], 'ev': evidence(item, s['frame'], s['t'], correction='score box re-read at %dx' % SCORE_REREAD_SCALE, crop=[round(v, 4) for v in region])}
+            filled += 1
+    return filled
 
 
 def clock_segments(samples):
@@ -1021,9 +1129,19 @@ def analyze_video(video, match, work, stage=None, duration=None, metadata_title=
     band = frames_at(folder, 'ov_*.jpg', 0.0, 1.0)
     texts = recognize_with_progress(backend,[p for _, p in band],stage,'Reading the scoreboard')
     save_raw(work / 'raw-overlay.jsonl', band, texts, work)
-    layout_id, profile, layout_stats = detect_layout(band, texts, season, layouts, roster)
+    try:
+        layout_id, profile, layout_stats = detect_layout(band, texts, season, layouts, roster)
+        samples, clock_rejects = overlay_samples(band, texts, profile, rules, work)
+        facts['score_rereads'] = reread_scores(samples, profile, backend, work)
+    except FactsError:
+        # No profile matched: read the clock and scores by position, sides from the roster. Identity checks are unchanged.
+        found = generic_layout(band, texts, roster, band_crop)
+        if not found:
+            raise
+        sides, top, layout_stats = found
+        layout_id, profile = 'generic-' + sides, {'camera_top': top}
+        samples, clock_rejects = generic_samples(band, texts, sides, rules, work)
     facts['layout'] = dict(layout_stats, profile=layout_id,camera_top=profile['camera_top'])
-    samples, clock_rejects = overlay_samples(band, texts, profile, rules, work)
     clocked = [s for s in samples if 'clock' in s]
     periods, period_rejects = anchor_periods(clocked, rules, duration)
     facts['periods'] = periods

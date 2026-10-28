@@ -98,7 +98,7 @@ def bumpers(truth, images, backend, work, methods):
     results = {m: [] for m in methods}
     jobs = []   # (method, path, payload)
     for fid, boxes in sorted(frames.items()):
-        path = load(images, 'robot-labels/images/%s.jpg' % fid, boxes[0]['sha256'])
+        path = load(images, boxes[0].get('image', 'robot-labels/images/%s.jpg' % fid), boxes[0]['sha256'])
         image = cv2.imread(str(path))
         H, W = image.shape[:2]
         teams = set(rosters[boxes[0]['match_key']]['red'] + rosters[boxes[0]['match_key']]['blue'])
@@ -170,7 +170,7 @@ def bumpers(truth, images, backend, work, methods):
     return {m: score_bumpers(v) for m, v in results.items()}, seconds, {m: [[b['frame'], b['box'], b['team'], f] for b, f in v] for m, v in results.items()}
 
 
-def scoreboard(truth, images, backend, work, generic=True, no_sides=False):
+def scoreboard(truth, images, backend, work, generic=True, no_sides=False, reread=True):
     frames = []
     for n, s in enumerate(truth['scoreboard']):
         image = cv2.imread(str(load(images, s['image'], s['sha256'])))
@@ -180,7 +180,7 @@ def scoreboard(truth, images, backend, work, generic=True, no_sides=False):
     t0 = time.time()
     texts = backend.recognize([p for _, p in frames])
     seconds = time.time() - t0
-    counts, detail = Counter(), []
+    counts, detail, pending = Counter(), [], []
     for s, p in frames:
         items = texts.get(str(p), [])
         season, rules = neptune_facts.season_rules(s['match_key'])
@@ -196,11 +196,32 @@ def scoreboard(truth, images, backend, work, generic=True, no_sides=False):
             got = {'clock': r['clock_value'], 'profile': pid,
                    'red': int(r['red']['t']) if r['red'] is not None and r['labels'] else None,
                    'blue': int(r['blue']['t']) if r['blue'] is not None and r['labels'] else None}
+            if reread and r['labels'] and hasattr(neptune_facts, 'reread_scores'):   # as neptune_facts.reread_scores
+                band = cv2.imread(str(p))
+                H, W = band.shape[:2]
+                for side in ('red', 'blue'):
+                    if got[side] is None:
+                        x, y, w, h = neptune_facts.score_region(profile, side)
+                        k = neptune_facts.SCORE_REREAD_SCALE
+                        c = band[int(H * y):int(H * (y + h)), int(W * x):int(W * (x + w))]
+                        q = p.with_name('%s-%s.png' % (p.stem, side))
+                        cv2.imwrite(str(q), cv2.resize(c, (c.shape[1] * k, c.shape[0] * k), interpolation=cv2.INTER_CUBIC))
+                        pending.append((got, side, q))
             break
         if got['profile'] is None and generic and hasattr(neptune_facts, 'parse_overlay_generic'):
             g = neptune_facts.parse_overlay_generic(items, truth['rosters'][s['match_key']])
             if g:
                 got = {'clock': g['clock_value'], 'red': g['red_value'], 'blue': g['blue_value'], 'profile': 'generic'}
+        detail.append((s, got))
+    if pending:
+        t1 = time.time()
+        more = backend.recognize([q for _, _, q in pending])
+        seconds += time.time() - t1
+        for got, side, q in pending:
+            item = neptune_facts.pick_score(more.get(str(q), []))
+            got[side] = int(item['t'].strip()) if item else None
+    rows, detail = detail, []
+    for s, got in rows:
         event = s['match_key'].split('_')[0]
         for field in ('clock', 'red', 'blue'):
             key = 'clock' if field == 'clock' else 'score'
@@ -217,9 +238,11 @@ def main():
     ap.add_argument('--backend', default='auto')
     ap.add_argument('--methods', default='track-crop,tiles,bumper')
     ap.add_argument('--no-generic', action='store_true', help='scoreboard: layout profiles only, without the roster side check (the behaviour before 2026-10-26)')
+    ap.add_argument('--truth', default=str(TRUTH), help='truth.json, or truth-heldout.json for the held-out event')
+    ap.add_argument('--no-reread', action='store_true', help='scoreboard: no enlarged re-read of missing scores (the behaviour before 2026-10-27)')
     ap.add_argument('--out')
     a = ap.parse_args()
-    truth = json.loads(TRUTH.read_text())
+    truth = json.loads(Path(a.truth).read_text())
     backend = neptune_ocr.BACKENDS[a.backend]() if a.backend != 'auto' else neptune_ocr.select_backend()
     methods = [m for m in a.methods.split(',') if m]
     if 'bumper' in methods and not hasattr(neptune_ocr, 'bumper_crop'):
@@ -227,7 +250,7 @@ def main():
     with tempfile.TemporaryDirectory() as tmp:
         work = Path(tmp)
         b, bs, bdetail = bumpers(truth, a.images, backend, work, methods)
-        s, ss, sdetail = scoreboard(truth, a.images, backend, work, generic=not a.no_generic, no_sides=a.no_generic)
+        s, ss, sdetail = scoreboard(truth, a.images, backend, work, generic=not a.no_generic, no_sides=a.no_generic, reread=not a.no_reread) if truth['scoreboard'] else ({}, 0.0, [])
     report = {'backend': backend.describe(), 'bumpers': b, 'bumper_seconds': round(bs, 1), 'scoreboard': s, 'scoreboard_seconds': round(ss, 1),
               'bumper_detail': bdetail, 'scoreboard_detail': sdetail}
     print(json.dumps({k: v for k, v in report.items() if not k.endswith('detail')}, indent=1, sort_keys=True))
