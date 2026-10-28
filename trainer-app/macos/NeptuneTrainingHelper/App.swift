@@ -244,11 +244,10 @@ func loadCredential() -> Data? {
     func buildSidebar(_ bar:NSView) {
         let col=vstack([],spacing:2);col.edgeInsets=NSEdgeInsets(top:46,left:12,bottom:14,right:12);pin(col,in:bar)
         // The wide NEPTUNE wordmark across the sidebar.
-        let mark=NSImageView();mark.image=Bundle.main.resourceURL.map {$0.appendingPathComponent("engine/neptune-logo-wide.png")}.flatMap {NSImage(contentsOf:$0)}
-        mark.imageScaling = .scaleProportionallyUpOrDown;mark.imageAlignment = .alignLeft;mark.heightAnchor.constraint(equalToConstant:42).isActive=true
-        // The helper's name under the Neptune mark.
-        let name=text("HIPPOCAMPUS",15,.white,.bold),tagline=text("Model Training Helper",11,muted)
-        add(mark,to:col);col.setCustomSpacing(8,after:mark);col.addArrangedSubview(name);col.setCustomSpacing(2,after:name);col.addArrangedSubview(tagline);col.setCustomSpacing(22,after:tagline)
+        // The Hippocampus logo: Neptune mark, name and tagline in one image.
+        let mark=NSImageView();mark.image=Bundle.main.resourceURL.map {$0.appendingPathComponent("engine/hippocampus-logo.png")}.flatMap {NSImage(contentsOf:$0)}
+        mark.imageScaling = .scaleProportionallyUpOrDown;mark.imageAlignment = .alignLeft;mark.heightAnchor.constraint(equalToConstant:63).isActive=true
+        add(mark,to:col);col.setCustomSpacing(22,after:mark)
         func section(_ title:String) {
             if let last=col.arrangedSubviews.last {col.setCustomSpacing(16,after:last)}
             let l=text(title.uppercased(),10,muted,.semibold);col.addArrangedSubview(l);col.setCustomSpacing(6,after:l)

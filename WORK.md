@@ -1,3 +1,11 @@
+## 2026-10-28 — Hippocampus logo in the sidebar (Claude, local, not released)
+
+The owner's wide "Hippocampus / Neptune Training Helper" logo replaces the Neptune wordmark and the two text lines at the top of the sidebar, on both Tk and Mac.
+- File: `engine/hippocampus-logo.png`, trimmed and 600 px wide, 166 KB, listed in `neptune_engine.FILES`.
+- Tk scales it to the 186-px sidebar with Pillow, and falls back to text if the image can't load. The Mac shows it 63 pt tall.
+
+Checked: the engine suite; the real Tk window and the Mac preview match the owner's mockup.
+
 ## 2026-10-28 — Learned scoreboard layouts; Mac 3.2.71, Windows 6.5.42, Linux 6.6.33, engine 2.7.56 (Claude)
 
 Owner request: learn each new scoreboard instead of hand-adding profiles. When no profile matches, the generic reader (round 2) settles sides by its roster/RED-BLUE vote. New `engine/neptune_layouts.py` remembers such an overlay in `~/.neptune-helper/learned-layouts/<season>.json` (outside the game pack, so the game fingerprint and trained models are unchanged): a 24x4 colour thumbnail of the band averaged over 8 clock frames, the median clock box, the sides and camera_top.
