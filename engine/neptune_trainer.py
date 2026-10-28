@@ -497,8 +497,13 @@ def main():
     self_id=config.get('computer_id')
     def open_page(key):show_page(key)
     def render():
-        # A refresh of the same page keeps its scroll position; a new page starts at the top.
-        key=view['page'];page.show_only(pinned,top=view.get('shown')!=key);view['shown']=key
+        # Rebuild only when the page or its layout changed; otherwise update readings, progress and logs in place
+        # (rebuilding every card on each refresh made Windows and Linux flash).
+        key=view['page'];signature=(key,ui.structure_key(view['dash'],view['models'],busy['value']))
+        if view.get('signature')==signature:ui.refresh_live(view['dash']);return
+        view['signature']=signature;ui.LIVE.clear()
+        # A rebuild of the same page keeps its scroll position; a new page starts at the top.
+        page.show_only(pinned,top=view.get('shown')!=key);view['shown']=key
         if key=='overview':
             page.add(computer_card)
             ui.render_overview(page,view['dash'],view['models'],self_id=self_id,busy=busy['value'],open_page=open_page,open_url=webbrowser.open,on_cancel=cancel_run)

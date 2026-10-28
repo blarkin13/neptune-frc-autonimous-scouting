@@ -1,3 +1,17 @@
+## 2026-10-28 — Windows/Linux: refreshes update in place instead of rebuilding (Claude, local, not released)
+
+The owner saw Windows redraw every 10 s and Linux more often, while the Mac stayed smooth. Every dashboard refresh (10 s) and every live-reading update rebuilt all cards. Even swapped in at once, Windows paints each new card as it is created, and Linux got extra rebuilds from the `busy` messages.
+
+- `render()` now rebuilds only when `(page, ui.structure_key(dash, models, busy))` changes. The key covers computers, queue and models, without readings, counters, logs or job messages.
+- Otherwise `ui.refresh_live(dash)` runs the updaters the page registered in `ui.LIVE`:
+  - Computers: four meters and the job line per computer.
+  - Overview console (now `console_values` + `console`): helper, step, readings, stage and overall bars (`Meter`), next steps and log lines, found again by request, job id or label.
+
+Checked:
+- A script check confirmed: readings-only refreshes keep the same widgets and change the numbers; going offline changes the key; console progress and log update in place.
+- The real window ran through two refresh cycles without errors, and the engine suite passes.
+- Not seen on Windows or Linux hardware.
+
 ## 2026-10-28 — Startup fix release: Mac 3.2.74, Windows 6.5.45, Linux 6.6.36, engine 2.7.59 (Claude)
 
 The owner approved the release: the missing-module fix and the remove ✕ (entry below), plus the server `remove_computer` action. Before publishing, the Windows full package and the Linux .deb were unpacked, and `neptune_trainer`, `_pairing`, `_entry`, `neptune_ui`, `neptune_telemetry`, `neptune_facts` and `neptune_layouts` were imported from only their files, with an isolated Python. Both passed. Helpers on 6.5.42–6.5.44 / 6.6.33–6.6.35 can't start, so they need a manual install of this version.
