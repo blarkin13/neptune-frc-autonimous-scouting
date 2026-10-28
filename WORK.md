@@ -7,6 +7,15 @@ Builds:
 - Linux: update 1.54 MB, .deb 11.5 MB, apt repo signed and packed from inside `apt/`.
 - The updaters already installed on 6.5.35 and 6.6.26 accept these updates (checked with their own code from f97324f). This is the first release those computers can get from Neptune's Update button.
 
+Deployed through AWS SSM over the tracking session's deploy of 36e5984, which the owner had already run: 61 files hash-checked, 66 changed. Backup: `/root/helper-redesign-2-release-backup-20261028`. The prune removed Mac 3.2.64, Windows 6.5.35 and the OCR-release backup.
+
+Checked from outside:
+- The appcast offers 3.2.66 at the local zip's size.
+- Windows and Linux `latest.json` show 6.5.37 and 6.6.28 on engine 2.7.51, and both update zips match their local SHA-256.
+- apt lists 6.6.28, and the API answers 401 without a token.
+
+Not yet seen on a real helper.
+
 ## 2026-10-28 — Helper redesign pass: no flashing, modern buttons, icons, artwork, console-first Overview (Claude, local, not released)
 
 The owner's notes:
