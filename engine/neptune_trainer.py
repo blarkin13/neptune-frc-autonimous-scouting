@@ -62,7 +62,8 @@ def engine_version():
     except Exception:return ''
 
 def helper_version():
-    """The installed helper's version (Windows and Linux builds ship build-version.json next to this file)."""
+    """The installed helper's version (Windows and Linux builds ship build-version.json next to this file; the Mac app passes its own)."""
+    if os.environ.get('NEPTUNE_HELPER_VERSION'):return os.environ['NEPTUNE_HELPER_VERSION'][:40]
     try:return json.loads(Path(__file__).with_name('build-version.json').read_text())['version']
     except (OSError,ValueError,KeyError):return ''
 
@@ -204,7 +205,7 @@ def watch_jobs(config,hardware,execute,progress,closing,pause,busy=lambda value:
     import neptune_robot_jobs as robot_jobs
     if not getattr(telemetry,'reporter',None):telemetry.reporter=telemetry.Reporter(lambda payload:robot_jobs.api(config,'computer_poll',payload,timeout=20),
                        lambda:{'busy':awake.busy,'awake':awake.active,'message':last_message[0][:600],'version':helper_version() or engine_version(),'platform':'%s · %s'%(platform.system().replace('Darwin','Mac'),hardware.get('name','CPU'))},
-                       lambda reply:awake.set_mode((reply.get('settings') or {}).get('keep_awake','jobs')),closing).start()
+                       lambda reply:(awake.set_mode((reply.get('settings') or {}).get('keep_awake','jobs')),telemetry.replied(reply)),closing).start()
     def housekeeping(force=False):
         # Startup, after every job, and hourly while idle: remove only re-downloadable media.
         nonlocal last_cleanup
@@ -357,11 +358,22 @@ def main():
         status.set('Finishing this match, then opening browser approval…' if busy['value'] else 'Opening browser approval…')
     reconnect_button=ttk.Button(shell.footer,text='Reconnect',style='Subtle.TButton',command=reconnect)
     reconnect_button.pack(anchor='w',pady=(6,0))
-    update={'release':None,'stage':None,'checking':False}
+    update={'release':None,'stage':None,'checking':False,'remote':False,'tried':-1e9}
     update_status=tk.StringVar(value='')
+    # Windows always updates itself; Linux once its .deb launcher keeps a newer per-user copy (it sets NEPTUNE_LINUX_UPDATES).
+    updatable=sys.platform=='win32' or (sys.platform=='linux' and os.environ.get('NEPTUNE_LINUX_UPDATES')=='1')
+    if updatable:telemetry.EXTRA['remote_update']=True
+    def update_note(text):update_status.set(text);telemetry.EXTRA['update']=text[:200]
+    def remote_settings(settings):
+        # The owner asked Neptune to update this computer, or turned on automatic updates: check, download, install when idle, reopen.
+        wait=600 if settings.get('update_requested') else 3600
+        if not updatable or not (settings.get('update_requested') or settings.get('auto_update')):return
+        if update['checking'] or update['stage'] or update['remote'] or time.monotonic()-update['tried']<wait:return
+        update['remote']=True;update['tried']=time.monotonic();check_updates()
+    unsubscribe_replies=telemetry.on_reply(lambda reply:messages.put(('remote_settings',reply.get('settings') or {})))
     def check_updates():
-        if sys.platform!='win32' or update['checking']:return
-        update['checking']=True;update_button.config(state='disabled');update_status.set('Checking for updates…')
+        if not updatable or update['checking']:return
+        update['checking']=True;update_button.config(state='disabled');update_note('Checking for updates…')
         def work():
             try:
                 from neptune_windows_update import check
@@ -369,8 +381,8 @@ def main():
             except Exception as error:messages.put(('update_error',str(error)))
         threading.Thread(target=work,daemon=True).start()
     def install_update():
-        if busy['value'] or not update['release']:return
-        update_button.config(state='disabled');update_status.set('Downloading and verifying update…')
+        if (busy['value'] and not update['remote']) or not update['release']:return   # a requested update downloads now and installs after the match
+        update_button.config(state='disabled');update_note('Downloading and verifying '+update['release']['version']+'…')
         def work():
             try:
                 from neptune_windows_update import prepare
@@ -378,12 +390,12 @@ def main():
             except Exception as error:messages.put(('update_error',str(error)))
         threading.Thread(target=work,daemon=True).start()
     update_button=ttk.Button(actions,text='Check for updates',style='Subtle.TButton',command=lambda:install_update() if update['release'] else check_updates())
-    if sys.platform=='win32':
+    if updatable:
         update_button.pack(anchor='w')
         tk.Label(actions,textvariable=update_status,wraplength=170,justify='left',font=('Arial',9),fg=ui.MUTED,bg=ui.PANEL,anchor='w').pack(fill='x',pady=(4,0))
         root.after(1500,check_updates)
     else:
-        tk.Label(actions,text='Updates come from your package manager.',wraplength=170,justify='left',font=('Arial',9),fg=ui.MUTED,bg=ui.PANEL,anchor='w').pack(fill='x')
+        tk.Label(actions,text='Updates come from your package manager.' if sys.platform=='linux' else 'Updates are not available here.',wraplength=170,justify='left',font=('Arial',9),fg=ui.MUTED,bg=ui.PANEL,anchor='w').pack(fill='x')
     def progress(text):messages.put(('progress',str(text)))
     def stop_current():pause.set();progress('Finishing this match, then pausing. Progress stays saved on Neptune.')
     stop_button=ttk.Button(settings,text='Stop after this match',style='Subtle.TButton',command=stop_current,state='disabled');stop_button.pack(side='left',padx=(12,0))
@@ -458,7 +470,7 @@ def main():
             ui.render_overview(page,view['dash'],view['models'],self_id=self_id,busy=busy['value'],open_page=open_page)
         elif key in ('robots','field'):ui.render_model(page,'robot' if key=='robots' else 'field',view['models'].get('robot' if key=='robots' else 'field'),open_url=webbrowser.open)
         elif key=='actions':ui.render_actions(page,view['models'].get('actions'))
-        elif key=='computers':ui.render_computers(page,view['dash'],self_id=self_id)
+        elif key=='computers':ui.render_computers(page,view['dash'],self_id=self_id,on_update=change_update)
         else:page.add(activity_box)
     target=tk.StringVar(value='Any free helper')
     def targets():
@@ -473,6 +485,14 @@ def main():
             try:neptune_robot_jobs.api(config,'queue_training',{'kind':kind,**({'computer':chosen} if chosen else {})},timeout=30);messages.put(('queued',None))
             except Exception as error:messages.put(('queued',str(error)))
         threading.Thread(target=work,daemon=True).start()
+    def change_update(computer,change):
+        # Owner's choice from the Computers page: Neptune passes it to that computer's helper at its next check-in.
+        if computer=='all' and not messagebox.askyesno('Update every computer?','Each helper downloads the newest version, installs it once it has no job running, then reopens. Computers that are off update the next time the helper opens.'):return
+        def work():
+            import neptune_robot_jobs
+            try:neptune_robot_jobs.api(config,'update_computer',{'computer':computer,**change},timeout=30);messages.put(('update_sent',None))
+            except Exception as error:messages.put(('update_sent',str(error)))
+        threading.Thread(target=work,daemon=True).start()
     def show_page(key):
         view['page']=key;shell.select(key)
         if key in ('robots','field'):
@@ -481,6 +501,7 @@ def main():
             ttk.Combobox(shell.actions,textvariable=target,values=names,state='readonly',width=24,style='Neptune.TCombobox').pack(side='left',padx=(0,8))
             ttk.Button(shell.actions,text='Train %s detector'%('robot' if key=='robots' else 'field'),style='Neptune.TButton',command=lambda:train('train' if key=='robots' else 'train_field')).pack(side='left')
         elif key=='actions':ttk.Button(shell.actions,text='Train on Neptune',style='Neptune.TButton',command=lambda:webbrowser.open(train_page)).pack(side='left')
+        elif key=='computers':ttk.Button(shell.actions,text='Update all',style='Subtle.TButton',command=lambda:change_update('all',{'update':'request'})).pack(side='left')
         elif key=='activity':
             def copy():root.clipboard_clear();root.clipboard_append(log.get('1.0','end-1c'))
             ttk.Button(shell.actions,text='Copy log',style='Subtle.TButton',command=copy).pack(side='left')
@@ -520,23 +541,29 @@ def main():
                 if view['page'] in ('overview','robots','field','actions'):render()
                 continue
             if kind=='queued':top_status.set('Run queued' if message is None else 'Couldn’t start the run: '+message);continue
+            if kind=='update_sent':top_status.set('Update request sent' if message is None else 'Couldn’t send the update request: '+message);continue
             if kind=='review_closed':review_button.config(text='Review robot tracking…');continue
+            if kind=='remote_settings':remote_settings(message);continue
             if kind=='update_check':
                 update['checking']=False;update['release']=message
                 update_button.config(text=('Install update '+message['version']) if message else 'Check for updates',state='normal' if not busy['value'] else 'disabled')
-                update_status.set(('Version '+message['version']+' is ready to install.') if message else 'You’re up to date.');continue
+                update_note(('Version '+message['version']+' is ready to install.') if message else 'You’re up to date.')
+                if message and update['remote']:install_update()
+                else:update['remote']=False
+                continue
             if kind=='update_error':
-                update['checking']=False;update_button.config(state='normal' if not busy['value'] else 'disabled')
-                update_status.set('Update check: '+message);continue
+                update['checking']=False;update['remote']=False;update_button.config(state='normal' if not busy['value'] else 'disabled')
+                update_note('Update check: '+message);continue
             if kind=='update_ready':
                 update['stage']=message
                 if busy['value']:
-                    update_status.set('Update downloaded. It will install when this match finishes.');continue
+                    update_note('Update downloaded. It will install when this match finishes.');continue
                 try:
                     from neptune_windows_update import launch_apply
-                    launch_apply(source.parent,message);closing.set();review_closing.set();root.destroy();return
+                    update_note('Installing; the helper reopens in a moment.')
+                    launch_apply(source.parent,message);unsubscribe_replies();closing.set();review_closing.set();root.destroy();return
                 except Exception as error:
-                    update_status.set('Update install: '+str(error));update_button.config(state='normal');continue
+                    update['remote']=False;update_note('Update install: '+str(error));update_button.config(state='normal');continue
             if kind=='busy':
                 computer_card.set_working(message);job_outer.configure(height=154 if message else 62);status_label.configure(height=2 if message else 1)
                 if message:
@@ -547,7 +574,7 @@ def main():
                 busy['value']=message
                 if view['page']=='overview':render()
                 review_button.config(state='disabled' if message else 'normal');stop_button.config(state='normal' if message else 'disabled');device.config(state='disabled' if message else 'readonly')
-                if sys.platform=='win32':update_button.config(state='disabled' if message else 'normal')
+                if updatable:update_button.config(state='disabled' if message else 'normal')
                 if not message and update['stage']:
                     stage=update['stage'];update['stage']=None;messages.put(('update_ready',stage))
                 continue

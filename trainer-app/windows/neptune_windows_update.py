@@ -1,4 +1,4 @@
-"""Windows helper updates from Neptune's fixed HTTPS release endpoint.
+"""Windows and Linux helper updates from Neptune's fixed HTTPS release endpoints.
 
 The public update contains code only. The personalized trainer connection and all
 job/review data are outside the update archive and are never replaced.
@@ -14,8 +14,10 @@ import sys
 import urllib.request
 import zipfile
 
-FEED_URL = 'https://neptunefrc.com/community/downloads/windows/latest.json'
-ARCHIVE_PREFIX = 'https://neptunefrc.com/community/downloads/windows/'
+# Each platform has its own feed and archive folder; Linux updates the per-user app copy the .deb's launcher runs.
+FOLDER, PLATFORM = {'linux': ('linux', 'linux')}.get(sys.platform, ('windows', 'windows-x64'))
+FEED_URL = 'https://neptunefrc.com/community/downloads/' + FOLDER + '/latest.json'
+ARCHIVE_PREFIX = 'https://neptunefrc.com/community/downloads/' + FOLDER + '/'
 MAX_ARCHIVE = 80 * 1024 * 1024
 MAX_FEED = 16 * 1024
 # Engine files, plus the shipped detectors and region data in their own folders (6.5.1+).
@@ -29,8 +31,8 @@ class UpdateError(ValueError):
 
 def _read_https(url, maximum):
     if not url.startswith(ARCHIVE_PREFIX) and url != FEED_URL:
-        raise UpdateError('The update URL is not Neptune’s Windows release endpoint.')
-    request = urllib.request.Request(url, headers={'User-Agent': 'Neptune-Training-Helper-Windows'})
+        raise UpdateError('The update URL is not Neptune’s release endpoint.')
+    request = urllib.request.Request(url, headers={'User-Agent': 'Neptune-Training-Helper-' + FOLDER.title()})
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
     with opener.open(request, timeout=25) as response:
         if response.geturl() != url:
@@ -44,7 +46,7 @@ def _read_https(url, maximum):
 def installed_version(app_dir):
     value = json.loads((Path(app_dir) / 'build-version.json').read_text(encoding='utf-8'))['version']
     if not isinstance(value, str) or not VERSION.fullmatch(value):
-        raise UpdateError('The installed Windows version is invalid.')
+        raise UpdateError('The installed helper version is invalid.')
     return value
 
 
@@ -54,7 +56,7 @@ def newer(candidate, installed):
 
 def check(app_dir):
     data = json.loads(_read_https(FEED_URL, MAX_FEED))
-    if data.get('schema_version') != 1 or data.get('platform') != 'windows-x64':
+    if data.get('schema_version') != 1 or data.get('platform') != PLATFORM:
         raise UpdateError('The Windows release feed has an unexpected format.')
     version = data.get('version')
     if not isinstance(version, str) or not VERSION.fullmatch(version):
@@ -121,17 +123,30 @@ def prepare(app_dir, release, update_root=None):
         raise
 
 
+def relaunch_command(app_dir):
+    """How to open the helper again after an update: the Windows shortcut's pythonw command, or the Linux .deb launcher."""
+    if sys.platform == 'win32':
+        return [str(Path(sys.executable).with_name('pythonw.exe')), str(Path(app_dir) / 'neptune_trainer_entry.py')]
+    return ['/usr/bin/neptune-training-helper']
+
+
 def launch_apply(app_dir, stage):
-    if sys.platform != 'win32':
-        raise UpdateError('Automatic installation runs only on Windows.')
+    """Hand the verified stage to a detached installer that waits for this helper to close, installs, then reopens it."""
+    if sys.platform not in ('win32', 'linux'):
+        raise UpdateError('Automatic installation runs only on Windows and Linux.')
     app_dir = Path(app_dir)
     stage = Path(stage)
     script = app_dir / 'neptune_update_apply.py'
     if not script.is_file():
-        raise UpdateError('The Windows update installer is missing.')
+        raise UpdateError('The update installer is missing.')
     detached = stage / 'apply-update.py'
     shutil.copy2(script, detached)
-    python = Path(sys.executable).with_name('python.exe')
-    subprocess.Popen([str(python), '-I', str(detached), str(os.getpid()), str(app_dir), str(stage)],
-                     stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                     close_fds=True, creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP)
+    arguments = [str(detached), str(os.getpid()), str(app_dir), str(stage), json.dumps(relaunch_command(app_dir))]
+    if sys.platform == 'win32':
+        python = Path(sys.executable).with_name('python.exe')
+        subprocess.Popen([str(python), '-I'] + arguments,
+                         stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                         close_fds=True, creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP)
+    else:
+        subprocess.Popen([sys.executable, '-I'] + arguments, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                         stderr=subprocess.DEVNULL, close_fds=True, start_new_session=True)

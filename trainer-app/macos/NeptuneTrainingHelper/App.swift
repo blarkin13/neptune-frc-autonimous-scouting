@@ -77,6 +77,8 @@ func loadCredential() -> Data? {
     var thisMacStrip:NSView!;var localJob:NSView!;var pinned:Set<ObjectIdentifier>=[]
     var task:Process?;var input:FileHandle?;var buffer=Data();var busy=false;var quitting=false
     var cachedCredential:Data?;var pendingCommand:String?;var installHandler:(()->Void)?;var logFile:FileHandle?
+    // Remote updates: the owner asks Neptune to update this Mac, or turns on automatic updates for it.
+    var remoteUpdate=false;var autoUpdate=false;var remoteTried=Date.distantPast
     var status=NSTextField(wrappingLabelWithString:"Connect this Mac to Neptune to begin.")
     var connection=NSTextField(wrappingLabelWithString:"Disconnected")
     var updateStatus=NSTextField(wrappingLabelWithString:"Updates are checked automatically.")
@@ -273,6 +275,7 @@ func loadCredential() -> Data? {
             refreshTargets();trainTarget.widthAnchor.constraint(lessThanOrEqualToConstant:230).isActive=true;headerActions.addArrangedSubview(trainTarget)
             headerActions.addArrangedSubview(button(page=="robots" ? "Train robot detector":"Train field detector",#selector(trainTapped),primary:true));run.bezelColor=nil;run.contentTintColor=nil
         case "actions":headerActions.addArrangedSubview(button("Train on Neptune",#selector(openTrainPage),primary:true));run.bezelColor=nil;run.contentTintColor=nil
+        case "computers":headerActions.addArrangedSubview(button("Update all",#selector(updateAllTapped)));run.bezelColor=accent;run.contentTintColor=ink
         case "activity":headerActions.addArrangedSubview(button("Copy log",#selector(copyLog)));headerActions.addArrangedSubview(button("Show log files",#selector(showLogs)));run.bezelColor=accent;run.contentTintColor=ink
         default:run.bezelColor=accent;run.contentTintColor=ink
         }
@@ -508,10 +511,38 @@ func loadCredential() -> Data? {
             let c=card(nil)
             c.addArrangedSubview(hstack([text((w["name"] as? String ?? "Computer")+(isThisMac ? " · this Mac":""),14,.white,.semibold),text(state.0,12,state.1,.semibold)],spacing:10))
             add(text([w["platform"],w["device"],w["version"]].compactMap {$0 as? String}.filter {!$0.isEmpty}.joined(separator:" · "),11,muted),to:c)
+            add(updateRow(w),to:c)
             add(meterRow(w["stats"] as? [String:Any] ?? [:]),to:c)
             if isThisMac && (reviewing || folderReview) {add(text("Live helper readings resume when you close the local review.",11,warn),to:c)}
             add(text((w["job"] as? [String:Any])?["message"] as? String ?? "No assigned job",11,muted),to:c)
         }
+    }
+    /// A computer's helper version against the newest release, with Update / Cancel and the auto-update switch.
+    func updateRow(_ w:[String:Any])->NSView {
+        let u=w["update"] as? [String:Any] ?? [:],id=w["id"] as? String ?? "",latest=u["latest"] as? String,remote=(u["remote"] as? Bool)==true
+        let requested=u["requested"] is NSNumber,behind=(u["behind"] as? Bool)==true
+        let line:(String,NSColor) = !remote ? (behind ? "Update \(latest ?? "") available · update this helper once by hand to allow remote updates":"Remote updates arrive with the next helper update",muted)
+            :requested ? ((u["message"] as? String) ?? "Update requested · installs when the helper is idle, then reopens",accent)
+            :behind ? ("Update \(latest ?? "") available",warn):((latest.map {"Up to date · "+$0}) ?? "Up to date",good)
+        var row:[NSView]=[text(line.0,11,line.1)]
+        func act(_ title:String,_ action:Selector)->NSButton {let b=button(title,action);b.identifier=NSUserInterfaceItemIdentifier(id);b.controlSize = .small;return b}
+        if remote {
+            if requested {row.append(act("Cancel update",#selector(cancelUpdateTapped(_:))))} else if behind {row.append(act("Update",#selector(updateTapped(_:))))}
+            let auto=NSButton(checkboxWithTitle:"Update automatically",target:self,action:#selector(autoUpdateTapped(_:)));auto.identifier=NSUserInterfaceItemIdentifier(id)
+            auto.state=(u["auto"] as? Bool)==true ? .on:.off;auto.attributedTitle=NSAttributedString(string:"Update automatically",attributes:[.foregroundColor:NSColor.white,.font:NSFont.systemFont(ofSize:11)]);row.append(auto)
+        }
+        return hstack(row,spacing:10)
+    }
+    @objc func updateTapped(_ sender:NSButton) {changeUpdate(sender.identifier?.rawValue ?? "",["update":"request"])}
+    @objc func cancelUpdateTapped(_ sender:NSButton) {changeUpdate(sender.identifier?.rawValue ?? "",["update":"cancel"])}
+    @objc func autoUpdateTapped(_ sender:NSButton) {changeUpdate(sender.identifier?.rawValue ?? "",["auto_update":sender.state == .on])}
+    @objc func updateAllTapped() {
+        let alert=NSAlert();alert.messageText="Update every computer?";alert.informativeText="Each helper downloads the newest version, installs it once it has no job running, then reopens. Computers that are off update the next time the helper opens."
+        alert.addButton(withTitle:"Update all");alert.addButton(withTitle:"Cancel");guard alert.runModal() == .alertFirstButtonReturn else {return};changeUpdate("all",["update":"request"])
+    }
+    func changeUpdate(_ id:String,_ change:[String:Any]) {
+        guard !id.isEmpty else {return};var body:[String:Any]=["action":"update_computer","computer":id];body.merge(change) {$1}
+        post(body) {ok,reply in self.dashboardStatus.stringValue=ok ? "Update request sent":(reply?["error"] as? String ?? "Couldn't reach Neptune. Try again.");self.reloadDashboard()}
     }
     func updateTelemetry(_ payload:[String:Any]) {
         let stats=payload["stats"] as? [String:Any] ?? [:],gpu=stats["gpu"] as? [String:Any] ?? [:],counters=payload["counters"] as? [String:Any] ?? [:]
@@ -554,7 +585,7 @@ func loadCredential() -> Data? {
         let models=support.appendingPathComponent("robot-models");try? FileManager.default.createDirectory(at:models,withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])
         var env=ProcessInfo.processInfo.environment
         for key in ["PYTHONPATH","PYTHONHOME","DYLD_LIBRARY_PATH","DYLD_INSERT_LIBRARIES"] {env.removeValue(forKey:key)}
-        env["PATH"]=resources.appendingPathComponent("engine/vendor/bin").path+":/usr/bin:/bin:/usr/sbin:/sbin";env["NEPTUNE_ROBOT_MODELS"]=models.path;env["PYTHONDONTWRITEBYTECODE"]="1";env["NEPTUNE_HELPER_PIPELINE"]="facts";env["MPLCONFIGDIR"]=support.appendingPathComponent("matplotlib").path;process.environment=env
+        env["PATH"]=resources.appendingPathComponent("engine/vendor/bin").path+":/usr/bin:/bin:/usr/sbin:/sbin";env["NEPTUNE_ROBOT_MODELS"]=models.path;env["PYTHONDONTWRITEBYTECODE"]="1";env["NEPTUNE_HELPER_PIPELINE"]="facts";env["NEPTUNE_HELPER_VERSION"]=Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "";env["MPLCONFIGDIR"]=support.appendingPathComponent("matplotlib").path;process.environment=env
         let incoming=Pipe(),outgoing=Pipe();process.standardInput=incoming;process.standardOutput=outgoing
         process.standardError=logFile;input=incoming.fileHandleForWriting;buffer=Data();task=process
         outgoing.fileHandleForReading.readabilityHandler={handle in let data=handle.availableData;if data.isEmpty {handle.readabilityHandler=nil;return};DispatchQueue.main.async {self.buffer.append(data);while let end=self.buffer.firstIndex(of:10) {let row=self.buffer.prefix(upTo:end);self.buffer.removeSubrange(...end);if let event=(try? JSONSerialization.jsonObject(with:row)) as? [String:Any] {self.event(event)}}}}
@@ -565,6 +596,7 @@ func loadCredential() -> Data? {
         switch value["event"] as? String {
         case "telemetry":
             if let payload=value["payload"] as? [String:Any] {updateTelemetry(payload)}
+        case "settings":remoteSettings(value["settings"] as? [String:Any] ?? [:])
         case "image_folder_url":
             if let text=value["url"] as? String,let url=URL(string:text),url.scheme=="http",url.host=="127.0.0.1" {NSWorkspace.shared.open(url);connection.stringValue="Local image labeling";status.stringValue="Correct bumper boxes in the image labeler. Only checked frames enter the local YOLO export.";folderButton.title="Close image labeler";reviewButton.isEnabled=false;stop.isEnabled=false}
         case "review_url":
@@ -634,8 +666,24 @@ func loadCredential() -> Data? {
             append("Existing connection imported to Keychain. Training files stay in place.");if task != nil {pendingCommand="run";send(["command":"quit"])} else {launch("run")}
         } catch {append(error.localizedDescription)}}
     }
-    func updater(_ updater:SPUUpdater,didFindValidUpdate item:SUAppcastItem) {updateStatus.stringValue="Update \(item.displayVersionString) is available. Install using the update window."}
-    func updater(_ updater:SPUUpdater,didAbortWithError error:Error) {updateStatus.stringValue="Update check: "+error.localizedDescription}
+    /// Neptune's reply to each check-in: an open update request starts a silent Sparkle download; auto-update keeps downloads silent.
+    func remoteSettings(_ s:[String:Any]) {
+        autoUpdate=(s["auto_update"] as? Bool)==true;let requested=s["update_requested"] is NSNumber
+        if (requested || autoUpdate) && !updater.updater.automaticallyDownloadsUpdates {updater.updater.automaticallyDownloadsUpdates=true}
+        if requested && !remoteUpdate && Date().timeIntervalSince(remoteTried)>600 {remoteUpdate=true;remoteTried=Date();updateNote("Checking for updates…");updater.updater.checkForUpdatesInBackground()}
+    }
+    func updateNote(_ text:String) {updateStatus.stringValue=text;send(["command":"update_note","text":text])}
+    func updater(_ updater:SPUUpdater,didFindValidUpdate item:SUAppcastItem) {
+        if remoteUpdate || autoUpdate {updateNote("Downloading \(item.displayVersionString)…")} else {updateStatus.stringValue="Update \(item.displayVersionString) is available. Install using the update window."}
+    }
+    func updaterDidNotFindUpdate(_ updater:SPUUpdater) {if remoteUpdate {remoteUpdate=false;updateNote("You’re up to date.")}}
+    func updater(_ updater:SPUUpdater,didAbortWithError error:Error) {remoteUpdate=false;updateNote("Update check: "+error.localizedDescription)}
+    // Downloaded silently: install and relaunch now (or after this match) when Neptune asked for it or auto-update is on.
+    func updater(_ updater:SPUUpdater,willInstallUpdateOnQuit item:SUAppcastItem,immediateInstallationBlock handler:@escaping ()->Void)->Bool {
+        guard remoteUpdate || autoUpdate else {return false}
+        if busy {installHandler=handler;updateNote("\(item.displayVersionString) downloaded. It installs when this match finishes.");return true}
+        updateNote("Installing \(item.displayVersionString); the helper reopens in a moment.");send(["command":"quit"]);handler();return true
+    }
     func updater(_ updater:SPUUpdater,shouldPostponeRelaunchForUpdate item:SUAppcastItem,untilInvokingBlock handler:@escaping ()->Void)->Bool {if busy {installHandler=handler;stopMatch();updateStatus.stringValue="Update ready. Finishing this match before restarting.";return true};send(["command":"quit"]);return false}
     func applicationShouldTerminate(_ sender:NSApplication)->NSApplication.TerminateReply {
         if busy {let alert=NSAlert();alert.messageText="Finish this match and quit?";alert.informativeText="Progress will be saved before this app closes.";alert.addButton(withTitle:"Finish and quit");alert.addButton(withTitle:"Keep running");if alert.runModal() != .alertFirstButtonReturn {return .terminateCancel};quitting=true;send(["command":"quit"]);return .terminateCancel}

@@ -72,7 +72,7 @@ try {
   elseif(in_array($action,['computer_settings','rename_computer'],true)){
    if(!in_array($computer,array_column(array_filter($control->computers($uid),fn($c)=>!$c['revoked']),'id'),true))throw new CommunityAnalysisError(422,'Choose one of your connected computers.');
    if($action==='rename_computer'){$name=trim((string)($_POST['name']??''));if($name===''||mb_strlen($name)>100)throw new CommunityAnalysisError(422,'Enter a name up to 100 characters.');$q=$pdo->prepare('UPDATE community_training_computers SET name=? WHERE id=? AND user_id=?');$q->execute([$name,$computer,$uid]);$reply=['ok'=>true];}
-   else{try{$reply=(new RobotDetectorJobs(dirname(__DIR__,3).'/neptune_secure',(int)$u['organization_id']))->setSettings($computer,['keep_awake'=>(string)($_POST['keep_awake']??'')]);}catch(InvalidArgumentException $e){throw new CommunityAnalysisError(422,$e->getMessage());}}
+   else{try{$reply=(new RobotDetectorJobs(dirname(__DIR__,3).'/neptune_secure',(int)$u['organization_id']))->setSettings($computer,array_map(fn($v)=>$v==='true'?true:($v==='false'?false:$v),array_intersect_key($_POST,array_flip(['keep_awake','auto_update','update']))));}catch(InvalidArgumentException $e){throw new CommunityAnalysisError(422,$e->getMessage());}}
   }
   elseif($action==='cancel_detector'){try{$reply=(new RobotDetectorJobs(dirname(__DIR__,3).'/neptune_secure',(int)$u['organization_id']))->cancel((string)($_POST['request']??''));}catch(InvalidArgumentException $e){throw new CommunityAnalysisError(422,$e->getMessage());}}
   elseif($action==='rollback_detector'){try{$reply=(new RobotDetectorJobs(dirname(__DIR__,3).'/neptune_secure',(int)$u['organization_id']))->rollback((string)($_POST['which']??''),(string)($games[(string)$season]['game_key']??''));}catch(InvalidArgumentException $e){throw new CommunityAnalysisError(422,$e->getMessage());}}
@@ -212,5 +212,5 @@ sudo apt update &amp;&amp; sudo apt install neptune-training-helper</pre><p clas
 </div>
 <script type="application/json" id="training-initial"><?=json_encode($panel,JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_THROW_ON_ERROR)?></script>
 <script src="../community/assets/training-control.js?v=remove-computers-1" defer></script>
-<script src="/community/assets/pillar.js?v=22" defer></script>
+<script src="/community/assets/pillar.js?v=23" defer></script>
 <?php community_page_end(); ?>

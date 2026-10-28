@@ -118,12 +118,19 @@
   const waiting=c.waiting.length?`<p class="training-note">Waiting for this computer: ${c.waiting.map(w=>`${kinds[w.kind]} <button type="button" class="button-secondary tt-cancel" data-cancel="${esc(w.request)}">Cancel</button>`).join(' ')}</p>`:'';
   const start=c.job?'':`<button type="button" data-start="train" data-computer="${esc(c.id)}">Train robot detector</button> <button type="button" data-start="train_field" data-computer="${esc(c.id)}">Train field detector</button> <a class="community-button" href="/autoscout/train.php?connect=1&amp;computer=${encodeURIComponent(c.id)}#train">Train actions…</a>`;
   const awake=`<label class="tt-awake">Keep awake <select data-awake="${esc(c.id)}">${[['jobs','During jobs'],['always','Always while the helper is open'],['off','Off']].map(([v,l])=>`<option value="${v}"${c.settings.keep_awake===v?' selected':''}>${l}</option>`).join('')}</select></label> <small>${!c.polls?'Needs the updated helper.':c.online?(c.awake?'☀ Awake now':'Allowed to sleep now'):''}</small>`;
-  return `<div class="tt-computer"><div class="tt-job-head"><strong>${esc(c.name)}</strong> <button type="button" class="button-secondary tt-cancel" data-rename="${esc(c.id)}" data-name="${esc(c.name)}" aria-label="Rename ${esc(c.name)}">Rename</button> ${badge}</div><p class="training-note">${facts||'—'}</p>${now}${waiting}<div class="training-actions">${start}${stop}${!c.online&&!c.job?` <button type="button" class="button-secondary" data-remove="${esc(c.id)}" data-name="${esc(c.name)}">Remove</button>`:''}</div>${awake}</div>`;
+  const u=c.update||{};
+  const upd=!u.remote?`<p class="training-note">${u.behind?`Update ${esc(u.latest)} available · update this helper once by hand to allow remote updates.`:'Remote updates arrive with the next helper update.'}</p>`
+   :`<p class="training-note tt-update">${u.requested?`<span class="tt-badge ok">${esc(u.message||'Update requested · installs when the helper is idle, then reopens')}</span> <button type="button" class="button-secondary tt-cancel" data-update="cancel" data-computer="${esc(c.id)}">Cancel update</button>`:u.behind?`<span class="tt-badge warn">Update ${esc(u.latest)} available</span> <button type="button" class="button-secondary" data-update="request" data-computer="${esc(c.id)}">Update</button>`:`Up to date${u.latest?' · '+esc(u.latest):''}`}
+    <label class="tt-awake"><input type="checkbox" data-auto-update="${esc(c.id)}"${u.auto?' checked':''}> Update automatically</label></p>`;
+  return `<div class="tt-computer"><div class="tt-job-head"><strong>${esc(c.name)}</strong> <button type="button" class="button-secondary tt-cancel" data-rename="${esc(c.id)}" data-name="${esc(c.name)}" aria-label="Rename ${esc(c.name)}">Rename</button> ${badge}</div><p class="training-note">${facts||'—'}</p>${now}${waiting}<div class="training-actions">${start}${stop}${!c.online&&!c.job?` <button type="button" class="button-secondary" data-remove="${esc(c.id)}" data-name="${esc(c.name)}">Remove</button>`:''}</div>${upd}${awake}</div>`;
  }
  document.addEventListener('click',async e=>{
-  const b=e.target.closest('[data-start],[data-stop-job],[data-cancel-job],[data-rename],[data-remove]');if(!b)return;
+  const b=e.target.closest('[data-start],[data-stop-job],[data-cancel-job],[data-rename],[data-remove],[data-update]');if(!b)return;
   try{
-   if(b.dataset.start){b.disabled=true;await send({action:'queue_detector',kind:b.dataset.start,computer:b.dataset.computer})}
+   if(b.dataset.update==='all'){const ids=[...document.querySelectorAll('[data-update="request"]')].map(x=>x.dataset.computer);if(!ids.length){alert('Every computer that can update remotely is up to date.');return}
+    if(!confirm(`Update ${ids.length} computer${ids.length>1?'s':''}? Each helper downloads the newest version, installs it once it has no job running, then reopens.`))return;b.disabled=true;for(const id of ids)await send({action:'computer_settings',computer:id,update:'request'})}
+   else if(b.dataset.update){b.disabled=true;await send({action:'computer_settings',computer:b.dataset.computer,update:b.dataset.update})}
+   else if(b.dataset.start){b.disabled=true;await send({action:'queue_detector',kind:b.dataset.start,computer:b.dataset.computer})}
    else if(b.dataset.remove){if(!confirm(`Remove ${b.dataset.name} from your computers? It would need to connect again to come back.`))return;await send({action:'delete_computer',computer:b.dataset.remove})}
    else if(b.dataset.cancelJob){if(!confirm('Cancel this run now? Use this when the helper is closed or stuck. Saved video work and human tags are kept.'))return;await send({action:'cancel',job:b.dataset.cancelJob})}
    else if(b.dataset.stopJob){if(!confirm('Stop this run after the current match? Progress is saved and it can be continued later.'))return;await send({action:'stop',job:b.dataset.stopJob})}
@@ -131,6 +138,7 @@
    b.blur();await refresh();
   }catch(err){alert(err.message);b.disabled=false}
  });
+ document.addEventListener('change',async e=>{const a=e.target.closest('[data-auto-update]');if(a){try{await send({action:'computer_settings',computer:a.dataset.autoUpdate,auto_update:a.checked?'true':'false'});a.blur();await refresh()}catch(err){alert(err.message)}return}});
  document.addEventListener('change',async e=>{const s=e.target.closest('[data-awake]');if(!s)return;try{await send({action:'computer_settings',computer:s.dataset.awake,keep_awake:s.value});s.blur();await refresh()}catch(err){alert(err.message)}});
 
  const tbar=(p,w=22)=>{p=Math.max(0,Math.min(100,p||0));const cells=p/100*w,full=Math.floor(cells),part=' ▏▎▍▌▋▊▉'[Math.floor((cells-full)*8)];return '▕'+'█'.repeat(full)+(full<w?part+' '.repeat(w-full-1):'')+'▏'};
@@ -251,7 +259,7 @@
   fill('test','videos',(o.test_videos||[]).length?'<table class="tt-runs"><tr><th>Made</th><th>Match</th><th>Video</th></tr>'+o.test_videos.map(v=>`<tr><td>${when(v.saved_at)}</td><td>${esc(v.match_key||'')}</td><td>${video(v)}</td></tr>`).join('')+'</table>':'<p class="training-note">No match test videos yet. Run Preview a match below.</p>');
   // Helpers & settings → My computers. Not redrawn while you are using one of its controls.
   const mine=slot('helpers','computers');
-  if(mine&&!mine.contains(document.activeElement))mine.innerHTML=comps.length?comps.map(c=>computerCard(c,(q0,cc)=>job(o.queue.find(x=>(q0.request&&x.request===q0.request)||(q0.job&&x.job===q0.job))||q0,cc))).join(''):'<p class="training-note">No computers connected yet. Install the helper below and connect it.</p>';
+  if(mine&&!mine.contains(document.activeElement))mine.innerHTML=(comps.some(c=>c.update?.remote&&c.update?.behind&&!c.update?.requested)?'<p class="training-actions"><button type="button" class="button-secondary" data-update="all">Update all computers</button></p>':'')+(comps.length?comps.map(c=>computerCard(c,(q0,cc)=>job(o.queue.find(x=>(q0.request&&x.request===q0.request)||(q0.job&&x.job===q0.job))||q0,cc))).join(''):'<p class="training-note">No computers connected yet. Install the helper below and connect it.</p>');
   // Helpers & settings: each helper's last GPU self-check.
   fill('helpers','selfchecks',o.helpers.some(h=>h.selfcheck)?o.helpers.filter(h=>h.selfcheck).map(h=>{const c=h.selfcheck;return `<p><strong>${esc(h.name)}</strong> · ${esc(c.summary?.verdict||'')} <small>(${when(c.checked_at)} · ${esc(c.platform||'')})</small></p><table class="tt-runs">`+(c.checks||[]).map(x=>`<tr><td>${x.ok?'✓':'⚠'}</td><td>${esc(x.check)}</td><td class="tt-msg">${esc(x.detail)}</td></tr>`).join('')+'</table>'}).join(''):'<p class="training-note">No self-check yet. It runs when a helper (version 3.2.32 / Windows 6.5.0 or newer) starts.</p>');
   testFlow(o);

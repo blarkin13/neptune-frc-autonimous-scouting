@@ -180,17 +180,25 @@ final class RobotDetectorJobs {
  }
  /** Per-computer settings set on Neptune (My computers): keep awake 'jobs' (default), 'always' or 'off'. */
  private static function cid(string $id):string{if(!preg_match('/^[a-f0-9]{32}$/D',$id))throw new InvalidArgumentException('Invalid computer');return $id;}
- public function settings(string $computer):array{$f=$this->root.'/computers/'.self::cid($computer).'.json';$d=is_file($f)?json_decode((string)file_get_contents($f),true):[];return ['keep_awake'=>in_array($d['keep_awake']??'',['jobs','always','off'],true)?$d['keep_awake']:'jobs'];}
+ public function settings(string $computer):array{$f=$this->root.'/computers/'.self::cid($computer).'.json';$d=is_file($f)?json_decode((string)file_get_contents($f),true):[];
+  return ['keep_awake'=>in_array($d['keep_awake']??'',['jobs','always','off'],true)?$d['keep_awake']:'jobs','auto_update'=>!empty($d['auto_update']),'update_requested'=>(int)($d['update_requested']??0)?:null];}
+ /** Owner choices for one computer: keep_awake, auto_update (install new helper versions when idle), update ('request' or 'cancel' a one-time update). */
  public function setSettings(string $computer,array $p):array{
   $s=$this->settings($computer);if(isset($p['keep_awake'])){if(!in_array($p['keep_awake'],['jobs','always','off'],true))throw new InvalidArgumentException('Choose when to keep this computer awake.');$s['keep_awake']=$p['keep_awake'];}
+  if(array_key_exists('auto_update',$p))$s['auto_update']=(bool)$p['auto_update'];
+  if(isset($p['update'])){if(!in_array($p['update'],['request','cancel'],true))throw new InvalidArgumentException('Choose request or cancel.');$s['update_requested']=$p['update']==='request'?time():null;}
   self::write($this->dir('computers').'/'.self::cid($computer).'.json',$s+['updated_at'=>time()]);return $s;
  }
  /** A helper checks in every ~30 s while idle and with each job update: its status line and whether it is keeping the computer awake. */
  public function poll(array $computer,array $p):array{
-  self::write($this->dir('computers').'/'.self::cid((string)$computer['id']).'.status.json',['at'=>time(),'busy'=>!empty($p['busy']),'awake'=>!empty($p['awake']),'message'=>mb_substr((string)($p['message']??''),0,600),'version'=>mb_substr((string)($p['version']??''),0,40),'platform'=>mb_substr((string)($p['platform']??''),0,80),
-   'stats'=>self::numbers($p['stats']??null,2),'counters'=>self::numbers($p['counters']??null,1),
+  $cid=(string)$computer['id'];$version=mb_substr((string)($p['version']??''),0,40);$platform=mb_substr((string)($p['platform']??''),0,80);
+  self::write($this->dir('computers').'/'.self::cid($cid).'.status.json',['at'=>time(),'busy'=>!empty($p['busy']),'awake'=>!empty($p['awake']),'message'=>mb_substr((string)($p['message']??''),0,600),'version'=>$version,'platform'=>$platform,
+   'stats'=>self::numbers($p['stats']??null,2),'counters'=>self::numbers($p['counters']??null,1),'remote_update'=>!empty($p['remote_update']),'update'=>mb_substr((string)($p['update']??''),0,200),
    'log'=>array_values(array_map(fn($l)=>[(int)($l[0]??0),mb_substr((string)($l[1]??''),0,220)],array_slice(is_array($p['log']??null)?array_filter($p['log'],'is_array'):[],-14)))]);
-  return ['settings'=>$this->settings((string)$computer['id'])];
+  // A requested update is done once this computer reports the newest published version for its platform; a day-old request lapses.
+  $s=$this->settings($cid);$latest=helper_latest_version($platform);
+  if($s['update_requested']&&(($latest!==null&&$version!==''&&version_compare($version,$latest,'>='))||time()-$s['update_requested']>86400))$s=$this->setSettings($cid,['update'=>'cancel']);
+  return ['settings'=>$s+['latest'=>$latest]];
  }
  /** A removed computer's settings and last check-in. */
  public function forget(string $computer):void{foreach(['.json','.status.json'] as $x){$f=$this->root.'/computers/'.self::cid($computer).$x;if(is_file($f))unlink($f);}$f=$this->root.'/selfchecks/'.self::cid($computer).'.json';if(is_file($f))unlink($f);}
@@ -283,3 +291,13 @@ final class RobotDetectorJobs {
   return ['ok'=>true,'sha256'=>$sha];
  }
 }
+
+/** Newest published helper version for a check-in's platform ("Mac · …", "Windows · …", "Linux · …"), read from the public update feeds. */
+function helper_latest_version(string $platform):?string{
+ static $cache=[];$os=strtok($platform,' ');if(!in_array($os,['Mac','Windows','Linux'],true))return null;
+ $d=($GLOBALS['neptune_downloads_dir']??dirname(__DIR__).'/public_html/Neptune/community/downloads').'/';if(array_key_exists($d.$os,$cache))return $cache[$d.$os];$v=null;
+ if($os==='Mac'){$x=@file_get_contents($d.'mac/appcast.xml');if($x&&preg_match('/<sparkle:shortVersionString>([0-9.]{1,20})</',$x,$m))$v=$m[1];}
+ else{$j=json_decode((string)@file_get_contents($d.strtolower($os).'/latest.json'),true);if(is_array($j)&&is_string($j['version']??null)&&preg_match('/^\d+(\.\d+){1,2}$/D',$j['version']))$v=$j['version'];}
+ return $cache[$d.$os]=$v;
+}
+

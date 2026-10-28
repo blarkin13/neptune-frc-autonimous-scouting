@@ -1,3 +1,45 @@
+## 2026-10-28 — Remote helper updates from Neptune (Claude, local, not released)
+
+The owner asked for helper updates to install by themselves and reopen, and to be started remotely from Neptune, on Mac, Windows and Linux.
+
+Server:
+- Each computer's settings (`RobotDetectorJobs::settings`) now hold `update_requested` (a time) and `auto_update`.
+- The website (`computer_settings`) and the helpers (new `update_computer` action, for one computer or `all`) set them; only the owner's own computers can be changed.
+- `poll()` returns them with the newest published version. `helper_latest_version()` reads it from the Mac appcast or the Windows/Linux `latest.json`.
+- A request clears once the helper reports that version, and lapses after a day.
+- Check-ins also store `remote_update` (this helper can act on requests) and `update` (its last update message).
+- `autoscout_computers` adds `update` (latest, behind, remote, requested, auto, message) for the Computers pages.
+
+Windows and Linux (`neptune_trainer.main`):
+- An open request, or auto-update (hourly), runs the existing check → verified download → install-after-the-match path. A requested download can start during a job.
+- `neptune_update_apply.py` now reopens the helper after installing, or after rolling back.
+- `neptune_windows_update.py` serves both platforms, each with its own feed (`downloads/linux/latest.json`).
+- The Linux .deb launcher (`bootstrap.py`) now replaces the per-user copy only with a newer packaged version, and sets `NEPTUNE_LINUX_UPDATES` so the helper knows it may update itself.
+- `build-linux-deb.py` writes a Linux update zip and feed in the Windows format, without `.pt` files or the connection.
+
+Mac:
+- `native_worker.py` forwards each check-in reply.
+- `App.swift` turns on Sparkle's silent downloads when a request is open or auto-update is on, checks in the background, and in `willInstallUpdateOnQuit` installs and relaunches now, or after the match.
+- The app reports its own version (`NEPTUNE_HELPER_VERSION`) instead of the engine's.
+
+Computers pages:
+- Mac, Tk and the website (pillar.js v23) show each computer's version against the newest release.
+- Each card has Update / Cancel update and an "Update automatically" checkbox, plus Update all.
+- Helpers that can't act on requests yet say they need one update by hand.
+- `prune-release-server.sh` also prunes Linux update zips.
+
+First release needs, per platform:
+- Mac 3.2.64 and Windows 6.5.35 must be installed once through today's update button. That one install does not reopen by itself, because the old installer runs it.
+- Linux needs 6.6.26 through apt once, for the new launcher.
+- The deploy must publish `linux/latest.json` and its update zip, and allow them in the linux folder's `.htaccess`.
+
+Checked:
+- Server tests: `tests/server/helper-updates.php` (10 PASS), `my-computers.php` and `helper-models.php` updated and passing. catalog, maintenance-package, robot-label-frames, temporal-model and training-progress-mysql fail the same way without this change.
+- `test_windows_update.py`: 8 OK. New tests cover the Linux feed and launcher, and a Linux update zip built, verified, installed and reopened.
+- Engine suite: 542 OK on the bundled Python 3.13. Mac app compiles.
+- Mac and Tk Computers pages previewed with sample data covering every state.
+- Not done: no real install on Windows, Linux or Mac hardware, and the website card was not viewed in a browser.
+
 ## 2026-10-27 — OCR round 2 release: Mac 3.2.63, Windows 6.5.34, Linux 6.6.25, engine 2.7.48 (Claude)
 
 Ships OCR round 2 (entry below): saved game packs gain new layouts, generic scoreboard fallback, settled tracks skip the colour retry, score-box re-read.

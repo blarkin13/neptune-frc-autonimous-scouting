@@ -75,4 +75,47 @@ class WindowsUpdateTests(unittest.TestCase):
             self.assertIn(b'Check for updates',z.read('Neptune Trainer/app/neptune_trainer.py'))
 
 
+    def test_linux_uses_its_own_feed_and_reopens_through_the_launcher(self):
+        import importlib
+        with patch.object(sys,'platform','linux'):
+            linux=importlib.reload(updater)
+            try:
+                self.assertEqual(linux.FEED_URL,'https://neptunefrc.com/community/downloads/linux/latest.json')
+                self.assertEqual(linux.relaunch_command(self.app),['/usr/bin/neptune-training-helper'])
+                with patch.object(linux,'_read_https',return_value=json.dumps(self.feed).encode()):
+                    with self.assertRaisesRegex(linux.UpdateError,'format'):linux.check(self.app)    # a Windows feed is refused on Linux
+            finally:
+                importlib.reload(updater)
+
+    def test_linux_update_archive_installs_with_the_same_checks(self):
+        import importlib,subprocess
+        sys.path.insert(0,str(ROOT/'trainer-app/scripts'));build=importlib.import_module('build-linux-deb')
+        new=self.root/'linux-app';(new/'robot-detector').mkdir(parents=True)
+        (new/'build-version.json').write_text('{"version":"%s"}'%build.VERSION);(new/'neptune_engine.py').write_text('new engine')
+        (new/'robot-detector'/'manifest.json').write_text('{}');(new/'robot-detector'/'model.pt').write_bytes(b'weights')
+        (new/'trainer-connection.json').write_text('{"token":"never shipped"}')
+        out=self.root/'linux-release';build.write_update(new,out,'engine-test')
+        feed=json.loads((out/'latest.json').read_text());data=(out/feed['archive_url'].rsplit('/',1)[1]).read_bytes()
+        self.assertEqual((feed['platform'],feed['version'],feed['archive_size']),('linux',build.VERSION,len(data)))
+        names=zipfile.ZipFile(out/feed['archive_url'].rsplit('/',1)[1]).namelist()
+        self.assertNotIn('app/trainer-connection.json',names);self.assertNotIn('app/robot-detector/model.pt',names)
+        with patch.object(updater,'_read_https',return_value=data):stage=updater.prepare(self.app,feed)
+        marker=self.root/'reopened'
+        dead=subprocess.Popen([sys.executable,'-c','pass']);dead.wait()
+        subprocess.run([sys.executable,'-I',str(ROOT/'trainer-app/windows/neptune_update_apply.py'),str(dead.pid),str(self.app),str(stage),
+                        json.dumps([sys.executable,'-c','open(%r,"w").write("ok")'%str(marker)])],check=True,timeout=60)
+        for _ in range(50):
+            if marker.exists():break
+            __import__('time').sleep(.1)
+        self.assertEqual(updater.installed_version(self.app),build.VERSION)
+        self.assertEqual((self.app/'trainer-connection.json').read_text(),'{"token":"kept-private"}')
+        self.assertTrue(marker.exists(),'the helper is reopened after installing')
+
+    def test_linux_launcher_keeps_a_newer_per_user_copy(self):
+        sys.path.insert(0,str(ROOT/'trainer-app/linux'));import bootstrap
+        self.assertTrue(bootstrap.newer('6.6.26','6.6.25'))
+        self.assertFalse(bootstrap.newer('6.6.26','6.6.27'))
+        self.assertFalse(bootstrap.newer('6.6.26','6.6.26'))
+        self.assertTrue(bootstrap.newer('6.6.26','broken'))
+
 if __name__=='__main__':unittest.main()

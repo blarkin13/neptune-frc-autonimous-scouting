@@ -423,8 +423,18 @@ def render_actions(page,a,*,connected=True):
     _label(card,'Train on Neptune picks the matches and the computer, then Test & release checks the new model before it’s used.',10,MUTED)
 
 
-def render_computers(page,dash,*,self_id=None):
-    """Every connected computer with its live readings; this one first."""
+def update_line(w):
+    """A computer's helper version against the newest release: text, colour, and which button applies (update, cancel or none)."""
+    u=w.get('update') or {};latest=u.get('latest') or ''
+    if not u.get('remote'):
+        return (('Update %s available · update this helper once by hand to allow remote updates'%latest) if u.get('behind') else 'Remote updates arrive with the next helper update'),MUTED,None
+    if u.get('requested'):return u.get('message') or 'Update requested · installs when the helper is idle, then reopens',ACCENT,'cancel'
+    if u.get('behind'):return 'Update %s available'%latest,WARN,'request'
+    return ('Up to date · '+latest) if latest else 'Up to date',GOOD,None
+
+
+def render_computers(page,dash,*,self_id=None,on_update=None):
+    """Every connected computer with its live readings; this one first. on_update(computer_id, change) requests, cancels or sets auto-update."""
     computers=sorted(dash.get('computers') or [],key=lambda c:c.get('id')!=self_id)
     if not computers:_,card=page_card(page,None);_label(card,'No computer readouts yet.',10,MUTED)
     for w in computers:
@@ -434,6 +444,13 @@ def render_computers(page,dash,*,self_id=None):
         tk.Label(head,text=(w.get('name') or 'Computer')+(' · this computer' if w.get('id')==self_id else ''),font=('Arial',12,'bold'),fg=TEXT,bg=PANEL).pack(side='left')
         tk.Label(head,text=state,font=('Arial',10,'bold'),fg=color,bg=PANEL).pack(side='left',padx=10)
         _label(card,' · '.join(x for x in (w.get('platform'),w.get('device'),w.get('version')) if x),9,MUTED)
+        text,color,button=update_line(w);row=tk.Frame(card,bg=PANEL);row.pack(fill='x',pady=(2,0))
+        tk.Label(row,text=text,font=('Arial',9),fg=color,bg=PANEL,wraplength=520,justify='left').pack(side='left')
+        if on_update and (w.get('update') or {}).get('remote') and w.get('id'):
+            cid=w['id']
+            if button:ttk.Button(row,text='Update' if button=='request' else 'Cancel update',style='Subtle.TButton',command=lambda c=cid,b=button:on_update(c,{'update':b})).pack(side='left',padx=(10,0))
+            auto=tk.BooleanVar(value=bool((w.get('update') or {}).get('auto')))
+            tk.Checkbutton(row,text='Update automatically',variable=auto,command=lambda c=cid,v=auto:on_update(c,{'auto_update':v.get()}),font=('Arial',9),fg=TEXT,bg=PANEL,selectcolor=PANEL_ALT,activebackground=PANEL,activeforeground=TEXT,highlightthickness=0).pack(side='left',padx=(10,0))
         stats=w.get('stats') or {};gpu=stats.get('gpu') or {}
         def memory(used,total):return '—' if used is None else '%.1f / %.1f GB'%(used/1024,total/1024) if total else '%.1f GB'%(used/1024)
         grid=tk.Frame(card,bg=PANEL);grid.pack(fill='x',pady=(4,4))

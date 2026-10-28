@@ -14,8 +14,10 @@ import time
 
 LOG = collections.deque(maxlen=14)            # (unix time, line)
 STATE = {}                                    # pass, passes, batch, batches, it_s, step: set by the running job
+EXTRA = {}                                    # merged into every check-in: remote_update (can update on request) and update (its last update message)
 _lock = threading.Lock()
 _listeners = []
+_reply_listeners = []
 
 
 def subscribe(callback):
@@ -26,6 +28,24 @@ def subscribe(callback):
         with _lock:
             if callback in _listeners: _listeners.remove(callback)
     return remove
+
+
+def on_reply(callback):
+    """Deliver each check-in reply (the owner's settings for this computer) to a desktop view."""
+    with _lock:
+        _reply_listeners.append(callback)
+    def remove():
+        with _lock:
+            if callback in _reply_listeners: _reply_listeners.remove(callback)
+    return remove
+
+
+def replied(reply):
+    with _lock:
+        listeners = list(_reply_listeners)
+    for callback in listeners:
+        try: callback(reply)
+        except Exception: pass
 
 
 def notify(payload):
@@ -170,7 +190,7 @@ class Reporter(threading.Thread):
         while not self.closing.is_set():
             base = self.payload()
             state, log = snapshot()
-            payload = dict(base, stats=system(), counters=state, log=log)
+            payload = dict(base, **EXTRA, stats=system(), counters=state, log=log)
             notify(payload)
             try:
                 self.on_reply(self.send(payload))
