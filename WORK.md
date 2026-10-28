@@ -1,3 +1,7 @@
+## 2026-10-28 — Single-window and menu-name release: Mac 3.2.70, Windows 6.5.41, Linux 6.6.32, engine 2.7.55 (Claude)
+
+The owner approved the release. It ships one helper window per computer (Windows/Linux) and Hippocampus as the Mac app name. The installed 6.5.40 / 6.6.31 updaters accept these updates.
+
 ## 2026-10-28 — One helper window per computer; Hippocampus in the Mac menu bar (Claude, local, not released)
 
 The owner could open several copies of the Linux helper, and the Mac menu bar still said Neptune Training Helper.
