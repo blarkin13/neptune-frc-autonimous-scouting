@@ -1,3 +1,9 @@
+## 2026-10-28 — Hippocampus release: Mac 3.2.69, Windows 6.5.40, Linux 6.6.31, engine 2.7.54 (Claude)
+
+The owner approved shipping the Hippocampus name and app icon (entry below).
+- Windows update 1.06 MB, carrying the new `Neptune.ico`; Linux update 0.85 MB.
+- The installed 6.5.39 / 6.6.30 updaters accept them.
+
 ## 2026-10-28 — Hippocampus branding (Claude, local, not released)
 
 The owner named the helper Hippocampus, as display text only:
