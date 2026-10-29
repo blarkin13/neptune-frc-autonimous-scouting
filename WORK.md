@@ -1,3 +1,24 @@
+## 2026-10-29 — Robot-identity model: fit fixed, match-held-out identity check (Claude, not released)
+- Why the head linked nothing: the 5 pair features differ in scale by ~100x and the fit took 150 fixed gradient steps, so it stopped badly under-fitted. Every same-robot pair scored at most .87, below the .9 link threshold. The features themselves separate well (same robot vs other: centre distance .02 vs .43, appearance .05 vs .23).
+- `fit` is now a class-balanced logistic regression fitted by Newton steps on standardized features, folded back to the same 5 raw weights plus bias, so stored models keep their format.
+- Leave-one-match-out pair check on the owner's library (QM1/3/4/6, 2311 pairs): before tp 0, fp 0, fn 1219, tn 1081. After tp 1079, fp 0, fn 140, tn 1081 (precision 1.0, recall .885). The candidate is now eligible.
+- New `identity_check`: a match-held-out identity check on the full saved reviews (`identity-reviews/*/identity-review.json`), with no hand-built audit file. Each match is scored by a head trained without that match or its video. Reconcile sees only detections, tracker IDs and bumper reads; the human corrections are the answer key. Reserved matches (Q7) are skipped. Same bar as `evaluate_association`: 2 or more matches, precision .98 or better, 150 or more correct, and no fewer correct or more wrong than without the model. It runs after training (about 9 s) and activates only on a pass.
+- Result on the owner's 4 reviews (1688 checked boxes): without the model 443 correct, 42 wrong, 1203 unnamed; with it 454 correct, 42 wrong, 1192 unnamed. Precision .915, so not activated and not shared.
+- What blocks the .98 bar is the solver, not the model. All 124 bumper-read names are right. All 42 wrong are solver guesses the review page marks for review: 30 motion-plus-roster guesses (QM1 close-up track 169 at 99-101 s; QM6 wide track -3 at 1-2 s) and 12 short-gap visual bridges (0 of 12 right). The model adds 11 correct names and no wrong ones.
+- Not used: the 2 extra reviews on Neptune (txsan qm2, capoh qm9). Fetching them needs the helper's saved connection credential.
+- Prototype and diagnostics: local/identity-model-20261029/. Tests added in test_review_learning.py; full suite OK.
+- Solver guesses (owner chose "Fix solver guesses"). The 42 wrong names came from three moments. They were sorted by evidence (local/identity-model-20261029/guesses.py):
+  - Follower serials (negative tracker IDs, boxes the tracker never confirmed) in the wide view: 36 right, 17 wrong. All 12 short-gap bridge suggestions also landed on them, 0 right.
+  - Lone close-up boxes: 61 right, 11 wrong. The 11 are QM1 track 169: 6672 was carried 5 s backward across four tracker IDs from a read at 103 s, but the robot was 5261.
+  - Rules added in `solve_window`, applied only to guesses with no bumper read: no name on a follower serial (`unconfirmed_track_needs_review`). In a close-up frame with one box, no carried name unless its own track has a bumper read (`lone_closeup_box_needs_review`). Short-gap and fragment bridges never target follower serials.
+  - `identity_check` no longer scores boxes the reviewer drew (`manual_proposal`); the tracker never produced them.
+- Identity check after the rules (1596 boxes): without the model 341 right, 0 wrong; with it 350 right, 0 wrong. Precision 1.0, so it passes and the model activates (tested on a copy of the library; the owner's files were not changed).
+- Caveats:
+  - The rules were found on these same 4 matches, so this pass is not independent evidence.
+  - Coverage drops. Solver right names 454 to 350. Constant-identity layer right names: QM1 223 to 186, QM6 187 to 118, QM4 65 unchanged. Lost seconds per robot: QM1 80.2 to 86.0, QM6 76.2 to 85.1, QM4 93.5 to 104.2.
+  - Wrong names in the tracking scores stay 0, and the hidden-OCR check is unchanged (the same 22 earlier QM6 seed misses).
+- Owner chose to keep the rules (2026-10-29). Not released or pushed; release waits for owner approval.
+
 ## 2026-10-29 — Tracking pillar and a shared robot-identity model (Claude, local, not released)
 
 The owner reviews tracking on the Mac, trains robot detection on the Windows PC and field detection on the Linux server. They asked for OCR and tracking to have a home, with the identity model shared by every helper.
