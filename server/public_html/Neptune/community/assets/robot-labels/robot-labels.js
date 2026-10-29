@@ -20,7 +20,7 @@
  function setColor(c){color=c;$('red').classList.toggle('active',c==='red');$('blue').classList.toggle('active',c==='blue');$('red').setAttribute('aria-pressed',c==='red');$('blue').setAttribute('aria-pressed',c==='blue')}
  function place(){zoomer.style.transform=`translate(${pan[0]}px,${pan[1]}px) scale(${zoom})`;draw()}
  function fit(){zoom=1;pan=[0,0];place()}
- function draw(){const r=stage.getBoundingClientRect();cv.width=Math.round(r.width/zoom*devicePixelRatio);cv.height=Math.round(r.height/zoom*devicePixelRatio);
+ function draw(){saveState();const r=stage.getBoundingClientRect();cv.width=Math.round(r.width/zoom*devicePixelRatio);cv.height=Math.round(r.height/zoom*devicePixelRatio);
   const W=cv.width,H=cv.height,lw=Math.max(1.5,2*devicePixelRatio/zoom);ctx.clearRect(0,0,W,H);$('boxcount').textContent=boxes.length;
   if(playing)return; // boxes belong to the paused frame; hide them while the video moves
   boxes.forEach((b,i)=>{ctx.setLineDash(b.source==='detector'?[6*devicePixelRatio/zoom,4*devicePixelRatio/zoom]:[]);ctx.lineWidth=i===sel?lw*2:lw;ctx.strokeStyle=b.alliance==='red'?'#ff4d5e':'#3d8bff';
@@ -49,7 +49,11 @@
   const d=await r.json();if(!r.ok)throw Error(d.error||'Request failed');return d}
  async function save(extra){const t=times[idx];await api('',{video_id:video,match_key:matchKey,t_ms:t,boxes:boxes.map(b=>({alliance:b.alliance,x:b.x,y:b.y,w:b.w,h:b.h})),...extra});
   if(extra.delete)delete saved[t];else saved[t]={boxes:boxes.map(b=>({...b})),complete:!!extra.complete,skipped:!!extra.skipped};dirty=false;counts()}
- function counts(){const done=Object.values(saved).filter(f=>f.complete).length;$('donecount').textContent=done;$('framecount').textContent=times.length?`frame ${idx+1} of ${times.length}`:''}
+ function counts(){const done=Object.values(saved).filter(f=>f.complete).length;$('donecount').textContent=done;$('framecount').textContent=times.length?`frame ${idx+1} of ${times.length}`:'';frameList();saveState()}
+ // Frame picker: every frame with its state, so any frame can be reopened directly.
+ const frameState=t=>{const s=saved[t];return s?(s.skipped?'Skipped':s.complete?'Labeled':'Draft'):'Unlabeled'};
+ function frameList(){const p=$('framepick');if(!p)return;p.hidden=!times.length;p.replaceChildren(...times.map((t,i)=>new Option(`${i+1} · ${stamp(t/1000)} · ${frameState(t)}`,i,false,i===idx)))}
+ function saveState(){const e=$('savestate');if(!e)return;const s=idx>=0&&saved[times[idx]];e.textContent=idx<0?'':dirty?'Edited · not saved yet':s?'Saved':'Not saved';e.dataset.state=dirty?'dirty':s?'saved':'none'}
  async function open(i){if(busy||i<0||i>=times.length)return;busy=true;try{
   if(idx>=0&&dirty)await save({complete:!!(saved[times[idx]]&&saved[times[idx]].complete)});
   idx=i;const t=times[i];v.pause();v.currentTime=t/1000;sel=-1;
@@ -59,10 +63,12 @@
   else{const d=await api(`?prefill=${video}&t_ms=${t}`);boxes=d.boxes;say(boxes.length?'Dashed boxes are the detector\'s guesses — check every bumper.':'No detector guesses here — box each bumper.')}
   dirty=false;draw();counts()}catch(e){say(e.message)}finally{busy=false}}
  const settled=t=>saved[t]&&(saved[t].complete||saved[t].skipped);
- async function complete(){if(idx<0)return;try{await save({complete:true});const n=times.findIndex((t,i)=>i>idx&&!settled(t));open(n>=0?n:idx)}catch(e){say(e.message)}}
+ async function complete(){if(idx<0)return;try{const recheck=settled(times[idx]);await save({complete:true});
+  // Rechecking a finished frame steps to the very next frame; a new label jumps to the next unfinished one.
+  const n=recheck?idx+1:times.findIndex((t,i)=>i>idx&&!settled(t));open(n>=0&&n<times.length?n:idx)}catch(e){say(e.message)}}
  async function skip(){if(idx<0)return;try{boxes=[];await save({skipped:true});open(Math.min(times.length-1,idx+1))}catch(e){say(e.message)}}
  $('red').onclick=()=>setColor('red');$('blue').onclick=()=>setColor('blue');$('complete').onclick=complete;$('skip').onclick=skip;
- $('prevframe').onclick=()=>open(idx-1);$('nextframe').onclick=()=>open(idx+1);
+ $('prevframe').onclick=()=>open(idx-1);if($('framepick'))$('framepick').onchange=e=>{e.target.blur();open(+e.target.value)};$('nextframe').onclick=()=>open(idx+1);
  // Play is for looking around; the frame list decides what gets labelled, so pausing returns to it.
  $('play').onclick=()=>{if(!v)return;if(v.paused)v.play().catch(()=>{});else{v.pause();if(idx>=0)v.currentTime=times[idx]/1000}};
  window.addEventListener('keydown',e=>{if(['INPUT','SELECT','TEXTAREA'].includes(document.activeElement.tagName))return;
