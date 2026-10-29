@@ -40,7 +40,7 @@ Checked:
   - The rules were found on these same 4 matches, so this pass is not independent evidence.
   - Coverage drops. Solver right names 454 to 350. Constant-identity layer right names: QM1 223 to 186, QM6 187 to 118, QM4 65 unchanged. Lost seconds per robot: QM1 80.2 to 86.0, QM6 76.2 to 85.1, QM4 93.5 to 104.2.
   - Wrong names in the tracking scores stay 0, and the hidden-OCR check is unchanged (the same 22 earlier QM6 seed misses).
-- Not released or pushed; awaiting the owner's decision on the coverage trade.
+- Owner chose to keep the rules (2026-10-29). Not released or pushed; release waits for owner approval.
 
 ## 2026-10-28 — Run-details release: Mac 3.2.77, Windows 6.5.48, Linux 6.6.39, engine 2.7.62 (Claude)
 
