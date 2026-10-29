@@ -211,15 +211,69 @@ def enrich(points,video):
         for p in near:
             x,y,bw,bh=p['box'];p['appearance']=descriptor(image,[x*w,y*h,bw*w,bh*h])
 
+def valid_model(m):
+    return isinstance(m,dict) and len(m.get('weights',[]))==5 and all(type(v) in (int,float) and math.isfinite(v) and abs(v)<100 for v in m['weights']+[m.get('bias')])
+
+
+def report(root=None):
+    """What this helper tells Neptune after training: the candidate's status, and the model itself only once it passed
+    the independent identity check here (so Neptune can share it with every helper)."""
+    root=Path(root) if root is not None else home()
+    def read(name):
+        try:return json.loads((root/name).read_text())
+        except (OSError,ValueError):return {}
+    candidate,active=read('association-candidate.json'),read('association-active.json')
+    passed=active.get('version')==VERSION and (active.get('independent_identity_validation') or {}).get('passed') is True and valid_model(active.get('model'))
+    source=active if passed else candidate
+    out={'version':VERSION,'status':'active' if passed else candidate.get('status','needs_reviewed_matches'),'reason':'' if passed else candidate.get('reason',''),
+         'pairs':source.get('pairs',0),'matches':source.get('matches',[]),'validation':source.get('validation') or {},
+         'identity_validation':active.get('independent_identity_validation') if passed else read('association-identity-validation.json')}
+    return {'report':out,'model':active['model'] if passed else None}
+
+
+def share(connection,root=None):
+    """Send this helper's identity-model status to Neptune; returns the reply, or None when Neptune can't be reached."""
+    from neptune_robot_jobs import api
+    try:return api(connection,'tracking_put',report(root),timeout=30)
+    except Exception:return None
+
+
+def save_shared(doc,root=None):
+    """Keep the organization's shared identity model (downloaded from Neptune) beside this helper's own."""
+    root=Path(root) if root is not None else home()
+    if doc.get('version')!=VERSION or not valid_model(doc.get('model')):raise ValueError('Invalid shared identity model')
+    root.mkdir(parents=True,exist_ok=True);atomic(root/'association-shared.json',{k:doc[k] for k in ('version','model','sha256','trained_by','at','matches') if k in doc})
+
+
+def shared_association(root=None):
+    root=Path(root) if root is not None else home()
+    try:d=json.loads((root/'association-shared.json').read_text())
+    except (OSError,ValueError):return None
+    return d['model'] if d.get('version')==VERSION and valid_model(d.get('model')) else None
+
+
+def sync_shared(connection,root=None):
+    """Fetch the shared identity model if Neptune has a newer one than this helper."""
+    from neptune_robot_jobs import api
+    root=Path(root) if root is not None else home()
+    try:have=json.loads((root/'association-shared.json').read_text()).get('sha256')
+    except (OSError,ValueError):have=None
+    reply=api(connection,'tracking_current',{'have':have} if have else {},timeout=30)
+    if reply.get('model'):save_shared(reply,root)
+    return reply
+
+
 def active_association(root=None):
+    """This helper's own model when it passed the independent check here and matches its reviews; otherwise the
+    organization's shared model (trained and checked on the reviewing helper); otherwise None."""
     root=Path(root) if root is not None else home();p=root/'association-active.json'
-    if not p.is_file():return None
+    if not p.is_file():return shared_association(root)
     d=json.loads(p.read_text());m=d.get('model')
-    if d.get('version')!=VERSION or d.get('independent_identity_validation',{}).get('passed') is not True:return None
-    if not isinstance(m,dict) or len(m.get('weights',[]))!=5 or not all(type(v) in (int,float) and math.isfinite(v) and abs(v)<100 for v in m['weights']+[m.get('bias')]):raise ValueError('Invalid learned association model')
+    if d.get('version')!=VERSION or d.get('independent_identity_validation',{}).get('passed') is not True:return shared_association(root)
+    if not valid_model(m):raise ValueError('Invalid learned association model')
     docs=[json.loads(p.read_text()) for p in sorted((root/'reviews').glob('*.json'))]
     current=digest([(v['source_sha256'],v['revision']) for v in docs if not v.get('evaluation_only')])
-    if d.get('training_revision')!=current:return None
+    if d.get('training_revision')!=current:return shared_association(root)
     return m
 
 def evaluate_association(audit,root=None,activate=False):

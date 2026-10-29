@@ -1,3 +1,26 @@
+## 2026-10-29 — Tracking pillar and a shared robot-identity model (Claude, local, not released)
+
+The owner reviews tracking on the Mac, trains robot detection on the Windows PC and field detection on the Linux server. They asked for OCR and tracking to have a home, with the identity model shared by every helper.
+
+- **Shared identity model:**
+  - The helper where tracking is reviewed trains the association model after each saved review, as before. It now reports to Neptune (`tracking_put`): status always, and the model only once it has passed the independent identity check there.
+  - `server/neptune_secure/tracking-identity.php` keeps `status.json` and `shared.json` per organization.
+  - Every helper fetches the shared model after a check-in, at most every 10 minutes (`tracking_current`, `neptune_review_learning.sync_shared`). `active_association()` uses this computer's own passed model first, otherwise the shared one.
+  - The gate is unchanged.
+- **Tracking pillar:** a new Tracking page in both helpers, data from `models.tracking`. It shows:
+  - whether a shared identity model is in use and who trained it;
+  - reviewed matches saved on Neptune and which ones trained it;
+  - the latest held-out check;
+  - what it needs next;
+  - Review tracking….
+- **OCR** has nothing Neptune trains (Apple Vision or RapidOCR checked against the roster), so it has no pillar of its own.
+- **Finding:** the Mac's current candidate links no robots confidently on held-out matches (tp 0 of 1,219 same-robot pairs at 0.9), so nothing is shared yet. The model itself needs work, which is separate from this plumbing.
+
+Checked:
+- `tests/server/tracking-identity.php` (8 PASS) and `engine/test_shared_identity.py` (4).
+- Engine suite 554 OK. The first run caught the new fetch loop using `closing.wait`, which broke a connection test; it now runs off check-in replies.
+- Tk and Mac Tracking previews.
+
 ## 2026-10-28 — Run-details release: Mac 3.2.77, Windows 6.5.48, Linux 6.6.39, engine 2.7.62 (Claude)
 
 The owner approved the release of run details on the Computers page and the latest-pass line (entry below). It is built on Codex's validation-split and switch work (Mac 3.2.76, Windows 6.5.47, Linux 6.6.38). The Windows and Linux packages import the helper modules from their own files, and the installed 6.5.47 / 6.6.38 updaters accept these updates.
