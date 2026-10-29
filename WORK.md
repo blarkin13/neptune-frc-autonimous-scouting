@@ -1,3 +1,7 @@
+## 2026-10-28 — Run-details release: Mac 3.2.77, Windows 6.5.48, Linux 6.6.39, engine 2.7.62 (Claude)
+
+The owner approved the release of run details on the Computers page and the latest-pass line (entry below). It is built on Codex's validation-split and switch work (Mac 3.2.76, Windows 6.5.47, Linux 6.6.38). The Windows and Linux packages import the helper modules from their own files, and the installed 6.5.47 / 6.6.38 updaters accept these updates.
+
 ## 2026-10-28 — Run details on the helper's Computers page; latest pass scores (Claude, local, not released)
 
 The owner asked for the website's run detail on a working computer's card, especially the latest score line.
