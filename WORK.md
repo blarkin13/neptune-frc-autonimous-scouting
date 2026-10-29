@@ -7,6 +7,12 @@ The owner approved merging the tracking session's identity-model work (`release-
 - The Windows and Linux packages import the Tracking and shared-model code from their own files. The installed 6.5.49 / 6.6.40 updaters accept these updates.
 - The identity model passes its new held-out check on the owner's four reviews (350 right, 0 wrong). The reviewing helper reports and shares it after the next saved review on this version.
 
+Deployed through AWS SSM. A permission check blocked Claude from sending it, so the owner sent the prepared command (e68cecc3) after renewing the AWS sign-in. 60 files hash-checked, 65 changed, including the new `tracking-identity.php`, and `api/robot-detector.php` matched f420182 live. Backup: `/root/tracking-release-backup-20261029`.
+
+Checked from outside:
+- The appcast offers 3.2.79 at the local zip's size.
+- Windows and Linux `latest.json` show 6.5.50 and 6.6.41 on engine 2.7.64, and both update zips match their local SHA-256. apt lists 6.6.41.
+
 ## 2026-10-29 — Robot-identity model: fit fixed, match-held-out identity check (Claude, not released)
 - Why the head linked nothing: the 5 pair features differ in scale by ~100x and the fit took 150 fixed gradient steps, so it stopped badly under-fitted. Every same-robot pair scored at most .87, below the .9 link threshold. The features themselves separate well (same robot vs other: centre distance .02 vs .43, appearance .05 vs .23).
 - `fit` is now a class-balanced logistic regression fitted by Newton steps on standardized features, folded back to the same 5 raw weights plus bias, so stored models keep their format.
