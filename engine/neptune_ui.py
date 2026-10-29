@@ -448,7 +448,7 @@ def _meter(parent,label,fraction,text):
 
 class Shell:
     """Sidebar of pages beside a header and a scrolling page of cards, the same layout as the Mac app."""
-    PAGES=[('overview','Overview'),('robots','Robots'),('field','Field'),('actions','Actions'),('tracking','Tracking'),('computers','Computers'),('activity','Activity')]
+    PAGES=[('overview','Overview'),('robots','Robots'),('tracking','Tracking'),('field','Field'),('actions','Actions'),('computers','Computers'),('activity','Activity')]
     def __init__(self,root,*,logo=None,on_page=lambda key:None):
         self.on_page=on_page;self.nav={}
         side=tk.Frame(root,bg=SIDEBAR,width=210,padx=12,pady=16);side.pack(side='left',fill='y');side.pack_propagate(False)
