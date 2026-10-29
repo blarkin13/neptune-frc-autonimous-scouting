@@ -4,7 +4,7 @@
 - `small_base()` downloads yolo11s.pt once to `~/.neptune-trainer/base-models/` and refuses it unless its sha256 matches the pinned 85a76fe8…d502d5. Report adds `model_size`.
 - Adoption gate unchanged: new F1 must beat the current one by 0.02 on the held-out match.
 - Tests: Nano→Small switch, fingerprint refusal, warm-start/holdout guard with Small. Engine suite 551 passing (bundled helper Python).
-- Not released yet.
+- Other seasons: `neptune_detector_training.prepare` accepted only `2026…` match keys, so a labelled 2023 match failed the 2:44 PM run ("Every frame needs its match and source-video fingerprint"). Any match key starting with a year now trains; Q7 and the held-out match stay refused. Tests added; suite 553 passing.
 
 ## 2026-10-28 — Run-details release: Mac 3.2.77, Windows 6.5.48, Linux 6.6.39, engine 2.7.62 (Claude)
 
