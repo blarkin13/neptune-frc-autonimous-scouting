@@ -157,7 +157,7 @@ func loadCredential() -> Data? {
     let muted=NSColor(srgbRed:0.61,green:0.68,blue:0.77,alpha:1)
     let good=NSColor(srgbRed:0.52,green:0.87,blue:0.76,alpha:1)
     let warn=NSColor(srgbRed:0.98,green:0.78,blue:0.42,alpha:1)
-    let pages:[(key:String,title:String,symbol:String)]=[("overview","Overview","square.grid.2x2"),("robots","Robots","viewfinder"),("field","Field","map"),("actions","Actions","figure.run"),("computers","Computers","desktopcomputer"),("activity","Activity","text.alignleft")]
+    let pages:[(key:String,title:String,symbol:String)]=[("overview","Overview","square.grid.2x2"),("robots","Robots","viewfinder"),("field","Field","map"),("actions","Actions","figure.run"),("tracking","Tracking","scope"),("computers","Computers","desktopcomputer"),("activity","Activity","text.alignleft")]
     func buildUI() {
         window=NSWindow(contentRect:NSRect(x:0,y:0,width:1180,height:800),styleMask:[.titled,.closable,.miniaturizable,.resizable,.fullSizeContentView],backing:.buffered,defer:false)
         window.titlebarAppearsTransparent=true;window.titleVisibility = .hidden
@@ -253,7 +253,7 @@ func loadCredential() -> Data? {
             let l=text(title.uppercased(),10,muted,.semibold);col.addArrangedSubview(l);col.setCustomSpacing(6,after:l)
         }
         for (i,p) in pages.enumerated() {
-            if i==1 {section("Models")};if i==4 {section("Helpers")}
+            if i==1 {section("Models")};if i==5 {section("Helpers")}
             let b=navItem(p.title,p.symbol,#selector(navTap(_:)));b.identifier=NSUserInterfaceItemIdentifier(p.key)
             add(b,to:col);navButtons[p.key]=b
         }
@@ -351,6 +351,7 @@ func loadCredential() -> Data? {
             refreshTargets();trainTarget.widthAnchor.constraint(lessThanOrEqualToConstant:230).isActive=true;headerActions.addArrangedSubview(trainTarget)
             headerActions.addArrangedSubview(button(page=="robots" ? "Train robot detector":"Train field detector",#selector(trainTapped),primary:true));run.bezelColor=nil;run.contentTintColor=nil
         case "actions":headerActions.addArrangedSubview(button("Train on Neptune",#selector(openTrainPage),primary:true));run.bezelColor=nil;run.contentTintColor=nil
+        case "tracking":headerActions.addArrangedSubview(button("Review tracking…",#selector(reviewTracking)));run.bezelColor=accent;run.contentTintColor=ink
         case "computers":headerActions.addArrangedSubview(button("Update all",#selector(updateAllTapped)));run.bezelColor=accent;run.contentTintColor=ink
         case "activity":headerActions.addArrangedSubview(button("Copy log",#selector(copyLog)));headerActions.addArrangedSubview(button("Show log files",#selector(showLogs)));run.bezelColor=accent;run.contentTintColor=ink
         default:run.bezelColor=accent;run.contentTintColor=ink
@@ -413,6 +414,7 @@ func loadCredential() -> Data? {
         case "robots":renderModel("robot")
         case "field":renderModel("field")
         case "actions":renderActions()
+        case "tracking":renderTracking()
         case "computers":renderComputers()
         case "activity":add(activityScroll,to:dashboardBody)
         default:renderOverview()
@@ -598,6 +600,31 @@ func loadCredential() -> Data? {
                  tile("Human tags","\(Int(number(counts,"tags") ?? 0))","\(Int(number(counts,"external") ?? 0)) imported actions")])
         let c=card("Improve this model")
         for line in ["Tag scoring, climbing and defense in matches from events not tagged yet; more variety helps more than more of one event.","Train on Neptune picks the matches and the computer, then Test & release checks the new model before it's used."] {add(text(line,12,muted),to:c)}
+    }
+    /// Robot tracking: the organization's shared identity model (trained where tracking is reviewed, used by every helper),
+    /// the reviewed matches it learns from, and what it needs next.
+    func renderTracking() {
+        guard let t=models["tracking"] as? [String:Any] else {card(nil).addArrangedSubview(text(cachedCredential==nil ? "Connect this Mac to Neptune to see tracking.":"Loading tracking status…",12,muted));return}
+        let report=t["report"] as? [String:Any] ?? [:],shared=t["shared"] as? [String:Any],reviews=t["reviews"] as? [[String:Any]] ?? []
+        let v=report["validation"] as? [String:Any] ?? [:],used=report["matches"] as? [String] ?? []
+        let links=(number(v,"tp") ?? 0)+(number(v,"fp") ?? 0)
+        let check=links>0 ? String(format:"%.0f%% precise · %.0f%% found",100*(number(v,"precision") ?? 0),100*(number(v,"recall") ?? 0)):(number(v,"folds") ?? 0)>0 ? "no confident links yet":"—"
+        tileRow([tile("Identity model",shared != nil ? "Shared · in use":"Not in use yet",shared.map {"Trained on \($0["trained_by"] as? String ?? "a helper") · \(when($0["at"]))"} ?? "Tracking names robots from bumper reads alone"),
+                 tile("Reviewed matches","\(reviews.count)","Saved on Neptune · \(used.count) used in the last training"),
+                 tile("Latest check",check,(report["computer"] as? String).map {"on matches it did not learn from · "+$0} ?? "Runs after each saved review",noteColor:shared==nil && !report.isEmpty ? warn:nil)])
+        let next=card("What it needs next",key:"tracking-next")
+        if shared != nil {add(text("Every helper uses this model. Keep reviewing crowded stretches in new matches; a better model replaces it once it passes the same check.",12,muted),to:next)}
+        else if report.isEmpty || (report["status"] as? String)=="needs_reviewed_matches" {add(text("Review at least three matches with Review tracking… (crowded stretches: collisions, robots crossing or hidden). The helper you review on trains the model; once it passes, it is shared with every helper.",12,muted),to:next)}
+        else {
+            if (number(v,"folds") ?? 0)>0 && (number(v,"tp") ?? 0)==0 {add(text("The model trained from your reviews does not yet link any robot confidently across a gap on matches it did not learn from, so it is not used.",12,warn),to:next)}
+            add(text(((report["reason"] as? String).flatMap {$0.isEmpty ? nil:$0} ?? "It is used once it passes the independent identity check.")+" Review crowded stretches in more matches to give it more to learn from.",12,muted),to:next)
+        }
+        let list=card("Reviewed matches · \(reviews.count)",key:"tracking-reviews")
+        if reviews.isEmpty {add(text("No tracking reviews saved yet.",12,muted),to:list)}
+        for r in reviews.prefix(12) {
+            let key=r["match_key"] as? String ?? "",name=text(key,12,.white,.semibold);name.widthAnchor.constraint(equalToConstant:180).isActive=true
+            add(hstack([name,text("saved "+when(r["updated_at"]),12,muted),spacer()]+(used.contains(key) ? [text("used in training",11,good)]:[])),to:list)
+        }
     }
     func renderComputers() {
         let computers=dash["computers"] as? [[String:Any]] ?? [],me=computerID()
