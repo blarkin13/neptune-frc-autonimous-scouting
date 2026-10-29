@@ -2,6 +2,12 @@
 
 The owner approved the release of run details on the Computers page and the latest-pass line (entry below). It is built on Codex's validation-split and switch work (Mac 3.2.76, Windows 6.5.47, Linux 6.6.38). The Windows and Linux packages import the helper modules from their own files, and the installed 6.5.47 / 6.6.38 updaters accept these updates.
 
+Deployed through AWS SSM: 58 files hash-checked, 63 changed (engine and downloads only). Backup: `/root/run-details-release-backup-20261028`.
+
+Checked from outside:
+- The appcast offers 3.2.77 at the local zip's size.
+- Windows and Linux `latest.json` show 6.5.48 and 6.6.39 on engine 2.7.62, and both update zips match their local SHA-256. apt lists 6.6.39.
+
 ## 2026-10-28 — Run details on the helper's Computers page; latest pass scores (Claude, local, not released)
 
 The owner asked for the website's run detail on a working computer's card, especially the latest score line.
