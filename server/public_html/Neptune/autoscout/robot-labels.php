@@ -162,7 +162,10 @@ const ws=document.querySelector('.workspace'),fb=document.getElementById('fullsc
 document.getElementById('fitview').addEventListener('click',()=>dispatchEvent(new KeyboardEvent('keydown',{key:'0',code:'Digit0'})));
 const isFull=()=>document.fullscreenElement||document.webkitFullscreenElement;
 const toggle=()=>isFull()?(document.exitFullscreen||document.webkitExitFullscreen).call(document):(ws.requestFullscreen||ws.webkitRequestFullscreen).call(ws);
-const sync=()=>{fb.textContent=isFull()?'Exit full screen':'Full screen';dispatchEvent(new Event('resize'))};
+// Size the picture to whatever height the two button rows leave, so every control stays on screen however they wrap.
+const fr=document.getElementById('frame'),tr=document.querySelector('.transport'),side=ws.querySelector('aside');
+const fitFrame=()=>{if(!isFull()){fr.style.width='';return}const left=innerHeight-tr.offsetHeight-side.offsetHeight-40;fr.style.width=Math.max(320,Math.min(ws.clientWidth-24,left*16/9))+'px'};
+const sync=()=>{fb.textContent=isFull()?'Exit full screen':'Full screen';fitFrame();dispatchEvent(new Event('resize'))};addEventListener('resize',()=>{if(isFull())requestAnimationFrame(fitFrame)});
 fb.addEventListener('click',toggle);document.addEventListener('fullscreenchange',sync);document.addEventListener('webkitfullscreenchange',sync);
 addEventListener('keydown',e=>{if(['INPUT','SELECT','TEXTAREA'].includes(document.activeElement.tagName)||e.ctrlKey||e.metaKey||e.altKey)return;if(e.key==='f'||e.key==='F')toggle()});})();</script>
 <?php pillar_close();community_page_end(); ?>
