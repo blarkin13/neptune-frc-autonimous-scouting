@@ -74,7 +74,9 @@
   draw();
  }catch(e){say(e.message)}finally{busy=false}}
  const settled=t=>saved[t]&&(saved[t].complete||saved[t].skipped);
- async function complete(){if(idx<0||busy)return;try{await save({complete:true});const n=times.findIndex((t,i)=>i>idx&&!settled(t));open(n>=0?n:idx)}catch(e){say(e.message)}}
+ async function complete(){if(idx<0||busy)return;try{const recheck=settled(times[idx]);await save({complete:true});
+  // Rechecking a finished frame steps to the very next frame; a new label jumps to the next unfinished one.
+  const n=recheck?idx+1:times.findIndex((t,i)=>i>idx&&!settled(t));open(n>=0&&n<times.length?n:idx)}catch(e){say(e.message)}}
  async function skip(){if(idx<0)return;try{boxes=[];await save({skipped:true});open(Math.min(times.length-1,idx+1))}catch(e){say(e.message)}}
  $('red').onclick=()=>setColor('red');$('blue').onclick=()=>setColor('blue');$('complete').onclick=complete;$('skip').onclick=skip;
  $('prevframe').onclick=()=>open(idx-1);if($('framepick'))$('framepick').onchange=e=>{e.target.blur();open(+e.target.value)};$('nextframe').onclick=()=>open(idx+1);
