@@ -33,7 +33,9 @@
  function point(e){const r=cv.getBoundingClientRect();return[(e.clientX-r.left)/r.width,(e.clientY-r.top)/r.height]}
  function hit(p){const tol=.006/zoom;if(sel>=0){const k=corners(boxes[sel]).findIndex(c=>Math.abs(c[0]-p[0])<tol*1.5&&Math.abs(c[1]-p[1])<tol*2.7);if(k>=0)return{i:sel,corner:k}}
   for(let i=boxes.length-1;i>=0;i--){const b=boxes[i];if(p[0]>=b.x-tol&&p[0]<=b.x+b.w+tol&&p[1]>=b.y-tol&&p[1]<=b.y+b.h+tol)return{i}}return null}
- cv.addEventListener('mousedown',e=>{if(!video||idx<0||!exact||playing||busy)return;if(space||e.button===1){drag={pan:[e.clientX,e.clientY,...pan]};return}
+ // Undo (U): a snapshot of this frame's boxes is taken before each change.
+ const hist=[],remember=()=>{hist.push(JSON.stringify(boxes));if(hist.length>100)hist.shift()},undo=()=>{if(!hist.length)return;boxes=JSON.parse(hist.pop());sel=-1;dirty=true;draw()};
+ cv.addEventListener('mousedown',e=>{if(!video||idx<0||!exact||playing||busy)return;if(space||e.button===1){drag={pan:[e.clientX,e.clientY,...pan]};return}remember();
   v.pause();const p=point(e),h=hit(p);
   if(h&&h.corner!==undefined)drag={resize:h.i,corner:h.corner};else if(h){sel=h.i;drag={move:h.i,from:p,orig:{...boxes[h.i]}}}else{sel=-1;drag={make:p}}draw()});
  window.addEventListener('mousemove',e=>{if(!drag)return;if(drag.pan){pan=[drag.pan[2]+e.clientX-drag.pan[0],drag.pan[3]+e.clientY-drag.pan[1]];return place()}
@@ -44,7 +46,7 @@
   else if(drag.resize!==undefined){const b=boxes[drag.resize],opp=corners(b)[(drag.corner+2)%4];
    Object.assign(b,{x:Math.min(p[0],opp[0]),y:Math.min(p[1],opp[1]),w:Math.abs(p[0]-opp[0]),h:Math.abs(p[1]-opp[1]),source:'person'});
    const l=p[0]<opp[0],t=p[1]<opp[1];drag.corner=l&&t?0:!l&&t?1:!l&&!t?2:3;dirty=true;draw()}});
- window.addEventListener('mouseup',()=>{if(drag&&drag.make&&drag.now){const[a,b]=[drag.make,drag.now],w=Math.abs(b[0]-a[0]),h=Math.abs(b[1]-a[1]);
+ window.addEventListener('mouseup',()=>{if(drag&&!drag.pan)setTimeout(()=>{if(hist.at(-1)===JSON.stringify(boxes))hist.pop()});if(drag&&drag.make&&drag.now){const[a,b]=[drag.make,drag.now],w=Math.abs(b[0]-a[0]),h=Math.abs(b[1]-a[1]);
   if(w>.002&&h>.003){boxes.push({alliance:color,x:Math.min(a[0],b[0]),y:Math.min(a[1],b[1]),w,h,source:'person'});sel=boxes.length-1;dirty=true}}drag=null;draw()});
  frame.addEventListener('wheel',e=>{if(!video)return;e.preventDefault();const r=frame.getBoundingClientRect(),mx=e.clientX-r.left,my=e.clientY-r.top,z=Math.min(10,Math.max(1,zoom*Math.exp(-e.deltaY*.0015)));
   pan=[mx-(mx-pan[0])*z/zoom,my-(my-pan[1])*z/zoom];zoom=z;if(zoom===1)pan=[0,0];place()},{passive:false});
@@ -60,7 +62,7 @@
  async function open(i){if(busy||i<0||i>=times.length)return;busy=true;try{
   if(idx>=0&&dirty)await save({complete:!!(saved[times[idx]]?.complete&&saved[times[idx]]?.frame_sha256)});
   exact=null;still.hidden=true;const yt=$('ytplayer');if(yt)yt.style.visibility='hidden';$('complete').disabled=true;cv.style.pointerEvents='auto';sourceStatus.textContent='Loading clear source still…';$('framebadge').textContent=(matchKey||video)+' · LOADING STILL';
-  idx=i;const t=times[i];$('clock').textContent=stamp(t/1000);v.pause();sel=-1;
+  idx=i;hist.length=0;const t=times[i];$('clock').textContent=stamp(t/1000);v.pause();sel=-1;
   const s=saved[t];if(s){boxes=s.boxes.map(b=>({...b,source:'person'}));say(s.skipped?'Skipped. Box the bumpers and press Enter to use it after all.':s.complete?'Complete — edit and press Enter to update.':'Saved draft.')}
   else{const d=await api(`?prefill=${video}&t_ms=${t}`);boxes=d.boxes;say(boxes.length?'Dashed boxes are the detector\'s guesses — check every bumper.':'No detector guesses here — box each bumper.')}
   dirty=false;playing=false;$('play').textContent='Play';draw();counts();
@@ -87,8 +89,9 @@
  window.addEventListener('keydown',e=>{if(['INPUT','SELECT','TEXTAREA'].includes(document.activeElement.tagName))return;
   if(e.code==='Space'){space=true;e.preventDefault()}if(e.key==='1')setColor('red');if(e.key==='2')setColor('blue');if(e.key==='0')fit();
   if(!exact||playing||busy)return;
-  if((e.key==='Delete'||e.key==='Backspace')&&sel>=0){boxes.splice(sel,1);sel=-1;dirty=true;draw();e.preventDefault()}
-  if((e.key==='x'||e.key==='X')&&sel>=0){boxes[sel].alliance=boxes[sel].alliance==='red'?'blue':'red';boxes[sel].source='person';dirty=true;draw()}
+  if((e.key==='Delete'||e.key==='Backspace')&&sel>=0){remember();boxes.splice(sel,1);sel=-1;dirty=true;draw();e.preventDefault()}
+  if((e.key==='x'||e.key==='X')&&sel>=0){remember();boxes[sel].alliance=boxes[sel].alliance==='red'?'blue':'red';boxes[sel].source='person';dirty=true;draw()}
+  if(e.key==='u'||e.key==='U'){e.preventDefault();undo()}
   if(e.key==='Enter'){e.preventDefault();complete()}if(e.key==='ArrowRight')open(idx+1);if(e.key==='ArrowLeft')open(idx-1)});
  window.addEventListener('keyup',e=>{if(e.code==='Space')space=false});
  let autosave=null;setInterval(()=>{if(dirty&&exact&&!playing&&idx>=0&&!busy&&!drag){clearTimeout(autosave);autosave=setTimeout(()=>{if(dirty)save({complete:!!(saved[times[idx]]?.complete&&saved[times[idx]]?.frame_sha256)}).then(()=>say('Draft saved.')).catch(e=>say(e.message))},1500)}},1000);
