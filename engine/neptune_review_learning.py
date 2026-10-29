@@ -351,7 +351,8 @@ def identity_check(root=None,reviews=None,activate=False):
         review=json.loads(path.read_text());match,source=review.get('match_key',''),review.get('source_sha256','')
         if reserved(match,source) or not review.get('corrections'):continue
         roster_check(review['roster'])
-        truth={p['point_id']:p['team'] for p in apply_corrections(review,review['corrections'])['points'] if p['identity_status']=='corrected' and p.get('team') is not None}
+        # Boxes the reviewer drew are not tracker output, so they are not scored.
+        truth={p['point_id']:p['team'] for p in apply_corrections(review,review['corrections'])['points'] if p['identity_status']=='corrected' and p.get('team') is not None and not p.get('manual_proposal')}
         head=fit([r for r in rows if r['match_key']!=match and r['source']!=source])
         if not truth or head is None:continue
         # Strip every review-time answer; reconcile sees only detections, tracker IDs and bumper reads.

@@ -30,6 +30,17 @@ Checked:
 - What blocks the .98 bar is the solver, not the model. All 124 bumper-read names are right. All 42 wrong are solver guesses the review page marks for review: 30 motion-plus-roster guesses (QM1 close-up track 169 at 99-101 s; QM6 wide track -3 at 1-2 s) and 12 short-gap visual bridges (0 of 12 right). The model adds 11 correct names and no wrong ones.
 - Not used: the 2 extra reviews on Neptune (txsan qm2, capoh qm9). Fetching them needs the helper's saved connection credential.
 - Prototype and diagnostics: local/identity-model-20261029/. Tests added in test_review_learning.py; full suite OK.
+- Solver guesses (owner chose "Fix solver guesses"). The 42 wrong names came from three moments. They were sorted by evidence (local/identity-model-20261029/guesses.py):
+  - Follower serials (negative tracker IDs, boxes the tracker never confirmed) in the wide view: 36 right, 17 wrong. All 12 short-gap bridge suggestions also landed on them, 0 right.
+  - Lone close-up boxes: 61 right, 11 wrong. The 11 are QM1 track 169: 6672 was carried 5 s backward across four tracker IDs from a read at 103 s, but the robot was 5261.
+  - Rules added in `solve_window`, applied only to guesses with no bumper read: no name on a follower serial (`unconfirmed_track_needs_review`). In a close-up frame with one box, no carried name unless its own track has a bumper read (`lone_closeup_box_needs_review`). Short-gap and fragment bridges never target follower serials.
+  - `identity_check` no longer scores boxes the reviewer drew (`manual_proposal`); the tracker never produced them.
+- Identity check after the rules (1596 boxes): without the model 341 right, 0 wrong; with it 350 right, 0 wrong. Precision 1.0, so it passes and the model activates (tested on a copy of the library; the owner's files were not changed).
+- Caveats:
+  - The rules were found on these same 4 matches, so this pass is not independent evidence.
+  - Coverage drops. Solver right names 454 to 350. Constant-identity layer right names: QM1 223 to 186, QM6 187 to 118, QM4 65 unchanged. Lost seconds per robot: QM1 80.2 to 86.0, QM6 76.2 to 85.1, QM4 93.5 to 104.2.
+  - Wrong names in the tracking scores stay 0, and the hidden-OCR check is unchanged (the same 22 earlier QM6 seed misses).
+- Not released or pushed; awaiting the owner's decision on the coverage trade.
 
 ## 2026-10-28 — Run-details release: Mac 3.2.77, Windows 6.5.48, Linux 6.6.39, engine 2.7.62 (Claude)
 

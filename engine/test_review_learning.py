@@ -85,6 +85,16 @@ class Learning(unittest.TestCase):
         self.assertEqual(result['matches'],['2026test_qm1','2026test_qm2'])
         # Eight boxes per match is far below 150 correct names, so nothing activates.
         self.assertFalse(result['passed']);self.assertFalse((self.root/'association-active.json').exists())
+    def test_solver_does_not_guess_on_unconfirmed_or_lone_closeup_boxes(self):
+        # Wide view: a confirmed track carries its read; a follower serial (negative ID) does not.
+        wide=reconcile([point(k/4,team=1 if k==0 else None) for k in range(4)]+[point(1+k/4,track=-5) for k in range(4)],R,SHA)['points']
+        self.assertEqual({p['team'] for p in wide if p['track_id']==1},{1})
+        self.assertEqual({(p['team'],p['reason']) for p in wide if p['track_id']==-5},{(None,'unconfirmed_track_needs_review')})
+        # Close-up with one box: a read on another tracker ID is not carried onto it.
+        close=lambda t,track,team=None:dict(point(t,track,team),camera='closeup-left',scene='closeup-left:0')
+        rows=reconcile([close(k/4,7,team=1 if k==0 else None) for k in range(4)]+[close(1+k/4,8) for k in range(4)],R,SHA)['points']
+        self.assertEqual({p['team'] for p in rows if p['track_id']==7},{1})
+        self.assertEqual({(p['team'],p['reason']) for p in rows if p['track_id']==8},{(None,'lone_closeup_box_needs_review')})
     def test_action_example_provenance_survives_actual_label_pipeline(self):
         from neptune_training import labeled_examples
         r=approve(review([point(k/4) for k in range(17)]));info=learning.publish(r);f=learning.apply_to_facts(facts());row={'id':1,'video_id':'v','match_key':'2026test_qm1','team_number':2,'tag_key':'feed','polarity':'present','label_scope':'moment','start_ms':2000,'end_ms':2000,'evidence_type':'human_video_label'}
