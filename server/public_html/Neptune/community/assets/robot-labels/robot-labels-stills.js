@@ -23,7 +23,7 @@
  function setColor(c){color=c;$('red').classList.toggle('active',c==='red');$('blue').classList.toggle('active',c==='blue');$('red').setAttribute('aria-pressed',c==='red');$('blue').setAttribute('aria-pressed',c==='blue')}
  function place(){zoomer.style.transform=`translate(${pan[0]}px,${pan[1]}px) scale(${zoom})`;draw()}
  function fit(){zoom=1;pan=[0,0];place()}
- function draw(){const r=stage.getBoundingClientRect();cv.width=Math.round(r.width/zoom*devicePixelRatio);cv.height=Math.round(r.height/zoom*devicePixelRatio);
+ function draw(){saveState();const r=stage.getBoundingClientRect();cv.width=Math.round(r.width/zoom*devicePixelRatio);cv.height=Math.round(r.height/zoom*devicePixelRatio);
   const W=cv.width,H=cv.height,lw=Math.max(1.5,2*devicePixelRatio/zoom);ctx.clearRect(0,0,W,H);$('boxcount').textContent=boxes.length;
   if(playing||!exact)return; // boxes belong to the paused frame; hide them while the video moves
   boxes.forEach((b,i)=>{ctx.setLineDash(b.source==='detector'?[6*devicePixelRatio/zoom,4*devicePixelRatio/zoom]:[]);ctx.lineWidth=i===sel?lw*2:lw;ctx.strokeStyle=b.alliance==='red'?'#ff4d5e':'#3d8bff';
@@ -52,7 +52,11 @@
   const d=await r.json();if(!r.ok)throw Error(d.error||'Request failed');return d}
  async function save(extra){if(testOnly){dirty=false;say('UI test only — labels are not saved.');return;}if(!extra.skipped&&!extra.delete&&(!exact||playing))throw Error('Load the clear source still before saving labels.');const t=times[idx];await api('',{source_still:true,frame_sha256:exact?.sha256||'',video_id:video,match_key:matchKey,t_ms:t,boxes:boxes.map(b=>({alliance:b.alliance,x:b.x,y:b.y,w:b.w,h:b.h})),...extra});
   if(extra.delete)delete saved[t];else saved[t]={boxes:boxes.map(b=>({...b})),complete:!!extra.complete,skipped:!!extra.skipped};dirty=false;counts()}
- function counts(){const done=Object.values(saved).filter(f=>f.complete).length;$('donecount').textContent=done;$('framecount').textContent=times.length?`frame ${idx+1} of ${times.length}`:''}
+ function counts(){const done=Object.values(saved).filter(f=>f.complete).length;$('donecount').textContent=done;$('framecount').textContent=times.length?`frame ${idx+1} of ${times.length}`:'';frameList();saveState()}
+ // Frame picker: every frame with its state, so any frame can be reopened directly.
+ const frameState=t=>{const s=saved[t];return s?(s.skipped?'Skipped':s.complete?'Labeled':'Draft'):imageIndex[t]?'Prepared':'Unlabeled'};
+ function frameList(){const p=$('framepick');if(!p)return;p.hidden=!times.length;p.replaceChildren(...times.map((t,i)=>new Option(`${i+1} · ${stamp(t/1000)} · ${frameState(t)}`,i,false,i===idx)))}
+ function saveState(){const e=$('savestate');if(!e)return;const s=idx>=0&&saved[times[idx]];e.textContent=idx<0?'':dirty?'Edited · not saved yet':s?'Saved':'Not saved';e.dataset.state=dirty?'dirty':s?'saved':'none'}
  async function open(i){if(busy||i<0||i>=times.length)return;busy=true;try{
   if(idx>=0&&dirty)await save({complete:!!(saved[times[idx]]?.complete&&saved[times[idx]]?.frame_sha256)});
   exact=null;still.hidden=true;const yt=$('ytplayer');if(yt)yt.style.visibility='hidden';$('complete').disabled=true;cv.style.pointerEvents='auto';sourceStatus.textContent='Loading clear source still…';$('framebadge').textContent=(matchKey||video)+' · LOADING STILL';
@@ -73,7 +77,7 @@
  async function complete(){if(idx<0||busy)return;try{await save({complete:true});const n=times.findIndex((t,i)=>i>idx&&!settled(t));open(n>=0?n:idx)}catch(e){say(e.message)}}
  async function skip(){if(idx<0)return;try{boxes=[];await save({skipped:true});open(Math.min(times.length-1,idx+1))}catch(e){say(e.message)}}
  $('red').onclick=()=>setColor('red');$('blue').onclick=()=>setColor('blue');$('complete').onclick=complete;$('skip').onclick=skip;
- $('prevframe').onclick=()=>open(idx-1);$('nextframe').onclick=()=>open(idx+1);
+ $('prevframe').onclick=()=>open(idx-1);if($('framepick'))$('framepick').onchange=e=>{e.target.blur();open(+e.target.value)};$('nextframe').onclick=()=>open(idx+1);
  // Play is for looking around; the frame list decides what gets labelled, so pausing returns to it.
  $('play').onclick=async()=>{if(!v||busy)return;if(!playing){
   try{if(dirty)await save({complete:false});exact=null;still.hidden=true;const yt=$('ytplayer');if(yt)yt.style.visibility='visible';playing=true;cv.style.pointerEvents='none';$('complete').disabled=true;draw();v.currentTime=times[idx]/1000;v.play().catch(()=>{});sourceStatus.textContent='Watching context on YouTube. Pause to return to the clear labeling still.';}catch(e){say(e.message)}
