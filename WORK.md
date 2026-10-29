@@ -21,6 +21,16 @@ Checked:
 - Engine suite 554 OK. The first run caught the new fetch loop using `closing.wait`, which broke a connection test; it now runs off check-in replies.
 - Tk and Mac Tracking previews.
 
+## 2026-10-29 — Robot-identity model: fit fixed, match-held-out identity check (Claude, not released)
+- Why the head linked nothing: the 5 pair features differ in scale by ~100x and the fit took 150 fixed gradient steps, so it stopped badly under-fitted. Every same-robot pair scored at most .87, below the .9 link threshold. The features themselves separate well (same robot vs other: centre distance .02 vs .43, appearance .05 vs .23).
+- `fit` is now a class-balanced logistic regression fitted by Newton steps on standardized features, folded back to the same 5 raw weights plus bias, so stored models keep their format.
+- Leave-one-match-out pair check on the owner's library (QM1/3/4/6, 2311 pairs): before tp 0, fp 0, fn 1219, tn 1081. After tp 1079, fp 0, fn 140, tn 1081 (precision 1.0, recall .885). The candidate is now eligible.
+- New `identity_check`: a match-held-out identity check on the full saved reviews (`identity-reviews/*/identity-review.json`), with no hand-built audit file. Each match is scored by a head trained without that match or its video. Reconcile sees only detections, tracker IDs and bumper reads; the human corrections are the answer key. Reserved matches (Q7) are skipped. Same bar as `evaluate_association`: 2 or more matches, precision .98 or better, 150 or more correct, and no fewer correct or more wrong than without the model. It runs after training (about 9 s) and activates only on a pass.
+- Result on the owner's 4 reviews (1688 checked boxes): without the model 443 correct, 42 wrong, 1203 unnamed; with it 454 correct, 42 wrong, 1192 unnamed. Precision .915, so not activated and not shared.
+- What blocks the .98 bar is the solver, not the model. All 124 bumper-read names are right. All 42 wrong are solver guesses the review page marks for review: 30 motion-plus-roster guesses (QM1 close-up track 169 at 99-101 s; QM6 wide track -3 at 1-2 s) and 12 short-gap visual bridges (0 of 12 right). The model adds 11 correct names and no wrong ones.
+- Not used: the 2 extra reviews on Neptune (txsan qm2, capoh qm9). Fetching them needs the helper's saved connection credential.
+- Prototype and diagnostics: local/identity-model-20261029/. Tests added in test_review_learning.py; full suite OK.
+
 ## 2026-10-28 — Run-details release: Mac 3.2.77, Windows 6.5.48, Linux 6.6.39, engine 2.7.62 (Claude)
 
 The owner approved the release of run details on the Computers page and the latest-pass line (entry below). It is built on Codex's validation-split and switch work (Mac 3.2.76, Windows 6.5.47, Linux 6.6.38). The Windows and Linux packages import the helper modules from their own files, and the installed 6.5.47 / 6.6.38 updaters accept these updates.
