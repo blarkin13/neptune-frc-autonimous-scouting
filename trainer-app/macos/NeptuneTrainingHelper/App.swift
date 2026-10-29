@@ -157,7 +157,7 @@ func loadCredential() -> Data? {
     let muted=NSColor(srgbRed:0.61,green:0.68,blue:0.77,alpha:1)
     let good=NSColor(srgbRed:0.52,green:0.87,blue:0.76,alpha:1)
     let warn=NSColor(srgbRed:0.98,green:0.78,blue:0.42,alpha:1)
-    let pages:[(key:String,title:String,symbol:String)]=[("overview","Overview","square.grid.2x2"),("robots","Robots","viewfinder"),("field","Field","map"),("actions","Actions","figure.run"),("tracking","Tracking","scope"),("computers","Computers","desktopcomputer"),("activity","Activity","text.alignleft")]
+    let pages:[(key:String,title:String,symbol:String)]=[("overview","Overview","square.grid.2x2"),("robots","Robots","viewfinder"),("tracking","Tracking","scope"),("field","Field","map"),("actions","Actions","figure.run"),("computers","Computers","desktopcomputer"),("activity","Activity","text.alignleft")]
     func buildUI() {
         window=NSWindow(contentRect:NSRect(x:0,y:0,width:1180,height:800),styleMask:[.titled,.closable,.miniaturizable,.resizable,.fullSizeContentView],backing:.buffered,defer:false)
         window.titlebarAppearsTransparent=true;window.titleVisibility = .hidden
