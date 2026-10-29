@@ -1,3 +1,7 @@
+## 2026-10-28 — Style automatic updates as switches on Helpers (Codex, local, not released)
+
+The Helpers page's per-computer Update automatically checkbox is now rendered as an accessible switch, using the existing Neptune theme variables. It keeps the same `data-auto-update` save handler and checked state. The new stylesheet includes a keyboard focus ring and reduced-motion behavior; the CSS and JavaScript asset URLs are versioned so browsers reload them. Local JavaScript syntax, PHP lint and diff checks pass. Read-only AWS preflight confirms all four live files match the current Git revision. No Git push or production write yet; owner approval required for this batch.
+
 ## 2026-10-28 — Remove two Auto Scout entry points; RC double-click file opening (Codex, deployed)
 
 Removed the owner-only Auto Scout card from `scouting.php` and the full Shared robot evidence / Community Scouting section and its two cards from `admin/index.php`. The Auto Scout feature itself and other navigation are unchanged. In the separate local RC source (`Documents/ChatGPT/rc.neptunefrc.com/release-center/web/app.js`), delayed the single-click details modal so a double click on a file or folder in either list or grid view opens it. Symbolic links still show details and are not followed. PHP lint, JavaScript syntax, and a focused single/double-click event test pass.
