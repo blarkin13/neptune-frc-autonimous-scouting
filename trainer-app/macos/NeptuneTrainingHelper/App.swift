@@ -500,7 +500,8 @@ func loadCredential() -> Data? {
         return (0..<m.numberOfRanges).map {Range(m.range(at:$0),in:text).map {String(text[$0])} ?? ""}
     }
     /// One running job as the website's console: part and helper, step and match, live readings, stage and overall bars, next steps and recent log.
-    func console(_ job:[String:Any],_ worker:[String:Any]?,me:String?) {
+    /// One running job as the website's console: its own card on the Overview, or rows inside a computer's card (into).
+    func console(_ job:[String:Any],_ worker:[String:Any]?,me:String?,into:NSStackView?=nil) {
         func line(_ s:String,_ size:CGFloat=12,_ color:NSColor? = nil,_ weight:NSFont.Weight = .regular)->NSTextField {let f=text(s,size,color,weight);f.font = .monospacedSystemFont(ofSize:size,weight:weight);return f}
         let lines=(job["message"] as? String ?? "").components(separatedBy:"\n")
         func get(_ prefix:String)->String {lines.first(where:{$0.hasPrefix(prefix)}).map {String($0.dropFirst(prefix.count)).trimmingCharacters(in:.whitespaces)} ?? ""}
@@ -530,7 +531,11 @@ func loadCredential() -> Data? {
                  number(stats,"cpu").map {"CPU \(Int($0))%"},number(stats,"ram_total_mb").map {"RAM "+gb(number(stats,"ram_used_mb") ?? 0)+"/"+gb($0)+" GB"}].compactMap {$0}.joined(separator:" · ")
         let gpuName=(gpu["name"] as? String).map {" · "+$0.replacingOccurrences(of:"NVIDIA GeForce ",with:"")} ?? ""
         let label=job["label"] as? String ?? job["title"] as? String ?? "Training"
-        let c=card("● "+label,key:"run:"+label,header:[spacer(),line(worker.map {($0["name"] as? String ?? "Computer")+(($0["id"] as? String)==me ? " (this Mac)":"")+gpuName} ?? "waiting for its helper",11,muted)]+cancelButtons(job));c.spacing=5
+        let c:NSStackView
+        if let into {
+            let rule=NSBox();rule.boxType = .separator;add(rule,to:into)
+            add(hstack([line("● "+label,12,accent,.semibold),spacer()]+cancelButtons(job)),to:into);c=into
+        } else {c=card("● "+label,key:"run:"+label,header:[spacer(),line(worker.map {($0["name"] as? String ?? "Computer")+(($0["id"] as? String)==me ? " (this Mac)":"")+gpuName} ?? "waiting for its helper",11,muted)]+cancelButtons(job));c.spacing=5}
         add(line((step ?? job["title"] as? String ?? "")+(matchKey.map {" · "+$0} ?? ""),13,.white,.semibold),to:c)
         add(line(sys.isEmpty ? "no live readings from this helper yet":sys,11,accent),to:c)
         func pct(_ p:Double?)->String {p.map {String(format:"%3.0f%%",$0)} ?? "  —"}
@@ -541,6 +546,11 @@ func loadCredential() -> Data? {
         }
         barRow("stage",stage,stageText.isEmpty ? (now.isEmpty ? "—":now):stageText)
         barRow("overall",overall,[elapsed.map {clock($0)+" elapsed"},eta.isEmpty ? (overall==nil ? nil:"estimating"):eta].compactMap {$0}.joined(separator:" · "))
+        // The newest end-of-pass line from the detector trainer: losses and the check scores (mAP50, P, R).
+        if let score=log.reversed().map({$0.1}).first(where:{$0.range(of:"pass [0-9]+/[0-9]+ · .*(mAP50|box )",options:.regularExpression) != nil}) {
+            let trimmed=score.range(of:"pass [0-9]+/[0-9]+",options:.regularExpression).map {String(score[$0.lowerBound...])} ?? score
+            add(line("latest pass → "+trimmed,12,good,.semibold),to:c)
+        }
         if !get("Next:").isEmpty {add(line("next → "+get("Next:"),11,muted),to:c)}
         if !log.isEmpty {
             let box=vstack([],spacing:2);add(box,to:c)
@@ -606,7 +616,11 @@ func loadCredential() -> Data? {
             add(updateRow(w),to:c)
             add(meterRow(w["stats"] as? [String:Any] ?? [:]),to:c)
             if isThisMac && (reviewing || folderReview) {add(text("Live helper readings resume when you close the local review.",11,warn),to:c)}
-            add(text((w["job"] as? [String:Any])?["message"] as? String ?? "No assigned job",11,muted),to:c)
+            let id=w["id"] as? String,queue=dash["queue"] as? [[String:Any]] ?? []
+            if let job=queue.first(where:{($0["state"] as? String)=="running" && id != nil && ((($0["computer_id"] as? String) ?? ($0["target"] as? String))==id)}) {
+                // A computer running a job shows the full console (step, readings, bars, latest pass scores, log) and Cancel.
+                console(job,w,me:me,into:c)
+            } else {add(text((w["job"] as? [String:Any])?["message"] as? String ?? "No assigned job",11,muted),to:c)}
         }
     }
     /// A computer's helper version against the newest release, with Update / Cancel and the auto-update switch.

@@ -1,3 +1,11 @@
+## 2026-10-28 — Run details on the helper's Computers page; latest pass scores (Claude, local, not released)
+
+The owner asked for the website's run detail on a working computer's card, especially the latest score line.
+- A computer running a job now shows the full console inside its card on the Computers page (Tk `console_into`, Mac `console(..., into:)`): step, readings, stage and overall bars, next steps, recent log and Cancel. It updates in place.
+- Every console, on the Overview too, adds a green "latest pass →" line taken from the newest end-of-pass log entry, e.g. `pass 47/80 · box 1.384 · cls 0.919 · dfl 1.322 · mAP50 0.729 · P 0.785 · R 0.703`.
+
+Checked: the engine suite; Tk and Mac Computers previews with a running detector job.
+
 ## 2026-10-28 — Style automatic updates as switches on Helpers (Codex, local, not released)
 
 The Helpers page's per-computer Update automatically checkbox is now rendered as an accessible switch, using the existing Neptune theme variables. It keeps the same `data-auto-update` save handler and checked state. The new stylesheet includes a keyboard focus ring and reduced-motion behavior; the CSS and JavaScript asset URLs are versioned so browsers reload them. Local JavaScript syntax, PHP lint and diff checks pass. Read-only AWS preflight confirms all four live files match the current Git revision. No Git push or production write yet; owner approval required for this batch.
