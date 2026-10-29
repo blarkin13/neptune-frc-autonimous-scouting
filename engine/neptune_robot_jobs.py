@@ -25,6 +25,11 @@ SMALL_BUMPER_H = .025             # bumpers shorter than this (of frame height) 
 WIDE_BAND = (.24, .6506)          # 2026 broadcast wide-camera band (normalized y)
 ADOPT_MARGIN = .02                # new detector must beat the current one's held-out F1 by this much
 MIN_FRAMES_PER_MATCH = 8
+MODEL_SIZE = 's'                  # YOLO11 Small; a Nano detector in use is replaced by a fresh Small run, not fine-tuned
+SMALL_BASE = {'file': 'yolo11s.pt', 'sha256': '85a76fe86dd8afe384648546b56a7a78580c7cb7b404fc595f97969322d502d5',
+              'url': 'https://github.com/ultralytics/assets/releases/download/v8.3.0/yolo11s.pt'}
+WARM_RECIPE = 'adopted-bumper-warm-start-v2-train-validation'
+SMALL_RECIPE = 'coco-yolo11s-first-small-v1'
 
 
 def api(config, action, payload=None, timeout=120):
@@ -143,19 +148,45 @@ def current_wide_weights():
     return Path(row['path']) if row else None
 
 
+def model_scale(weights):
+    """The YOLO size letter ('n', 's', ...) recorded in a checkpoint."""
+    from ultralytics import YOLO
+    return (getattr(YOLO(str(weights)).model, 'yaml', None) or {}).get('scale')
+
+
+def small_base():
+    """COCO-pretrained YOLO11 Small, downloaded once and checked against its pinned fingerprint."""
+    import urllib.request
+    path = HOME/'base-models'/SMALL_BASE['file']
+    if path.is_file() and hashlib.sha256(path.read_bytes()).hexdigest() == SMALL_BASE['sha256']:
+        return path
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix('.part')
+    with urllib.request.urlopen(SMALL_BASE['url'], timeout=300) as r, open(tmp, 'wb') as f:
+        shutil.copyfileobj(r, f, 1 << 20)
+    if hashlib.sha256(tmp.read_bytes()).hexdigest() != SMALL_BASE['sha256']:
+        tmp.unlink(missing_ok=True)
+        raise ValueError('The YOLO11 Small starting model failed its fingerprint check.')
+    tmp.replace(path)
+    return path
+
+
 def training_base(holdout):
-    """Continue the proven bumper detector, never the unrelated COCO context head.
+    """(starting weights, recipe). Continue the proven bumper detector when it is already Small;
+    a Nano detector in use is replaced by a fresh Small run from COCO, which never saw any match.
 
     Refuse an inherited model that learned the evaluation match: excluding it
     from this run alone would not remove its influence from the weights.
     """
     current = current_wide_weights()
     manifest = SHARED/'manifest.json' if (SHARED/'manifest.json').is_file() else Path(__file__).with_name('robot-detector')/'manifest.json'
+    if not (current and current.is_file()):
+        raise ValueError('Install the current wide bumper detector before fine-tuning; its training provenance is required.')
+    if model_scale(current) != MODEL_SIZE:
+        return small_base(), SMALL_RECIPE
     if holdout in adopted_trained_on(manifest):
         raise ValueError('The starting detector trained on the evaluation match; choose an independent holdout.')
-    if current and current.is_file():
-        return current
-    raise ValueError('Install the current wide bumper detector before fine-tuning; its training provenance is required.')
+    return current, WARM_RECIPE
 
 
 def dataset_audit(manifest, holdout):
@@ -372,13 +403,16 @@ def train(config, req, progress):
     supplemental = append_workshop(external_training_datasets(config), work/'dataset')
     if supplemental['frames']:
         progress('Including %d reviewed workshop images (%d bumper boxes) in training only' % (supplemental['frames'], supplemental['boxes']))
-    base = training_base(holdout)
+    base, recipe = training_base(holdout)
     base_sha256 = hashlib.sha256(base.read_bytes()).hexdigest()
     model = YOLO(str(base))
-    from neptune_yolo import bumper_classes
-    bumper_classes(model.names)  # refuse a generic context model even if the path is wrong
-    epochs = int(req.get('epochs') or 80)
-    progress('Fine-tuning the current bumper detector; evaluation match remains excluded')
+    if recipe == WARM_RECIPE:
+        from neptune_yolo import bumper_classes
+        bumper_classes(model.names)  # refuse a generic context model even if the path is wrong
+        progress('Fine-tuning the current bumper detector; evaluation match remains excluded')
+    else:
+        progress('Training a larger (YOLO11 Small) bumper detector from scratch; evaluation match remains excluded')
+    epochs = int(req.get('epochs') or (80 if recipe == WARM_RECIPE else 120))
     def epoch_end(trainer):
         progress('Training robot detector: pass %d of up to %d' % (trainer.epoch+1, epochs))
     model.add_callback('on_fit_epoch_end', epoch_end)
@@ -400,7 +434,7 @@ def train(config, req, progress):
     report = {'engine': VERSION, 'holdout_match': holdout, 'trained_on': audit['trained_on'], 'external_training': supplemental, 'frames': built['frames']+supplemental['frames'], 'train_frames': built['train']+supplemental['frames'], 'check_frames': built['val'],
               'bumpers': built['boxes']+supplemental['boxes'], 'matches': audit['matches'], 'frames_per_match': audit['frames_per_match'],
               'evaluation_sha256': audit['evaluation_sha256'], 'starting_weights_sha256': base_sha256,
-              'training_recipe': 'adopted-bumper-warm-start-v2-train-validation', 'new': new, 'current': old, 'adopted': adopt, 'margin': ADOPT_MARGIN, 'skipped': built['skipped']}
+              'training_recipe': recipe, 'model_size': MODEL_SIZE, 'new': new, 'current': old, 'adopted': adopt, 'margin': ADOPT_MARGIN, 'skipped': built['skipped']}
     progress('Making the review video')
     report['review'] = send_review(config, req, report, lambda out: __import__('neptune_review_video').robot_video(out, check, best, current, report))
     if adopt:

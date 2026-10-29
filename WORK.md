@@ -1065,3 +1065,11 @@ Created an 18-frame local review queue at `/Users/brianlarkin/Documents/ChatGPT/
 - Scores (correct / lost s per robot), before → after; wrong 0 and switches 0 everywhere, not-a-robot unchanged: QM1 175 / 82.2 → 223 / 80.2; QM4 46 / 93.7 → 65 / 93.5; QM6 177 / 78.8 → 187 / 76.2; QM3 0 → 0.
 - Diagnostics: local/identity-constancy-20261026/unnamed.py, unnamed2.py.
 - Deployed via SSM 938f4c30 (owner ran it): 62 files fetched and verified, 67 changed, backup /root/contact-carry-release-backup-20261028, pruned (disk 36%). Live feeds: Windows 6.5.36, Linux 6.6.27 (latest.json and apt), Mac 3.2.65.
+
+## 2026-10-29 — Robot detector: YOLO11 Small (Claude)
+- The adopted bumper detector is YOLO11 Nano (2.6 M parameters). Held-out QM4 F1 has stayed at 0.83–0.86 across runs.
+- `neptune_robot_jobs.training_base` now returns (weights, recipe). If the detector in use isn't Small, a run starts fresh from COCO `yolo11s.pt` (recipe `coco-yolo11s-first-small-v1`, 120 passes); once a Small detector is adopted, runs warm-start from it as before (80 passes). The holdout guard still applies to warm starts; COCO saw no match.
+- `small_base()` downloads yolo11s.pt once to `~/.neptune-trainer/base-models/` and refuses it unless its sha256 matches the pinned 85a76fe8…d502d5. Report adds `model_size`.
+- Adoption gate unchanged: new F1 must beat the current one by 0.02 on the held-out match.
+- Tests: Nano→Small switch, fingerprint refusal, warm-start/holdout guard with Small. Engine suite 551 passing (bundled helper Python).
+- Not released yet.
