@@ -79,7 +79,7 @@ try {
   'tracking_put'=>(new TrackingIdentityShare(dirname(__DIR__,3).'/neptune_secure',(int)$computer['organization_id']))->put($computer,$p),
   'tracking_current'=>(new TrackingIdentityShare(dirname(__DIR__,3).'/neptune_secure',(int)$computer['organization_id']))->current(isset($p['have'])?(string)$p['have']:null),
   'claim'=>['request'=>$jobs->claim($computer)],
-  'training_supplement_index'=>['packages'=>(new ExternalBumperTraining(dirname(__DIR__,3).'/neptune_secure',(int)$computer['organization_id']))->index()],
+  'training_supplement_index'=>['packages'=>$jobs->matchVideoOnly($computer)?[]:(new ExternalBumperTraining(dirname(__DIR__,3).'/neptune_secure',(int)$computer['organization_id']))->index()],
   'training_supplements'=>(function()use($computer,$p){$store=new ExternalBumperTraining(dirname(__DIR__,3).'/neptune_secure',(int)$computer['organization_id']);if(isset($p['id']))return ['datasets'=>[$store->get((string)$p['id'],(string)($p['sha256']??''))]];foreach($store->index() as $item)if($item['id']==='6962-workshop-v1')return ['datasets'=>[$store->get($item['id'],$item['sha256'])]];return ['datasets'=>[]];})(),
   'progress'=>$jobs->progress($computer,$p),
   'finish'=>$jobs->finish($computer,$p),

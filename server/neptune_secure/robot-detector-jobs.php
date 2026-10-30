@@ -37,6 +37,7 @@ final class RobotDetectorJobs {
   if(!in_array($kind,['prepare','train','train_field'],true))throw new InvalidArgumentException('Unknown request');
   $body=['kind'=>$kind];if($kind==='train_field')$body['game_key']=self::game((string)($p['game_key']??''));
   if(in_array($kind,['train','train_field'],true)&&preg_match('/^[A-Za-z0-9_-]{1,100}$/D',(string)($p['holdout']??'')))$body['holdout']=$p['holdout'];   // chosen by autoscout_holdout()
+  if($kind==='train'&&!empty($p['match_only']))$body['match_video_only']=true;   // owner test: no workshop or folder photos
   if(preg_match('/^[a-f0-9]{32}$/D',(string)($p['computer']??'')))$body['target']=$p['computer'];   // only this helper may claim it
   if($kind==='prepare'){$body['source_stills']=true;$body['video_id']=self::video((string)($p['video_id']??''));$body['match_key']=(string)($p['match_key']??'');if(!preg_match('/^\d{4}[A-Za-z0-9_-]{1,95}$/D',$body['match_key']))throw new InvalidArgumentException('Invalid match');
    $times=$p['times_ms']??[];   // hard frames picked from tracking reviews
@@ -46,6 +47,11 @@ final class RobotDetectorJobs {
   foreach($this->requests() as $r)if(in_array($r['state'],['queued','claimed'],true)&&$r['kind']===$kind&&($r['video_id']??null)===($body['video_id']??null)&&($r['game_key']??null)===($body['game_key']??null))return $r;
   $r=$body+['id'=>bin2hex(random_bytes(12)),'state'=>'queued','created_at'=>time(),'created_by'=>$user,'message'=>empty($body['target'])?'Waiting for a connected helper':'Waiting for the chosen computer'];
   self::write($this->dir('requests').'/'.$r['id'].'.json',$r);return $r;
+ }
+ /** A match-video-only run this helper is doing gets no workshop or folder photos. */
+ public function matchVideoOnly(array $computer):bool{
+  foreach($this->requests() as $r)if($r['state']==='claimed'&&$r['kind']==='train'&&($r['computer_id']??null)===$computer['id']&&!empty($r['match_video_only']))return true;
+  return false;
  }
  public function requests():array{
   $out=[];foreach(glob($this->root.'/requests/*.json')?:[] as $f){$r=json_decode((string)file_get_contents($f),true);if(is_array($r))$out[]=$r;}
