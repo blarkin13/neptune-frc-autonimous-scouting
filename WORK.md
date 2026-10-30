@@ -100,6 +100,50 @@ Validation: 39 focused tests passed against the merged production engine, Window
 Field training accepts scoring targets with a visible boundary polygon (including hexagons), separately from four-physical-corner map calibration. Polygon vertices are no longer automatically corner labels; optional confirmed and inferred vertex lists are validated in the editor, API and engine. Inferred corners do not become corner-training truth. Legacy four-point calibration semantics remain compatible. Overview, helper summary, and button eligibility use targets + boundary; held-out evaluation still requires confirmed corners and preserves an explicitly requested evaluation match. No user annotation documents, reserved benchmarks, releases, or running training jobs were changed.
 
 Validation: 39 focused Python tests (field detector, regions, source-timed training, polygon regression), PHP summary classification and syntax checks, JS metadata behavior and syntax checks. Prepared against existing uncommitted engine changes with hash guards; originals backed up in the task workspace. Local source update only; hosted server and packaged helpers require coordinated rollout before this behavior is live.
+## 2026-10-30 — Keep-awake release: Mac 3.2.80, Windows 6.5.51, Linux 6.6.42, engine 2.7.65 (Claude)
+
+The owner's Windows PC slept with Keep awake set to Always. Fixed in `neptune_awake.py` (34bb387) and released, approved by the owner:
+- SetThreadExecutionState now has DWORD argtypes, and a failed call no longer ends the 30 s holder thread.
+- The last mode Neptune sent is saved in `~/.neptune-trainer/keep-awake.txt`, so Always holds from launch and while the helper is offline or signed out. A check-in reply without the setting keeps the current mode.
+- `awake` on My computers reports whether Windows accepted the request, not just the wanted mode.
+- On Modern Standby PCs (`powercfg /a` lists S0 Low Power Idle) the screen turning off can still start standby; the owner was told to set the screen timeout to Never while plugged in if it still sleeps.
+- Built in a separate worktree from origin/main. All three packages carry the fix and import the helper modules.
+
+## 2026-10-29 — Tracking release: Mac 3.2.79, Windows 6.5.50, Linux 6.6.41, engine 2.7.64 (Claude)
+
+The owner approved merging the tracking session's identity-model work (`release-2.7.43`: 00ea88d, e23ffdc, 16326b5) and releasing it with the Tracking pillar, the shared identity model and the pillar order (Robots, Tracking, Field, Actions). It is built on f420182 (the Small-detector release).
+- The merge and builds ran in a separate worktree, because the main checkout holds the field session's and Codex's uncommitted edits.
+- Detector weights were copied in from the main checkout.
+- 560 engine tests and the helper server tests pass on the merged code.
+- The Windows and Linux packages import the Tracking and shared-model code from their own files. The installed 6.5.49 / 6.6.40 updaters accept these updates.
+- The identity model passes its new held-out check on the owner's four reviews (350 right, 0 wrong). The reviewing helper reports and shares it after the next saved review on this version.
+
+Deployed through AWS SSM. A permission check blocked Claude from sending it, so the owner sent the prepared command (e68cecc3) after renewing the AWS sign-in. 60 files hash-checked, 65 changed, including the new `tracking-identity.php`, and `api/robot-detector.php` matched f420182 live. Backup: `/root/tracking-release-backup-20261029`.
+
+Checked from outside:
+- The appcast offers 3.2.79 at the local zip's size.
+- Windows and Linux `latest.json` show 6.5.50 and 6.6.41 on engine 2.7.64, and both update zips match their local SHA-256. apt lists 6.6.41.
+
+## 2026-10-29 — Robot-identity model: fit fixed, match-held-out identity check (Claude, not released)
+- Why the head linked nothing: the 5 pair features differ in scale by ~100x and the fit took 150 fixed gradient steps, so it stopped badly under-fitted. Every same-robot pair scored at most .87, below the .9 link threshold. The features themselves separate well (same robot vs other: centre distance .02 vs .43, appearance .05 vs .23).
+- `fit` is now a class-balanced logistic regression fitted by Newton steps on standardized features, folded back to the same 5 raw weights plus bias, so stored models keep their format.
+- Leave-one-match-out pair check on the owner's library (QM1/3/4/6, 2311 pairs): before tp 0, fp 0, fn 1219, tn 1081. After tp 1079, fp 0, fn 140, tn 1081 (precision 1.0, recall .885). The candidate is now eligible.
+- New `identity_check`: a match-held-out identity check on the full saved reviews (`identity-reviews/*/identity-review.json`), with no hand-built audit file. Each match is scored by a head trained without that match or its video. Reconcile sees only detections, tracker IDs and bumper reads; the human corrections are the answer key. Reserved matches (Q7) are skipped. Same bar as `evaluate_association`: 2 or more matches, precision .98 or better, 150 or more correct, and no fewer correct or more wrong than without the model. It runs after training (about 9 s) and activates only on a pass.
+- Result on the owner's 4 reviews (1688 checked boxes): without the model 443 correct, 42 wrong, 1203 unnamed; with it 454 correct, 42 wrong, 1192 unnamed. Precision .915, so not activated and not shared.
+- What blocks the .98 bar is the solver, not the model. All 124 bumper-read names are right. All 42 wrong are solver guesses the review page marks for review: 30 motion-plus-roster guesses (QM1 close-up track 169 at 99-101 s; QM6 wide track -3 at 1-2 s) and 12 short-gap visual bridges (0 of 12 right). The model adds 11 correct names and no wrong ones.
+- Not used: the 2 extra reviews on Neptune (txsan qm2, capoh qm9). Fetching them needs the helper's saved connection credential.
+- Prototype and diagnostics: local/identity-model-20261029/. Tests added in test_review_learning.py; full suite OK.
+- Solver guesses (owner chose "Fix solver guesses"). The 42 wrong names came from three moments. They were sorted by evidence (local/identity-model-20261029/guesses.py):
+  - Follower serials (negative tracker IDs, boxes the tracker never confirmed) in the wide view: 36 right, 17 wrong. All 12 short-gap bridge suggestions also landed on them, 0 right.
+  - Lone close-up boxes: 61 right, 11 wrong. The 11 are QM1 track 169: 6672 was carried 5 s backward across four tracker IDs from a read at 103 s, but the robot was 5261.
+  - Rules added in `solve_window`, applied only to guesses with no bumper read: no name on a follower serial (`unconfirmed_track_needs_review`). In a close-up frame with one box, no carried name unless its own track has a bumper read (`lone_closeup_box_needs_review`). Short-gap and fragment bridges never target follower serials.
+  - `identity_check` no longer scores boxes the reviewer drew (`manual_proposal`); the tracker never produced them.
+- Identity check after the rules (1596 boxes): without the model 341 right, 0 wrong; with it 350 right, 0 wrong. Precision 1.0, so it passes and the model activates (tested on a copy of the library; the owner's files were not changed).
+- Caveats:
+  - The rules were found on these same 4 matches, so this pass is not independent evidence.
+  - Coverage drops. Solver right names 454 to 350. Constant-identity layer right names: QM1 223 to 186, QM6 187 to 118, QM4 65 unchanged. Lost seconds per robot: QM1 80.2 to 86.0, QM6 76.2 to 85.1, QM4 93.5 to 104.2.
+  - Wrong names in the tracking scores stay 0, and the hidden-OCR check is unchanged (the same 22 earlier QM6 seed misses).
+- Owner chose to keep the rules (2026-10-29). Not released or pushed; release waits for owner approval.
 
 ## 2026-10-29 — Tracking pillar and a shared robot-identity model (Claude, local, not released)
 
@@ -144,27 +188,6 @@ Checked from outside: Windows `latest.json` 6.5.49 on engine 2.7.63 (update zip 
 - Adoption gate unchanged: new F1 must beat the current one by 0.02 on the held-out match.
 - Tests: Nano→Small switch, fingerprint refusal, warm-start/holdout guard with Small. Engine suite 551 passing (bundled helper Python).
 - Other seasons: `neptune_detector_training.prepare` accepted only `2026…` match keys, so a labelled 2023 match failed the 2:44 PM run ("Every frame needs its match and source-video fingerprint"). Any match key starting with a year now trains; Q7 and the held-out match stay refused. Tests added; suite 553 passing.
-## 2026-10-29 — Robot-identity model: fit fixed, match-held-out identity check (Claude, not released)
-- Why the head linked nothing: the 5 pair features differ in scale by ~100x and the fit took 150 fixed gradient steps, so it stopped badly under-fitted. Every same-robot pair scored at most .87, below the .9 link threshold. The features themselves separate well (same robot vs other: centre distance .02 vs .43, appearance .05 vs .23).
-- `fit` is now a class-balanced logistic regression fitted by Newton steps on standardized features, folded back to the same 5 raw weights plus bias, so stored models keep their format.
-- Leave-one-match-out pair check on the owner's library (QM1/3/4/6, 2311 pairs): before tp 0, fp 0, fn 1219, tn 1081. After tp 1079, fp 0, fn 140, tn 1081 (precision 1.0, recall .885). The candidate is now eligible.
-- New `identity_check`: a match-held-out identity check on the full saved reviews (`identity-reviews/*/identity-review.json`), with no hand-built audit file. Each match is scored by a head trained without that match or its video. Reconcile sees only detections, tracker IDs and bumper reads; the human corrections are the answer key. Reserved matches (Q7) are skipped. Same bar as `evaluate_association`: 2 or more matches, precision .98 or better, 150 or more correct, and no fewer correct or more wrong than without the model. It runs after training (about 9 s) and activates only on a pass.
-- Result on the owner's 4 reviews (1688 checked boxes): without the model 443 correct, 42 wrong, 1203 unnamed; with it 454 correct, 42 wrong, 1192 unnamed. Precision .915, so not activated and not shared.
-- What blocks the .98 bar is the solver, not the model. All 124 bumper-read names are right. All 42 wrong are solver guesses the review page marks for review: 30 motion-plus-roster guesses (QM1 close-up track 169 at 99-101 s; QM6 wide track -3 at 1-2 s) and 12 short-gap visual bridges (0 of 12 right). The model adds 11 correct names and no wrong ones.
-- Not used: the 2 extra reviews on Neptune (txsan qm2, capoh qm9). Fetching them needs the helper's saved connection credential.
-- Prototype and diagnostics: local/identity-model-20261029/. Tests added in test_review_learning.py; full suite OK.
-- Solver guesses (owner chose "Fix solver guesses"). The 42 wrong names came from three moments. They were sorted by evidence (local/identity-model-20261029/guesses.py):
-  - Follower serials (negative tracker IDs, boxes the tracker never confirmed) in the wide view: 36 right, 17 wrong. All 12 short-gap bridge suggestions also landed on them, 0 right.
-  - Lone close-up boxes: 61 right, 11 wrong. The 11 are QM1 track 169: 6672 was carried 5 s backward across four tracker IDs from a read at 103 s, but the robot was 5261.
-  - Rules added in `solve_window`, applied only to guesses with no bumper read: no name on a follower serial (`unconfirmed_track_needs_review`). In a close-up frame with one box, no carried name unless its own track has a bumper read (`lone_closeup_box_needs_review`). Short-gap and fragment bridges never target follower serials.
-  - `identity_check` no longer scores boxes the reviewer drew (`manual_proposal`); the tracker never produced them.
-- Identity check after the rules (1596 boxes): without the model 341 right, 0 wrong; with it 350 right, 0 wrong. Precision 1.0, so it passes and the model activates (tested on a copy of the library; the owner's files were not changed).
-- Caveats:
-  - The rules were found on these same 4 matches, so this pass is not independent evidence.
-  - Coverage drops. Solver right names 454 to 350. Constant-identity layer right names: QM1 223 to 186, QM6 187 to 118, QM4 65 unchanged. Lost seconds per robot: QM1 80.2 to 86.0, QM6 76.2 to 85.1, QM4 93.5 to 104.2.
-  - Wrong names in the tracking scores stay 0, and the hidden-OCR check is unchanged (the same 22 earlier QM6 seed misses).
-- Owner chose to keep the rules (2026-10-29). Not released or pushed; release waits for owner approval.
-
 ## 2026-10-28 — Run-details release: Mac 3.2.77, Windows 6.5.48, Linux 6.6.39, engine 2.7.62 (Claude)
 
 The owner approved the release of run details on the Computers page and the latest-pass line (entry below). It is built on Codex's validation-split and switch work (Mac 3.2.76, Windows 6.5.47, Linux 6.6.38). The Windows and Linux packages import the helper modules from their own files, and the installed 6.5.47 / 6.6.38 updaters accept these updates.
