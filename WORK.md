@@ -1,3 +1,35 @@
+## 2026-10-30 — Robot detection match test + helper selector on 1 · Robots page (Gemini)
+
+- Added a **Test a match** section to `server/public_html/Neptune/autoscout/robot-labels.php` using the shared Year / Event / Match selector (`server/public_html/Neptune/community/assets/match-picker/match-picker.js`, updated to support multiple pickers and `data-select-only="1"` mode without page navigation), a **Helper** dropdown (`#robot-test-computer` populated from `community_training_computers` with live online/busy status), and a **Test** button.
+- Queues `test_robot` jobs via `RobotDetectorJobs` (`server/neptune_secure/robot-detector-jobs.php`, `server/public_html/Neptune/api/robot-detector.php`, `server/neptune_secure/autoscout-train-overview.php`), targeting either the chosen helper computer or the first available helper. The helper runs `test_robot()` (`engine/neptune_robot_jobs.py`, `engine/neptune_steps.py`) using the current robot detector, BoT-SORT tracker, bumper OCR, `reconcile`, and `with_constant_identity`, then renders `robot_test_video()` (`engine/neptune_review_video.py`):
+  - **Original broadcast view**: colored bounding boxes and bumper OCR tags matching the Review tracking palette (`#69deb4` green = OCR verified, `#48d9ed` cyan = constant / inferred identity, `#ffc773` amber = unresolved).
+  - **Top-down homography view**: live 2D field projection with 3-second motion trails (using saved four-corner / boundary / `field_reference` marks from `neptune_homography.py`, or a wide-band perspective fallback when unmarked), plus a 6-robot constant identity status panel and full-match timeline strip.
+- Saves the rendered MP4 and pre-filled metadata on Neptune (`robot_test_put`) so it can be watched directly in an inline `<video>` player (`robot-labels.php?robot_test_video=<id>`) with editable **Title** and **Description** fields and an **Upload to YouTube** button (`upload_robot_test_youtube`).
+- Checked: PHP syntax (`php -l`), JS syntax (`node --check`), PHP `RobotDetectorJobs` end-to-end test, and Python unit tests in `engine/test_robot_jobs.py`. Committed and pushed to `main`; `site-autoscout` package built.
+
+## 2026-10-30 — Codex: March 4, 2026 Q5 bumper batch live
+
+- User requested Q5 at every event starting March4,2026,25frames each, and authorized parallel reviewers. Catalog: Canadian Pacific52981, Lake Superior53248, Minnesota Bluff Country73059, Northern Lights62776, Oklahoma62962. Registered125 native1920×1080 exact private source stills, manually reviewed main/inset foam appearances, corrected proposal misses/chassis extents and removed fieldhardware/fuel/banner falseboxes. Parent reviewed per-box evidence and enlarged ambiguous crops, completed checks after reviewer usage limits.
+- Saved25 complete rows per match,1,052 bumper appearance boxes. Locked new-timestamp writes preserved existing labels, checked immutable source/image hashes and exact readback after each save. Independent final server check verifies125 complete frames and125 source image hashes;116 rows unchanged, nine Canadian Pacific rows were subsequently edited by signed-in user4 and preserved. Final readback has1,056 boxes. No training started; reserved Q7 untouched.
+- Metadata, native stills, reviewed JSON, save receipts, current-state snapshots and final-verification.json: `/Users/brianlarkin/Documents/ChatGPT/autonomous_scouting/local/march4-qm5-review/`. Final batch payloads reflect our reviewed saves; current snapshots preserve subsequent user edits. Earlier generation scripts retain intermediate decisions and must not overwrite final saved labels.
+
+## 2026-10-30 — Codex: TXCMP1 Q3 full existing-frame bumper audit completed
+
+- Manually reviewed all 92 already-labeled timestamps of match 208, `2026txcmp1_qm3`, against immutable native 1920×1080 source stills, including main and inset panels. All 92 extracted JPEG hashes match server frame metadata. Corrected missed/loose bumper labels and removed false labels on field hardware, advertisements and chassis; visible occluded/clipped bumper foam retained, fully hidden bumpers omitted.
+- Saved all 92 reviewed rows with exact prior-row guards, per-batch server document backups and atomic replacement. Independent final server fetch confirms all 92 complete, 770 bumper appearance boxes, exact reviewed boxes and frame hashes. The original 92 timestamp keys remain unchanged. No model training started; broader Reefscape batch remains stopped.
+- This full audit supersedes the earlier frame 1/frame 2 entries: each now has nine boxes after two tiny fixed-field false positives were removed.
+- Evidence, source hash verification, reviewed JSON and save/readback receipts: `/Users/brianlarkin/Documents/ChatGPT/autonomous_scouting/local/txcmp1-qm3-full-audit/`; final receipt `final-verification.json`. Source video SHA-256: `8dc8db13fc738645cb1a2c1053ff808250b0ee2fe43d65f5c85a886ae259b5b0`. Server backup directories use `/root/q3-label-audit-backup-<timestamp>`.
+
+## 2026-10-30 — Codex: TXCMP1 Q3 frame 2 correction
+
+- Corrected match 208 second prepared frame (4,000 ms): inspected native 1920×1080 still and enlarged main/inset crops, saved 11 bumper appearances. Verified immutable frame SHA-256, guarded against concurrent edits, backed up prior document, and read back exact corrected row. Preserved the other 91 frames, including frame 1.
+- Before/after labels, source still, overlay and server receipt: `/Users/brianlarkin/Documents/ChatGPT/autonomous_scouting/local/txcmp1-qm3-frame2-audit/`. No training started.
+
+## 2026-10-30 — Codex: TXCMP1 Q3 frame 1 bumper correction
+
+- Corrected match 208, `2026txcmp1_qm3`, first prepared frame at 0 ms. Inspected immutable 1920×1080 source still and enlarged main/inset crops. Saved 11 bumper appearances replacing five prior boxes, including inset misses and partially occluded bumpers. Preserved the other frames using a guarded row comparison and backup; verified exact saved JSON and source SHA-256.
+- Receipt, before/after data and overlay: `/Users/brianlarkin/Documents/ChatGPT/autonomous_scouting/local/txcmp1-qm3-frame1-audit/`. No model training started. Earlier two-match audit remains unfinished.
+
 ## 2026-10-30 — Field-references release: Mac 3.2.81, Windows 6.5.52, Linux 6.6.43, engine 2.7.66 (Claude, deployed)
 
 Owner asked to merge and build. Live helpers were on engine 2.7.65 with code main lacked, so main first merged `claude/exciting-kilby-bb0e78` (YOLO11 Small robot detector) and `release-2.7.43` (robot-identity check); only WORK.md conflicted. Merged main checked against the live Linux 6.6.42 package: every live line is present or superseded. Then committed Codex's polygon/corner work and the field references.

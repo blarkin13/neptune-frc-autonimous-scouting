@@ -165,6 +165,39 @@ class RobotJobs(unittest.TestCase):
             self.assertEqual(report['trained_on'], ['2026few_qm1'])
             self.assertEqual(len(report['starting_weights_sha256']), 64)
 
+    def test_robot_test_stats_merges_ocr_constant_identity_and_homography(self):
+        import neptune_review_video as rv
+        facts = {
+            'layout': {'camera_top': 0.24},
+            'bumpers': {'identities': {'254': {'alliance': 'blue'}, '1678': {'alliance': 'red'}}},
+            'tracking': {
+                'identity_review': {
+                    'points': [
+                        {'t': 10.0, 'camera': 'wide', 'track_id': 1, 'alliance': 'blue', 'box': [0.3, 0.4, 0.04, 0.04],
+                         'identity_status': 'verified', 'team': 254, 'read_teams': [254]},
+                        {'t': 11.0, 'camera': 'wide', 'track_id': 2, 'alliance': 'red', 'box': [0.5, 0.45, 0.04, 0.04],
+                         'identity_status': 'unknown', 'team': None, 'read_teams': []},
+                    ]
+                },
+                'localizations': [
+                    {'t': 11.0, 'camera': 'wide', 'track_id': 2, 'team': 1678, 'identity_method': 'constant_identity',
+                     'box': [0.5, 0.45, 0.04, 0.04]},
+                ],
+            },
+        }
+        with patch('neptune_field_regions.load', return_value=None):
+            merged, summary = rv.robot_test_stats(facts, '2026-rebuilt')
+        self.assertEqual(summary['verified_points'], 1)
+        self.assertEqual(summary['constant_points'], 1)
+        self.assertEqual(summary['ocr_read_frames'], 1)
+        self.assertEqual(summary['homography_status'], 'wide-band perspective')
+        self.assertEqual([m['kind'] for m in merged], ['verified', 'constant'])
+        self.assertEqual([m['team'] for m in merged], [254, 1678])
+        self.assertTrue(all(m['field_x'] is not None and m['field_y'] is not None for m in merged))
+        title, desc = rv.describe_robot_test('Qualification 1', '2026test_qm1', summary, 'v-test')
+        self.assertIn('Qualification 1', title)
+        self.assertIn('Constant identity carried sightings: 1', desc)
+
 
 if __name__ == '__main__':
     unittest.main()
