@@ -119,6 +119,21 @@ Checked:
 The Helpers page's per-computer Update automatically checkbox is now rendered as an accessible switch, using the existing Neptune theme variables. It keeps the same `data-auto-update` save handler and checked state. The new stylesheet includes a keyboard focus ring and reduced-motion behavior; the CSS and JavaScript asset URLs are versioned so browsers reload them. Local JavaScript syntax, PHP lint and diff checks pass. Read-only AWS preflight confirmed all four live files matched the prior Git revision.
 
 Owner approved publication. Git commit `1e506e6` pushed. AWS SSM deployment `2e975c12-22b0-4731-9163-eacb4f592e15` succeeded with exact live-hash checks and backup `/root/helper-auto-update-toggle-backup-20261028`. Public versioned JavaScript and CSS URLs return the expected SHA-256 values. The owner-only rendered page was not visually checked without an authenticated browser session.
+## 2026-10-29 — Small-detector release: Mac 3.2.78, Windows 6.5.49, Linux 6.6.40, engine 2.7.63 (Claude)
+
+The owner approved the release of the YOLO11 Small detector and the other-seasons fix (entry below). Robot runs now need these versions (`supportsRobotValidation`).
+
+Deployed through AWS SSM 0f1e7784 (owner ran it): 14 files fetched and verified, 19 changed. Backup: `/root/small-detector-release-backup-20261029`. Pruned 3 old copies (316 MB).
+
+Checked from outside: Windows `latest.json` 6.5.49 on engine 2.7.63 (update zip SHA-256 matches local), Linux 6.6.40, appcast 3.2.78.
+
+## 2026-10-29 — Robot detector: YOLO11 Small (Claude)
+- The adopted bumper detector is YOLO11 Nano (2.6 M parameters). Held-out QM4 F1 has stayed at 0.83–0.86 across runs.
+- `neptune_robot_jobs.training_base` now returns (weights, recipe). If the detector in use isn't Small, a run starts fresh from COCO `yolo11s.pt` (recipe `coco-yolo11s-first-small-v1`, 120 passes); once a Small detector is adopted, runs warm-start from it as before (80 passes). The holdout guard still applies to warm starts; COCO saw no match.
+- `small_base()` downloads yolo11s.pt once to `~/.neptune-trainer/base-models/` and refuses it unless its sha256 matches the pinned 85a76fe8…d502d5. Report adds `model_size`.
+- Adoption gate unchanged: new F1 must beat the current one by 0.02 on the held-out match.
+- Tests: Nano→Small switch, fingerprint refusal, warm-start/holdout guard with Small. Engine suite 551 passing (bundled helper Python).
+- Other seasons: `neptune_detector_training.prepare` accepted only `2026…` match keys, so a labelled 2023 match failed the 2:44 PM run ("Every frame needs its match and source-video fingerprint"). Any match key starting with a year now trains; Q7 and the held-out match stay refused. Tests added; suite 553 passing.
 
 ## 2026-10-28 — Run-details release: Mac 3.2.77, Windows 6.5.48, Linux 6.6.39, engine 2.7.62 (Claude)
 

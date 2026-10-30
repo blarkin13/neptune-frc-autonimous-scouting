@@ -1,4 +1,5 @@
 import unittest
+import io
 import json
 import sys
 from types import SimpleNamespace
@@ -67,14 +68,34 @@ class RobotJobs(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder); weights = root/'current.pt'; weights.write_bytes(b'weights')
             (root/'manifest.json').write_text(json.dumps({'trained_on': ['2026train_qm1']}))
-            with patch.object(rj, 'SHARED', root), patch.object(rj, 'current_wide_weights', return_value=weights):
-                self.assertEqual(rj.training_base('2026held_qm2'), weights)
+            with patch.object(rj, 'SHARED', root), patch.object(rj, 'current_wide_weights', return_value=weights), \
+                 patch.object(rj, 'model_scale', return_value='s'):
+                self.assertEqual(rj.training_base('2026held_qm2'), (weights, rj.WARM_RECIPE))
+
+    def test_nano_detector_is_replaced_by_a_fresh_small_run(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder); weights = root/'current.pt'; weights.write_bytes(b'weights'); base = root/'yolo11s.pt'
+            (root/'manifest.json').write_text(json.dumps({'trained_on': ['2026held_qm2']}))
+            with patch.object(rj, 'SHARED', root), patch.object(rj, 'current_wide_weights', return_value=weights), \
+                 patch.object(rj, 'model_scale', return_value='n'), patch.object(rj, 'small_base', return_value=base):
+                self.assertEqual(rj.training_base('2026held_qm2'), (base, rj.SMALL_RECIPE))
+
+    def test_small_base_refuses_a_wrong_download(self):
+        with tempfile.TemporaryDirectory() as folder:
+            class Reply(io.BytesIO):
+                def __enter__(self): return self
+                def __exit__(self, *a): pass
+            with patch.object(rj, 'HOME', Path(folder)), patch('urllib.request.urlopen', return_value=Reply(b'not the model')):
+                with self.assertRaisesRegex(ValueError, 'fingerprint'):
+                    rj.small_base()
+            self.assertFalse((Path(folder)/'base-models'/'yolo11s.pt').exists())
 
     def test_starting_weights_must_not_have_seen_holdout(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder); weights = root/'current.pt'; weights.write_bytes(b'weights')
             (root/'manifest.json').write_text(json.dumps({'trained_on': ['2026held_qm2']}))
-            with patch.object(rj, 'SHARED', root), patch.object(rj, 'current_wide_weights', return_value=weights):
+            with patch.object(rj, 'SHARED', root), patch.object(rj, 'current_wide_weights', return_value=weights), \
+                 patch.object(rj, 'model_scale', return_value='s'):
                 with self.assertRaisesRegex(ValueError, 'starting detector trained'):
                     rj.training_base('2026held_qm2')
 
@@ -130,7 +151,7 @@ class RobotJobs(unittest.TestCase):
                  patch.object(rj, 'HOME', root), patch.object(labels, 'sync', return_value=docs), \
                  patch.object(labels, 'build', return_value=built), patch.object(dataset, 'prepare', return_value=root/'data.yaml'), \
                  patch.object(rj, 'yolo_validation_from_training', side_effect=lambda d: validated.append(d)), \
-                 patch.object(rj, 'training_base', return_value=parent), patch.object(rj, 'batch_progress'), \
+                 patch.object(rj, 'training_base', return_value=(parent, rj.WARM_RECIPE)), patch.object(rj, 'batch_progress'), \
                  patch.object(rj, 'all_cores', return_value=nullcontext()), patch.object(rj, 'train_device', return_value='cpu'), \
                  patch.object(rj, 'current_wide_weights', return_value=parent), \
                  patch.object(rj, 'api', return_value={'datasets': []}), \
@@ -139,6 +160,7 @@ class RobotJobs(unittest.TestCase):
             self.assertEqual(used, [str(parent)])
             self.assertFalse(report['adopted'])
             self.assertEqual(report['training_recipe'], 'adopted-bumper-warm-start-v2-train-validation')
+            self.assertEqual(report['model_size'], 's')
             self.assertEqual(validated, [root])
             self.assertEqual(report['trained_on'], ['2026few_qm1'])
             self.assertEqual(len(report['starting_weights_sha256']), 64)
