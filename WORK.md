@@ -1,3 +1,13 @@
+## 2026-10-30 — Field-references release built: Mac 3.2.81, Windows 6.5.52, Linux 6.6.43, engine 2.7.66 (Claude, not published)
+
+Owner asked to merge and build. Live helpers were on engine 2.7.65 with code main lacked, so main first merged `claude/exciting-kilby-bb0e78` (YOLO11 Small robot detector) and `release-2.7.43` (robot-identity check); only WORK.md conflicted. Merged main checked against the live Linux 6.6.42 package: every live line is present or superseded. Then committed Codex's polygon/corner work and the field references.
+
+Built in ~/Documents/ChatGPT/Neptune: Mac-Helper-3.2.81-ready (signed, Sparkle signature verified, 578 tests on the bundled Python; GitHub release step stubbed, not run), Windows-Helper-6.5.52-ready (update zip, full zip, Setup.exe; same file list as 6.5.51), Linux-Helper-6.6.43-ready (deb, update zip, apt repo; same file list as 6.6.42). Engine suite 578 OK, packaging tests 12 OK.
+
+Server changes against live: engine `neptune_homography.py`, `neptune_field_regions.py`, `season_rules.json`, `neptune_engine.py`; site `autoscout/scoring-areas.php`, `community/assets/field-regions/app.js`. Live app.js fetched publicly equals HEAD minus the field-reference edits.
+
+Not pushed, not on GitHub releases, not deployed.
+
 ## 2026-10-30 — Codex: local artifact cleanup
 
 - User requested purging unnecessary repository artifacts. Removed 13.9 GiB of downloaded original match videos, duplicate completed helper build trees, release/transfer archives and bytecode caches from the Documents workspace. Preserved source, datasets, model weights, labels, native audit stills, source metadata, decisions and save receipts.
