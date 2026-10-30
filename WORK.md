@@ -1,3 +1,46 @@
+## 2026-10-30 — Top-down map from field references when the near corners are cut off (Claude, local, not released)
+
+Built the floor-reference map the 2026-10-29 geometry test pointed to. Nothing committed, pushed or deployed.
+
+- Game pack: `engine/season_rules.json` 2026 revision 4 adds `field_references` (sizes and positions from manual TU22 5.2–5.8): far corners, far guardrail, both alliance walls, centre line, both hub bases, and the tower upright pair (a direction parallel to the guardrails, since the towers are mirrored). The server copy matches. No game values in code.
+- Engine: `neptune_homography.reference_map()` solves the picture→field map from any mix of marked points, lines and directions; it returns nothing unless the marks pin the plane down, agree within 4% of the frame, and put the field in front of the camera. `trajectories()` uses it per wide shot only when no four-corner calibration exists. `field_reference` is a new region kind (1 point or 2), validated in `neptune_field_regions` and never treated as a zone.
+- Field page: new region type "Top-down map · field reference point or line" with a reference picker filled from the game pack; one click for a point, two for a line; server POST and JSON import accept it (1–2 points, reference name). `app.js?v=5-field-references`. Checked in a local harness with real clicks: marks save, draw, export, re-import, and pass both the engine and the server validation; bad marks are rejected.
+- Accuracy (engine code on the five full-view events, near edge hidden, 200 simulated markings each, error at visible floor points): hubs + far corners only: median 4–7 in at 0.3% marking noise, 8–14 in at 0.6%. All references: median 3–5 in (p90 6–10 in) at 0.3%, 6–9 in at 0.6%. Rejection at 4% tolerance: 0% at 0.3% noise, 0–13% at 0.6%; swapped hubs are always rejected, but a hub marked 4% of the frame too high is not.
+- Tests: `engine/test_field_references.py` (9). Full engine suite on the bundled helper Python: 571 OK.
+- Follow-ups: Train page and Field page text still say "four field corners"; the Train overview's calibration flag ignores references; per-mark residuals on the Field page would let markers fix a bad click.
+
+## 2026-10-29 — Field corners hidden by the picture: geometry test (Claude, local, not released)
+
+Owner asked whether clipped corners can be estimated with math. On the 60 marked documents, extending all four boundary edges gives a quad for 52, but in 47 the bottom edge is a flat crop (score overlay or split-screen top), so the near corners come out too high (checked on Kettering, Houston and txcmp1 frames). Only Dallas, capoh, cahal, orsal and okok show a real near edge.
+
+Using only the real edges (far guardrail, both alliance walls) with the manual's field size (651.2 x 317.7 in) and a level pinhole camera centred on the picture: near corners within 3–5% of frame width for Dallas and orsal, 30–50% off for capoh, cahal and okok. Adding both hub top openings (158.6 in from each alliance wall, centred, one fitted height): within 1–5% for Dallas, capoh and orsal; 15–42% off for cahal and okok. The fitted hub height sits at its 40 in lower bound in four of five matches, so an assumption is off: the manual text does not say whether 158.6 in is to the hub's centre or face, the hub height is not in the text, and split-screen panes move the picture centre. Not reliable enough to use; nothing added to the game pack or engine.
+
+Refit with the manual's exact hub numbers (TU22 pp. 21–23: the 158.6 in alliance zone ends at the hub's face, so the centre is 182.1 in from the wall; the opening's front edge is 72 in up): Dallas 1–3%, okok 4–8%, orsal 6%, capoh 23–28%, cahal 13–29%. Every variant (182.1/158.6 in, 72/60 in) fits the marked lines and hubs almost exactly, yet moves the hidden corners by 20–40% of frame width. The solve is ill-conditioned when the near corners are far off-screen, which is the case it was meant for. Verdict: estimated corners are dependable only where the near corners sit just outside the picture; elsewhere keep marked zones and the outer-target fallback. A physical floor line visible below the hubs (e.g. the CENTER LINE or ROBOT STARTING LINES, if marked) would add the missing constraint.
+
+Floor reference points fix it (simulated on the five matches with all four corners known, marking noise 0.3% / 0.6% of the frame, error for floor points inside the picture). Far corners + both hub bases (front-bottom edge centre, 158.6 in from each alliance wall, centred): median 4–7 in / 7–14 in. The owner's construction (far corners + field centre, found where the line between matching tower-upright bases crosses the CENTER LINE, + the vanishing point of both alliance walls and the CENTER LINE): 4–7 in / 7–14 in. Both together: 3–5 in / 6–10 in. The centre construction assumes the field is rotationally symmetric (matching uprights pair through the 180° turn); the drawings should confirm. Scripts: `hub_base_test.py`, `centre_point_test.py`. Scripts: `local/field-detector-eval-20261029/near_edge_solve.py`, `near_edge_hubs.py`, `recovered_corners.jpg`.
+
+## 2026-10-29 — Field detector: measured on held-out venues; retraining does not fix it; keep marked zones (Claude, local, not released)
+
+The owner asked to improve the field detector. Measured first, on frames every 2 s from 8 owner-marked matches, scoring each hub and each in-view corner (found within 10% of frame width, per-frame hit rate, match-level as the adoption check). Candidates were trained like `train_field` (warm start from the bundled weights, 1280, batch 4, every fifth training frame as validation, 15 passes on the owner's Linux helper, CPU). Dallas qm6 and Q7 never trained anything.
+
+| Held-out match (camera) | Bundled (in use) | C0: data today's runs use (txcmp1 qm4 + cmptx sf2m1) | C1: all 7 marked matches | C2: C1 + scale .9 / perspective .001 |
+|---|---|---|---|---|
+| 2026dal_qm6 (side angle) | 3/6: hubs 2/2, corners 1/4 (per-frame 81%) | 3/6: hubs 2/2, corners 1/4 (89%) | 3/6: hubs 2/2, corners 1/4 (32%) | 3/6: hubs 2/2, corners 1/4 (35%) |
+| 2026kett_qm7 (bottom off frame) | 1/4: hubs 0/2 | 0/4: hubs 0/2 | trained on | trained on |
+| 2026cmptx_sf2m1 (Houston) | 0/4: hubs 0/2, corners 0/2 | trained on | trained on | trained on |
+| 2026txsan_qm8 | 4/8: hubs 2/2, corners 2/4 | 6/8 (both close-up hubs) | trained on | trained on |
+| 2026txcmp1_qm8, txfor_qm10, week0_qm8 | all hubs, txcmp1 corners 3/3 | same | trained on | trained on |
+
+C0 reproduces the site's Oct 29 11:52 run (3/6 vs 3/6), so the shown field runs could not beat the detector in use. The bundled detector's failures are hubs that appear large near the top of the picture (Kettering, Houston) and the three Dallas corners nobody's training data shows (Dallas is the only side-angle venue with corners). More marks from end-on venues and stronger scale augmentation did not move Dallas; they halved its per-frame corner hit rate. Target-only/boundary-only matches put visible but unlabelled corners in training frames, which teaches "not a corner"; worth watching now that 37 such matches were added.
+
+Upper bound with hand-marked landmarks (no detector), zone IoU against the owner's own zones at another venue: hubs only (similarity) 0.35–0.68; four-corner homography 0.56–0.81; two marked matches at the same event 0.77. A field-coordinate homography from any visible corners + hub feet failed (0.00–0.04 with two corners): hub feet land at inconsistent field positions across calibrated matches, so the marked corners are not the same physical points across venues.
+
+Found and fixed locally that `visible_corners`/`document_at`/`train_field` dropped every match whose boundary was not exactly four points (Kettering) or had no corners (Fort Worth, Week 0), so field runs trained on two matches. Codex's polygon work (entries below, deployed) supersedes that change with explicit `corner_indices`; it kept my edge-boundary test. The Train page and its guidance still mention four corners in `train-tabs.js`.
+
+Recommendation: keep marked zones as the default (one marked match per event; now 52 events). The detector is a rough fallback for unmarked events. Hubs are its usable part; corners need confirmed physical corners at several side-camera venues before retraining can help Dallas-like views. Next measurable step: retrain on the 52-event hub labels and score hubs leave-venue-out, with Dallas as the corner check.
+
+Checked: 560 engine tests OK on the bundled Python 3.13, including Codex's current field changes. The bundled detector scores identically on the Mac (MPS) and Linux (CPU). Evidence, scripts and per-landmark JSON: `local/field-detector-eval-20261029/` (not in git). Nothing pushed, released or deployed.
+
 ## 2026-10-29 — Tracking pillar and a shared robot-identity model (Claude, local, not released)
 
 The owner reviews tracking on the Mac, trains robot detection on the Windows PC and field detection on the Linux server. They asked for OCR and tracking to have a home, with the identity model shared by every helper.
