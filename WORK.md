@@ -1,3 +1,8 @@
+## 2026-10-30 — Codex: local artifact cleanup
+
+- User requested purging unnecessary repository artifacts. Removed 13.9 GiB of downloaded original match videos, duplicate completed helper build trees, release/transfer archives and bytecode caches from the Documents workspace. Preserved source, datasets, model weights, labels, native audit stills, source metadata, decisions and save receipts.
+- Kept Codex checkpoint history intact while Codex is running. No Neptune server data changed and the labeling batch remains stopped. Verified all 2,046 Reefscape candidate stills remain. Removed-file manifest and receipt: `/Users/brianlarkin/Documents/ChatGPT/autonomous_scouting/local/cleanup-20261030/`.
+
 ## 2026-10-30 — Top-down map from field references when the near corners are cut off (Claude, local, not released)
 
 Built the floor-reference map the 2026-10-29 geometry test pointed to. Nothing committed, pushed or deployed.
@@ -9,6 +14,13 @@ Built the floor-reference map the 2026-10-29 geometry test pointed to. Nothing c
 - Tests: `engine/test_field_references.py` (9). Full engine suite on the bundled helper Python: 571 OK.
 - Follow-ups: Train page and Field page text still say "four field corners"; the Train overview's calibration flag ignores references; per-mark residuals on the Field page would let markers fix a bad click.
 
+## 2026-10-29 — Codex: March 4–8, 2025 robot-labeling batch in progress
+
+- User requested two matches per event starting March 4–8, 2025, 25 manually reviewed bumper frames per match. Verified 31 events: 62 matches / 1,550 frames.
+- Prepared all 62 playable source videos and unreviewed detector proposals locally. Proposals are not completed training labels.
+- Saved and read back 25 reviewed frames each for İstanbul Q6 (`2025tuis_qm6`, match 66181; 188 boxes) and Bosphorus Q6 (`2025tuis2_qm6`, match 66094; 194 boxes). Imported immutable native source stills through Neptune; verified frame/source SHA-256 before guarded label merges. Preserved existing labels; ran release pruning after each save.
+- Remaining: 60 matches / 1,500 reviewed frames. No training or model adoption started. Local event/match index, decisions, source frames and receipts: `/Users/brianlarkin/Documents/ChatGPT/autonomous_scouting/local/reefscape-march4-8-batch/STATUS.md`.
+
 ## 2026-10-29 — Field corners hidden by the picture: geometry test (Claude, local, not released)
 
 Owner asked whether clipped corners can be estimated with math. On the 60 marked documents, extending all four boundary edges gives a quad for 52, but in 47 the bottom edge is a flat crop (score overlay or split-screen top), so the near corners come out too high (checked on Kettering, Houston and txcmp1 frames). Only Dallas, capoh, cahal, orsal and okok show a real near edge.
@@ -18,6 +30,12 @@ Using only the real edges (far guardrail, both alliance walls) with the manual's
 Refit with the manual's exact hub numbers (TU22 pp. 21–23: the 158.6 in alliance zone ends at the hub's face, so the centre is 182.1 in from the wall; the opening's front edge is 72 in up): Dallas 1–3%, okok 4–8%, orsal 6%, capoh 23–28%, cahal 13–29%. Every variant (182.1/158.6 in, 72/60 in) fits the marked lines and hubs almost exactly, yet moves the hidden corners by 20–40% of frame width. The solve is ill-conditioned when the near corners are far off-screen, which is the case it was meant for. Verdict: estimated corners are dependable only where the near corners sit just outside the picture; elsewhere keep marked zones and the outer-target fallback. A physical floor line visible below the hubs (e.g. the CENTER LINE or ROBOT STARTING LINES, if marked) would add the missing constraint.
 
 Floor reference points fix it (simulated on the five matches with all four corners known, marking noise 0.3% / 0.6% of the frame, error for floor points inside the picture). Far corners + both hub bases (front-bottom edge centre, 158.6 in from each alliance wall, centred): median 4–7 in / 7–14 in. The owner's construction (far corners + field centre, found where the line between matching tower-upright bases crosses the CENTER LINE, + the vanishing point of both alliance walls and the CENTER LINE): 4–7 in / 7–14 in. Both together: 3–5 in / 6–10 in. The centre construction assumes the field is rotationally symmetric (matching uprights pair through the 180° turn); the drawings should confirm. Scripts: `hub_base_test.py`, `centre_point_test.py`. Scripts: `local/field-detector-eval-20261029/near_edge_solve.py`, `near_edge_hubs.py`, `recovered_corners.jpg`.
+
+## 2026-10-29 — Codex: completed 20 REEFSCAPE review frames
+
+The owner clarified 20 frames total in the same 2025 Northern Lights Q6 match, rather than 20 matches. Manually reviewed and saved 16 additional source instants: 24, 32, 40, 48, 56, 64, 72, 80, 88, 96, 104, 112, 128, 136, 144 and 152 seconds. Retained visually checked detector proposals, added missing visible bumper fragments and rejected duplicate, spectator/reflection and unverifiable occluded proposals. Inspected source wide/closeup crops with coordinate grids and final box overlays; no boxes were copied across timestamps.
+
+Save/read-back succeeded: 16 added completed frames with 136 boxes; 20 completed frames total including the original 30/60/90/120-second reviews (172 bumper appearances, not unique robots). Existing four reviewed frame records were preserved; remaining 30 prepared frames remain guesses. Server validated immutable JPEG fingerprints, shared video source fingerprint and normalized box bounds, refused timestamp conflicts, backed up only the existing label document, atomically saved and verified the document, and ran release pruning. No detector training or adoption was triggered. Task evidence: local/reefscape-20-frame-review/meta.json, reviewed.py, manual-labels.json, reviewed/ and save-result.json in the task workspace. Only review stills were produced. Neptune: https://neptunefrc.com/autoscout/robot-labels.php?match_id=60266.
 
 ## 2026-10-29 — Field detector: measured on held-out venues; retraining does not fix it; keep marked zones (Claude, local, not released)
 
@@ -40,6 +58,38 @@ Found and fixed locally that `visible_corners`/`document_at`/`train_field` dropp
 Recommendation: keep marked zones as the default (one marked match per event; now 52 events). The detector is a rough fallback for unmarked events. Hubs are its usable part; corners need confirmed physical corners at several side-camera venues before retraining can help Dallas-like views. Next measurable step: retrain on the 52-event hub labels and score hubs leave-venue-out, with Dallas as the corner check.
 
 Checked: 560 engine tests OK on the bundled Python 3.13, including Codex's current field changes. The bundled detector scores identically on the Mac (MPS) and Linux (CPU). Evidence, scripts and per-landmark JSON: `local/field-detector-eval-20261029/` (not in git). Nothing pushed, released or deployed.
+
+## 2026-10-29 — Codex: manually corrected four REEFSCAPE robot-label frames
+
+At the owner's request to improve the detector guesses, visually reviewed the exact 30/60/90/120-second source instants for 2025 Northern Lights Qualification 6. Corrected missed blue bumpers, split adjacent red/blue bumper boxes, tightened visible-fragment bounds and removed the 120-second spectator false positive. Saved 36 bumper-appearance boxes across four completed frames in Neptune. The other 46 prepared frames remain guesses; no model was retrained or adopted.
+
+Verified the local source-video SHA-256 against all four immutable Neptune frame records. Re-decoded timestamps with FFmpeg, inspected full-resolution frames, enlarged occlusion crops and box overlays. Server save checked immutable JPEG hashes, valid normalized boxes and absence of concurrently saved labels at those timestamps, then read back the persisted document: four complete frames. Existing labels/guesses elsewhere were preserved; only the replaced label document was eligible for backup, and release pruning ran. Counts represent appearances across broadcast panels, not unique robots; no numerical accuracy claim was made. Reviewer metadata identifies Codex. Receipts and reviewed stills: task workspace local/reefscape-robot-detection-20261029/manual-save-result.json, manual-labels.json and manual-*.jpg. No generated diagnostic video.
+
+## 2026-10-29 — Codex: REEFSCAPE robot-detector trial
+
+At the owner's request, ran Neptune's current robot bumper detector on Northern Lights Regional 2025 Qualification 6 (`2025mndu2_qm6`, catalog match 60266, source `yHG0zVaXvH8`). Queued a normal prepare request, `0268706c3bee17b0690b7e54`; the connected helper completed it and persisted 50 source frames with 195 bumper-appearance guesses. These remain detector prefill, not completed human labels or 195 unique robots. Current weights fingerprint: `b77206cbc1159ae4849c63d3bcd00d7ac7acd29ee422c1f5e80a300a60a7c080`.
+
+Independently decoded and inspected 30/60/90/120-second frames locally using the same weights. The detector finds REEFSCAPE bumpers but misses visible blue bumpers, can merge adjacent opposing bumpers (90-second wide view), and produced an extreme-right spectator false positive at 120 seconds. No exhaustive ground truth or accuracy percentage was invented. CPU and helper per-frame counts differ slightly; neither is treated as truth. No training/adoption, scoring changes or completed-label writes were performed. Only review stills were generated, no new diagnostic video. Evidence and receipts: task workspace local/reefscape-robot-detection-20261029. View in Neptune: https://neptunefrc.com/autoscout/robot-labels.php?match_id=60266.
+
+## 2026-10-29 — Codex: expanded field labels to 52 events
+
+At the owner's request, visually reviewed all 22 saved user-4 field documents and added 37 new matches, one per additional event. All 37 new examples mark two wide-camera scoring targets and a visible boundary polygon at the decoded 60-second reference frame, with explicit empty confirmed/inferred-corner lists for clipped outlines. Downloaded and fingerprinted the exact individual source videos; Southern Cross Q6 was unavailable, so used Q3 after checking its video. No reserved Mercury Q7 source was included.
+
+Existing label IDs were preserved. Filled missing target/boundary pairs in Waterbury Q6, Fort Worth Q10 and Week 0 Q8. Re-reviewed Kettering Q7 geometry. Corrected Einstein SF2M1's outro/title-card reference to visible match footage at 60 seconds and retained its clipped map region as an outline rather than false calibration. Existing annotation timing was narrowed to the reviewed instant for those repaired legacy examples; no static coordinates were extended across unverified camera cuts. Other labels, imports, scoring rules and running jobs were preserved. No invented physical corners or reference scores were added.
+
+Uploaded with canonical-document concurrent-edit guards, backups limited to replaced documents, full schema/geometry validation, existing-ID checks, and saved-document read-back. Neptune now has 59 user-saved documents across 52 events (285 regions), plus the existing seed document. New examples and the 22 saved documents all satisfy target + boundary eligibility. Field training was not started. Final evidence, source provenance, review stills, receipts and direct match links: task workspace local/field-expansion-20261029/EVENTS-AND-MATCHES.md and verification.json. Only source stills were produced, no generated project videos. Server release pruning completed after the upload.
+
+## 2026-10-29 — Codex: deployed polygon support and repaired 16 match documents
+
+Deployed the targeted website/server-engine polygon patch via SSM after AWS reauthentication, preserving live YOLO11 Small and tracking changes. Backups covered only replaced files; Python compilation and PHP lint passed and release pruning ran. Updated all 16 earlier annotated user-4 match documents in place with explicit outline-only corner metadata; preserved all existing region IDs, coordinates, targets, timing and source fingerprints. No unverifiable physical corners were invented. Neptune's live Your data panel now shows 23 marked matches and 20 with targets + boundary. The 16 repaired documents all validate and satisfy target + boundary eligibility; they remain 60-second reference labels, not continuous-video calibration.
+
+Validation: 39 focused tests passed against the merged production engine, Windows package and bundled Mac runtime. Saved UI proof and deployment scripts/receipts in the task workspace local/polygon-rollout. Windows 6.5.51, Linux 6.6.42 and signed Mac 3.2.80 updates prepared from the current published packages, preserving tracking; published and verified via public feeds (Windows/Linux archive hashes, signed Mac feed, server-side Mac archive hash and public archive size). Field jobs now require these compatible helper versions; existing active jobs were not interrupted. Active training jobs were not interrupted. The separate four-physical-corner homography requirement and confirmed-corner held-out evaluation gate remain intact.
+
+## 2026-10-29 — Codex: polygon boundary eligibility and explicit corners
+
+Field training accepts scoring targets with a visible boundary polygon (including hexagons), separately from four-physical-corner map calibration. Polygon vertices are no longer automatically corner labels; optional confirmed and inferred vertex lists are validated in the editor, API and engine. Inferred corners do not become corner-training truth. Legacy four-point calibration semantics remain compatible. Overview, helper summary, and button eligibility use targets + boundary; held-out evaluation still requires confirmed corners and preserves an explicitly requested evaluation match. No user annotation documents, reserved benchmarks, releases, or running training jobs were changed.
+
+Validation: 39 focused Python tests (field detector, regions, source-timed training, polygon regression), PHP summary classification and syntax checks, JS metadata behavior and syntax checks. Prepared against existing uncommitted engine changes with hash guards; originals backed up in the task workspace. Local source update only; hosted server and packaged helpers require coordinated rollout before this behavior is live.
 
 ## 2026-10-29 — Tracking pillar and a shared robot-identity model (Claude, local, not released)
 
@@ -64,6 +114,12 @@ Checked:
 - Engine suite 554 OK. The first run caught the new fetch loop using `closing.wait`, which broke a connection test; it now runs off check-in replies.
 - Tk and Mac Tracking previews.
 
+## 2026-10-28 — Style automatic updates as switches on Helpers (Codex, deployed)
+
+The Helpers page's per-computer Update automatically checkbox is now rendered as an accessible switch, using the existing Neptune theme variables. It keeps the same `data-auto-update` save handler and checked state. The new stylesheet includes a keyboard focus ring and reduced-motion behavior; the CSS and JavaScript asset URLs are versioned so browsers reload them. Local JavaScript syntax, PHP lint and diff checks pass. Read-only AWS preflight confirmed all four live files matched the prior Git revision.
+
+Owner approved publication. Git commit `1e506e6` pushed. AWS SSM deployment `2e975c12-22b0-4731-9163-eacb4f592e15` succeeded with exact live-hash checks and backup `/root/helper-auto-update-toggle-backup-20261028`. Public versioned JavaScript and CSS URLs return the expected SHA-256 values. The owner-only rendered page was not visually checked without an authenticated browser session.
+
 ## 2026-10-28 — Run-details release: Mac 3.2.77, Windows 6.5.48, Linux 6.6.39, engine 2.7.62 (Claude)
 
 The owner approved the release of run details on the Computers page and the latest-pass line (entry below). It is built on Codex's validation-split and switch work (Mac 3.2.76, Windows 6.5.47, Linux 6.6.38). The Windows and Linux packages import the helper modules from their own files, and the installed 6.5.47 / 6.6.38 updaters accept these updates.
@@ -81,10 +137,6 @@ The owner asked for the website's run detail on a working computer's card, espec
 - Every console, on the Overview too, adds a green "latest pass →" line taken from the newest end-of-pass log entry, e.g. `pass 47/80 · box 1.384 · cls 0.919 · dfl 1.322 · mAP50 0.729 · P 0.785 · R 0.703`.
 
 Checked: the engine suite; Tk and Mac Computers previews with a running detector job.
-
-## 2026-10-28 — Style automatic updates as switches on Helpers (Codex, local, not released)
-
-The Helpers page's per-computer Update automatically checkbox is now rendered as an accessible switch, using the existing Neptune theme variables. It keeps the same `data-auto-update` save handler and checked state. The new stylesheet includes a keyboard focus ring and reduced-motion behavior; the CSS and JavaScript asset URLs are versioned so browsers reload them. Local JavaScript syntax, PHP lint and diff checks pass. Read-only AWS preflight confirms all four live files match the current Git revision. No Git push or production write yet; owner approval required for this batch.
 
 ## 2026-10-28 — Remove two Auto Scout entry points; RC double-click file opening (Codex, deployed)
 

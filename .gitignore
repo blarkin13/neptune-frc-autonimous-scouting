@@ -10,6 +10,7 @@ __pycache__/
 *.cnf
 *token*
 .env
+.aws/
 /local/
 
 # Built helper packages: publish them, never commit them (GitHub limit 100 MB)

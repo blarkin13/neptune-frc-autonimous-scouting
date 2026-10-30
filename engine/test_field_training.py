@@ -60,6 +60,14 @@ class EdgeCornersAndPartialCredit(unittest.TestCase):
   d=self.doc([[.1,.2],[.8,.2],[.996,.8],[.004,.8]])
   self.assertEqual([int(l.split()[0]) for l in fd.yolo_labels(d)],[0,1,1])
   self.assertEqual(fd.visible_corners(d),[[.1,.2],[.8,.2]])
+ def test_boundary_traced_along_frame_edge_keeps_its_corners_in_view(self):
+  # The field runs out of the picture at the bottom: six points, two of them real far corners.
+  d={'regions':[{'kind':'field_boundary','camera_view':'wide','points':[[.07,.35],[.86,.34],[.998,.63],[.997,.76],[.0002,.76],[.003,.49]],'corner_indices':[0,1]}]}
+  self.assertEqual(fd.visible_corners(d),[[.07,.35],[.86,.34]])
+  self.assertEqual([int(l.split()[0]) for l in fd.yolo_labels(d)],[1,1])
+  for r in d['regions']:r.update(game_key='2026-rebuilt',shot_id='a',start_ms=0,reference_ms=0,end_ms=9000)
+  d['regions'].append(dict(d['regions'][0],kind='scoring_target',points=[[.2,.2],[.3,.2],[.3,.3],[.2,.3]]))
+  self.assertIsNotNone(ft.document_at(d,1))   # such a match is a training match
  def test_three_of_four_corners_score_three(self):
   import sys,types
   d=self.doc([[.1,.2],[.8,.2],[.9,.8],[.05,.8]])

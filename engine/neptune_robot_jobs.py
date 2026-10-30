@@ -540,16 +540,20 @@ def train_field(config, req, progress):
     game = req.get('game_key') or fd.shipped_game()
     progress('Downloading scoring areas')
     docs = [dict(d, regions=[r for r in d.get('regions', []) if r.get('game_key') == game]) for d in region_documents(config)]
-    docs = [d for d in docs if doc_video(d) and fd.yolo_labels(d) and fd.boundary_corners(d) and (d.get('source') or {}).get('match_key') not in HELD_OUT_MATCHES and d.get('source_sha256') not in HELD_OUT_SOURCES]
+    docs = [d for d in docs if doc_video(d) and fd.yolo_labels(d) and fd.training_geometry(d) and (d.get('source') or {}).get('match_key') not in HELD_OUT_MATCHES and d.get('source_sha256') not in HELD_OUT_SOURCES]
     if len(docs) < 2:
-        raise ValueError('Mark scoring targets and the four field corners on at least two %s matches first.' % game)
+        raise ValueError('Mark scoring targets and a visible field boundary on at least two %s matches first.' % game)
     docs=list({doc_video(d):d for d in docs}.values())  # site corrections replace earlier seed documents
     docs.sort(key=lambda d: ((d.get('source') or {}).get('match_key') or '', doc_video(d)))
     doc_key = lambda d: (d.get('source') or {}).get('match_key') or doc_video(d)   # Neptune adds match_key
     keys = [doc_key(d) for d in docs]
     shipped = json.loads((fd.model_dir()/'trained_on.json').read_text()).get(game, []) if (fd.model_dir()/'trained_on.json').is_file() else []
     in_use = adopted_trained_on(fd.shared_dir(game)/'manifest.json') if (fd.shared_dir(game)/'manifest.json').is_file() else shipped
-    held_key = req.get('holdout') if req.get('holdout') in keys else pick_holdout(keys, adopted_holdout(fd.shared_dir(game)/'manifest.json'), in_use)
+    corner_keys = [doc_key(d) for d in docs if fd.visible_corners(d)]
+    if not corner_keys:raise ValueError('The held-out check still needs a match with confirmed physical corners; boundary-only matches can train targets')
+    requested_holdout = req.get('holdout')
+    if requested_holdout and requested_holdout not in corner_keys:raise ValueError('The requested held-out match needs confirmed physical corners; it was not replaced')
+    held_key = requested_holdout or pick_holdout(corner_keys, adopted_holdout(fd.shared_dir(game)/'manifest.json'), in_use)
     holdout = next(d for d in docs if doc_key(d) == held_key)   # checked, never trained on
     base,recipe=field_training_base(game,held_key)
     base_sha256=hashlib.sha256(base.read_bytes()).hexdigest()
