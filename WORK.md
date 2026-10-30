@@ -1,3 +1,12 @@
+## 2026-10-30 — Keep-awake release: Mac 3.2.80, Windows 6.5.51, Linux 6.6.42, engine 2.7.65 (Claude)
+
+The owner's Windows PC slept with Keep awake set to Always. Fixed in `neptune_awake.py` (34bb387) and released, approved by the owner:
+- SetThreadExecutionState now has DWORD argtypes, and a failed call no longer ends the 30 s holder thread.
+- The last mode Neptune sent is saved in `~/.neptune-trainer/keep-awake.txt`, so Always holds from launch and while the helper is offline or signed out. A check-in reply without the setting keeps the current mode.
+- `awake` on My computers reports whether Windows accepted the request, not just the wanted mode.
+- On Modern Standby PCs (`powercfg /a` lists S0 Low Power Idle) the screen turning off can still start standby; the owner was told to set the screen timeout to Never while plugged in if it still sleeps.
+- Built in a separate worktree from origin/main. All three packages carry the fix and import the helper modules.
+
 ## 2026-10-29 — Tracking release: Mac 3.2.79, Windows 6.5.50, Linux 6.6.41, engine 2.7.64 (Claude)
 
 The owner approved merging the tracking session's identity-model work (`release-2.7.43`: 00ea88d, e23ffdc, 16326b5) and releasing it with the Tracking pillar, the shared identity model and the pillar order (Robots, Tracking, Field, Actions). It is built on f420182 (the Small-detector release).
