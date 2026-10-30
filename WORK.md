@@ -1,4 +1,4 @@
-## 2026-10-30 — Field-references release built: Mac 3.2.81, Windows 6.5.52, Linux 6.6.43, engine 2.7.66 (Claude, not published)
+## 2026-10-30 — Field-references release: Mac 3.2.81, Windows 6.5.52, Linux 6.6.43, engine 2.7.66 (Claude, deployed)
 
 Owner asked to merge and build. Live helpers were on engine 2.7.65 with code main lacked, so main first merged `claude/exciting-kilby-bb0e78` (YOLO11 Small robot detector) and `release-2.7.43` (robot-identity check); only WORK.md conflicted. Merged main checked against the live Linux 6.6.42 package: every live line is present or superseded. Then committed Codex's polygon/corner work and the field references.
 
@@ -6,7 +6,11 @@ Built in ~/Documents/ChatGPT/Neptune: Mac-Helper-3.2.81-ready (signed, Sparkle s
 
 Server changes against live: engine `neptune_homography.py`, `neptune_field_regions.py`, `season_rules.json`, `neptune_engine.py`; site `autoscout/scoring-areas.php`, `community/assets/field-regions/app.js`. Live app.js fetched publicly equals HEAD minus the field-reference edits.
 
-Not pushed, not on GitHub releases, not deployed.
+Owner approved publish and deploy. GitHub main had the tracking (2.7.64) and keep-awake (2.7.65) release commits under other hashes plus Windows/robot-labels changes, so main merged origin/main first (9057881) and all three helpers were rebuilt from it; 578 tests on the bundled Mac Python. GitHub releases helper-3.2.81, helper-windows-6.5.52, helper-linux-6.6.43.
+
+Deployed through AWS SSM f3851229: 16 files fetched and verified, 21 changed. Backup: `/root/field-references-release-backup-20261030`. Pruned 3 old copies (316 MB). The first attempt stopped at the live-hash check: the server engine's `neptune_homography.py` and `neptune_field_regions.py` were still the 2.7.65 versions (Codex's polygon patch hadn't reached them); this release installs them. A second attempt stopped on the leftover empty backup folder; it was removed.
+
+Checked from outside: Windows `latest.json` 6.5.52 and Linux 6.6.43 on engine 2.7.66 (update zip SHA-256 matches local), appcast 3.2.81 (zip size matches), apt lists 6.6.43, live Field page `app.js` matches the commit.
 
 ## 2026-10-30 — Codex: local artifact cleanup
 
