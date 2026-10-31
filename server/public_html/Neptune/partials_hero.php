@@ -541,7 +541,8 @@ body>.nd-depth-field>.nd-depth-bubble{
   animation:nd-depth-rise var(--nd-time) linear var(--nd-delay) infinite;
   will-change:transform,opacity;
 }
-html[data-theme="light"] body>.nd-depth-field>.nd-depth-bubble{border-color:rgba(58,104,132,.38);background:radial-gradient(circle at 28% 21%,rgba(255,255,255,.42),transparent 55%);box-shadow:inset -1px -2px 4px rgba(58,103,133,.15),0 0 8px rgba(76,120,150,.12)}
+html[data-theme="light"] .neptune-page-hero[data-neptune-hero="server"]{background:radial-gradient(ellipse at 84% 12%,color-mix(in srgb,var(--nd-depth-color) 12%,transparent),transparent 55%),linear-gradient(125deg,color-mix(in srgb,var(--panel) 88%,transparent),color-mix(in srgb,var(--panel) 78%,transparent))!important}
+html[data-theme="light"] body>.nd-depth-field>.nd-depth-bubble{border:1.5px solid rgba(19,37,55,.92);background:radial-gradient(circle at 28% 21%,rgba(255,255,255,.42),transparent 55%);box-shadow:inset -1px -2px 4px rgba(19,37,55,.23),0 0 0 .4px rgba(19,37,55,.3);--nd-alpha:.68!important}
 @keyframes nd-depth-rise{
   0%{opacity:0;transform:translate3d(0,0,0) scale(.65)}
   12%,82%{opacity:var(--nd-alpha)}

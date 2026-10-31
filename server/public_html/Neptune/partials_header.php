@@ -487,11 +487,15 @@ if ($neptuneMissionPage):
 .topbar-clean .neptune-header-identity .neptune-breadcrumbs .crumb-current{color:var(--text,var(--fg,#e5eef7));overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 .topbar-clean .neptune-header-identity .neptune-breadcrumbs .crumb-sep{font-size:9px;flex-shrink:0}
 @media(max-width:600px){.topbar-clean .neptune-header-identity .neptune-breadcrumbs{font-size:11px;gap:4px;max-width:calc(100vw - 105px)}}
+:root,html[data-theme="light"]{--card:var(--panel);--border:var(--line)}
 body:has(>.underwater-backdrop){background:transparent!important}
 .underwater-backdrop {
   position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
   background: linear-gradient(180deg, #031838 0%, #010d20 50%, #00040a 100%);
   z-index: -5; pointer-events: none; animation: ambientOscillation 16s ease-in-out infinite alternate;
+}
+html[data-theme="light"] .underwater-backdrop {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent, #2456A6) 14%, var(--bg, #F4F7FB)) 0%, var(--bg, #F4F7FB) 52%, var(--bg2, #E9EFF7) 100%);
 }
 @keyframes ambientOscillation { 0% { filter: hue-rotate(0deg); } 50% { filter: hue-rotate(-10deg); } 100% { filter: hue-rotate(5deg); } }
 .underwater-lens {
@@ -499,12 +503,20 @@ body:has(>.underwater-backdrop){background:transparent!important}
   background: radial-gradient(circle at 50% -20%, rgba(0, 212, 255, 0.16) 0%, transparent 60%);
   mix-blend-mode: screen; animation: causticFlicker 8s ease-in-out infinite alternate;
 }
+html[data-theme="light"] .underwater-lens {
+  background: radial-gradient(circle at 50% -20%, rgba(0, 140, 210, 0.12) 0%, transparent 60%);
+  mix-blend-mode: normal;
+}
 @keyframes causticFlicker { 0%, 100% { opacity: 0.7; } 45% { opacity: 0.95; } 50% { opacity: 0.6; } 75% { opacity: 0.85; } }
 .parallax-beams {
   position: fixed; top: -20%; left: -10%; width: 120%; height: 140%; pointer-events: none;
   background: radial-gradient(ellipse at 30% 0%, rgba(0, 212, 255, 0.15) 0%, transparent 50%),
     repeating-linear-gradient(60deg, rgba(0, 212, 255, 0.03) 0px, transparent 100px, rgba(0, 212, 255, 0.03) 200px);
   z-index: -4; filter: blur(3px); animation: waveCaustic 20s ease-in-out infinite alternate;
+}
+html[data-theme="light"] .parallax-beams {
+  background: radial-gradient(ellipse at 30% 0%, rgba(0, 150, 220, 0.12) 0%, transparent 50%),
+    repeating-linear-gradient(60deg, rgba(0, 130, 200, 0.04) 0px, transparent 100px, rgba(0, 130, 200, 0.04) 200px);
 }
 @keyframes waveCaustic { 0% { transform: scale(1) skewX(0deg); } 100% { transform: scale(1.08) skewX(4deg); } }
 .app-container { position: relative; z-index: 10; max-width: 820px; margin: 0 auto; }
@@ -524,9 +536,18 @@ body:has(>.underwater-backdrop){background:transparent!important}
   background-size: 160px 160px, 240px 240px, 300px 300px;
   animation: particleDrift 28s linear infinite;
 }
+html[data-theme="light"] .parallax-particles {
+  background-image:
+    radial-gradient(circle at 20% 30%, rgba(19, 58, 94, 0.14) 1.5px, transparent 1.5px),
+    radial-gradient(circle at 80% 40%, rgba(19, 58, 94, 0.16) 2px, transparent 2px),
+    radial-gradient(circle at 40% 70%, rgba(0, 110, 180, 0.12) 2.5px, transparent 2.5px);
+}
 @keyframes particleDrift {
   0% { background-position: 0px 800px; }
   100% { background-position: 0px 0px; }
+}
+@media(prefers-reduced-motion:reduce){
+  .underwater-backdrop,.underwater-lens,.parallax-beams,.parallax-particles{animation:none!important}
 }
 </style>
 </head>

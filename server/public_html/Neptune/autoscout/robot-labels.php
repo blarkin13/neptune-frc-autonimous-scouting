@@ -228,24 +228,24 @@ pillar_summary('robot','Finds every robot’s bumpers in a frame, in wide and cl
 </div>
 <script src="../community/assets/match-picker/match-picker.js?v=2-multi"></script><script src="../community/assets/field-regions/youtube-source.js?v=5-captions-toggle"></script><script src="../community/assets/robot-labels/<?= $sourceMode?'robot-labels-stills.js?v=8-test':'robot-labels.js?v=4-test' ?>"></script>
 <style>
-.rl-test-card{margin-top:20px;padding:18px;border:1px solid #1e2b3c;border-radius:12px;background:#0b121c}
+.rl-test-card{margin-top:20px;padding:18px;border:1px solid var(--as-line,var(--line,#1e2b3c));border-radius:12px;background:var(--as-card,var(--panel,#0b121c));color:var(--as-text,var(--text,#eaf2ff))}
 .rl-test-card h2{margin:4px 0 8px}
 .rl-test-bar{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;margin:12px 0}
 .rl-test-bar .match-picker-v2{flex:1 1 520px}
-.rl-test-helper{display:flex;flex-direction:column;gap:4px;font-size:12px;color:#9aa7b8;font-weight:600;min-width:210px}
-.rl-test-helper select{background:#070d15;color:#eaf2ff;border:1px solid #28384f;border-radius:6px;padding:8px 10px;font:13px/1.4 system-ui,sans-serif}
+.rl-test-helper{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--as-muted,var(--muted,#9aa7b8));font-weight:600;min-width:210px}
+.rl-test-helper select{background:var(--panel2,#070d15);color:var(--text,#eaf2ff);border:1px solid var(--as-line,var(--line,#28384f));border-radius:9px;padding:9px 11px;font:13px/1.4 inherit}
 .rl-test-bar #robot-test-btn{width:auto;min-width:120px;margin:0;padding:10px 20px}
-.rl-test-viewer{margin-top:14px;padding-top:14px;border-top:1px solid #1e2b3c}
+.rl-test-viewer{margin-top:14px;padding-top:14px;border-top:1px solid var(--as-line,var(--line,#1e2b3c))}
 .rl-test-head{display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:space-between;margin-bottom:12px}
 .rl-test-head select{margin-left:8px;max-width:360px}
 .rl-test-grid{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(300px,1fr);gap:18px;align-items:start}
 @media(max-width:960px){.rl-test-grid{grid-template-columns:1fr}}
-.rl-test-video{width:100%;max-height:640px;background:#000;border-radius:8px;border:1px solid #1e2b3c;display:block}
-.rl-test-yt{background:#0f1826;border:1px solid #1e2b3c;border-radius:10px;padding:14px}
+.rl-test-video{width:100%;max-height:640px;background:#000;border-radius:8px;border:1px solid var(--as-line,var(--line,#1e2b3c));display:block}
+.rl-test-yt{background:var(--panel2,#0f1826);border:1px solid var(--as-line,var(--line,#1e2b3c));border-radius:10px;padding:14px}
 .rl-test-yt h3{margin:0 0 6px;font-size:16px}
 .rl-test-field{display:block;margin:10px 0}
-.rl-test-field span{display:block;font-size:12px;color:#9aa7b8;margin-bottom:4px;font-weight:600}
-.rl-test-field input,.rl-test-field textarea{width:100%;box-sizing:border-box;background:#070d15;color:#eaf2ff;border:1px solid #28384f;border-radius:6px;padding:8px 10px;font:13px/1.45 system-ui,sans-serif}
+.rl-test-field span{display:block;font-size:12px;color:var(--as-muted,var(--muted,#9aa7b8));margin-bottom:4px;font-weight:600}
+.rl-test-field input,.rl-test-field textarea{width:100%;box-sizing:border-box;background:var(--panel,#070d15);color:var(--text,#eaf2ff);border:1px solid var(--as-line,var(--line,#28384f));border-radius:6px;padding:8px 10px;font:13px/1.45 system-ui,sans-serif}
 .rl-test-field textarea{resize:vertical;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
 .rl-test-yt-actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:12px}
 .rl-test-yt-actions button{width:auto;margin:0;padding:9px 16px}
