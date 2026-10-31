@@ -113,3 +113,45 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
+def unlabelled_match_effect(actions, weak_folder, tags=SCORE_TAGS):
+    """Held-out AUC on hand positives when weak-only matches (build_weak_matches.py rows) join training.
+
+    Folds are the hand-labelled matches; weak-only matches are in every fold's training set and never scored.
+    Arm A adds their unlabelled clips only; arm B adds their weak positives too (at sl.WEIGHT). Same learner, same
+    folds, same held-out rows in both arms."""
+    extra = []
+    for p in sorted(Path(weak_folder).glob('*/rows.json')):
+        d = json.loads(p.read_text())
+        if d['match_key'] in training.HELD_OUT_MATCHES:
+            raise ValueError('The reserved benchmark is never used here.')
+        extra += [dict(r, match_key=d['match_key'], source_sha256=d['source_sha256'], weak=r['kind'] == 'weak') for r in d['rows']]
+    out = {'weak_positives': sum(r['weak'] for r in extra), 'unlabelled_clips': sum(not r['weak'] for r in extra), 'tags': {}}
+    saved = training.EXTERNAL_WEIGHT
+    try:
+        training.EXTERNAL_WEIGHT = sl.WEIGHT
+        for tag in tags:
+            rows = [r for r in actions if r['tag'] == tag and r['split'] == 'training']
+            matches = sorted({training.fold_key(r) for r in rows if r['y'] == 1 and not r.get('external_sources')})
+            if len(matches) < 2:
+                continue
+            arms = {}
+            for arm in ('unlabelled_only', 'with_weak'):
+                added = [dict(r, tag=tag, y=1 if r['weak'] and arm == 'with_weak' else None, label_ids=[],
+                              external_sources=[{'provider': sl.SOURCE}] if r['weak'] else []) for r in extra if arm == 'with_weak' or not r['weak']]
+                pos, unl = [], []
+                for m in matches:
+                    head = training.fit_positive_unlabeled([r for r in rows if training.fold_key(r) != m] + added)
+                    for r in rows:
+                        if training.fold_key(r) != m:
+                            continue
+                        if r['y'] == 1 and not r.get('external_sources'):
+                            pos.append(training.score(head, r['x']))
+                        elif r['y'] is None:
+                            unl.append(training.score(head, r['x']))
+                arms[arm] = round(training.pu_auc(pos, unl), 4)
+            out['tags'][tag] = dict(arms, folds=len(matches))
+    finally:
+        training.EXTERNAL_WEIGHT = saved
+    return out

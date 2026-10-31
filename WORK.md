@@ -1,3 +1,28 @@
+## 2026-10-30 — Weak scoreboard labels on unlabelled matches: no measurable gain (Claude, local only)
+
+The owner marked scoring zones for 2026kett (qm7), 2026week0 (qm8) and 2026txfor (qm10). I copied the marks read-only from the server (AWS SSM, with the owner's approval) into `~/.neptune-trainer/field-regions/events/`. 2026ctwat has no marks; its earlier local file was an empty list.
+
+Added `engine/evaluation/build_weak_matches.py` (facts + tracking, then weak and unlabelled R3D-18 clips per match) and `evaluate_score_labels.unlabelled_match_effect`. Outputs are in `~/.neptune-trainer/weak-labels/`. Run it with NEPTUNE_GAMES_HOME at a job folder: the engine's built-in pack lacks the AGE and Week 0 layouts.
+
+- **Kettering is dropped.** The mid-build broadcast shows clock and teams but no alliance scores.
+- **Facts built:** Week 0 qm3/6/8/11/14, txcmp1 qm8 (tracking unavailable: "OCR stream ended"), ctwat qm4/56/62. ctwat qm32 failed: an AGE variant with only 39 of 167 overlay frames showing the marker.
+- **Delay:** 5.0 s, pooled over the hand clicks on txcmp1 qm1/3/4/6. No Week 0 data was used.
+- **Week 0 yield:** 113 score changes, 26 credited to one robot, 14 usable clips. The Week 0 marks cover only the wide camera, so most changes are "no marked zone" or "no alliance robot seen".
+
+**Held-out AUC on hand positives.** Folds are the hand-labelled txcmp1 matches; Week 0 rows are in every fold's training set and never scored.
+
+| Action | Folds | Week 0 unlabelled clips only | With 14 weak positives |
+|---|---|---|---|
+| score_1_fuel | 3 | 0.674 | 0.673 |
+| score_2_fuel | 3 | 0.624 | 0.641 |
+| scoring | 2 | 0.468 | 0.467 |
+
+No measurable gain. 14 labels is too few, and the differences are noise-level.
+
+**Alliance-total check on unlabelled matches** (points model trained on all 249 score examples): only Week 0 qm14 red could be checked, at +118 (predicted 217 vs displayed 99). Every other alliance has a robot with too few sightings for the points model, or the video is incomplete, so robot points can't yet be checked on matches like these.
+
+**What would change this:** marks on the close-up cameras as well as the wide view, more complete tracking per robot, and events whose broadcast shows scores. Nothing is wired into training. Not pushed or released.
+
 ## 2026-10-26 — Scoring labels from scoreboard changes; alliance-total check (Claude, local only)
 
 The owner asked for weak scoring labels built from scoreboard score changes, plus a check of robot points against the alliance total. Kept local: not pushed, released or deployed.
