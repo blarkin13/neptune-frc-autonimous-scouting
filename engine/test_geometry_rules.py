@@ -38,6 +38,15 @@ class Defense(unittest.TestCase):
         self.assertEqual(rules.climb(facts([(1, 0, .2)]), {'regions': [ZONE]}, 'climb_zone')['status'], 'unavailable')
 
 
+class UnknownKinds(unittest.TestCase):
+    def test_unknown_region_type_is_skipped(self):
+        import neptune_field_regions as fr
+        good = dict(ZONE, game_key='g', reviewed=True); del good['event_template']
+        d = {'contract': 'neptune-field-regions-v1', 'schema_version': 1, 'coordinate_system': 'normalized_full_video_frame', 'time_basis': 'video_elapsed_ms',
+             'regions': [good, dict(good, kind='future_zone')]}
+        self.assertEqual([r['kind'] for r in fr.validate(d)['regions']], ['scoring_zone'])
+
+
 class Allocate(unittest.TestCase):
     def test_points_split_among_robots_in_zone_and_total_kept(self):
         f = {'bumpers': {'identities': IDS}, 'accepted_scores': {'blue': [{'t': t, 'value': v} for t, v in ((0, 0), (1, 0), (10, 6), (11, 6), (20, 9), (21, 9))]}}

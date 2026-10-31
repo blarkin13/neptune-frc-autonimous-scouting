@@ -1,3 +1,9 @@
+## 2026-10-30 — Climb/defense region types deployed to the marking page (Claude, owner approved)
+
+The live `autoscout/scoring-areas.php` and `community/assets/field-regions/app.js` differ from this branch: they also have `field_reference`, which is on main. So I didn't replace them whole. Instead I applied targeted edits over AWS SSM that add `climb_zone` and `defense_zone` to the save check and the Region type list. `php -l` passes. The backup is `/root/region-kinds-backup-20261030`.
+
+Caution: released helpers (engine 2.7.41) reject a field-region document with an unknown type. An event marked with a climb or defense area loses all its zone hints on those helpers until a helper release. `validate` on this branch now skips unknown region types instead of failing (test added; suite passes, 531). This branch's `KINDS` also needs `field_reference` from main when it merges.
+
 ## 2026-10-30 — Climb and defense region types for marking (Claude, local only, not deployed)
 
 The Scoring Areas page (`autoscout/scoring-areas.php`, with the save check in `community/assets/field-regions/app.js`) and the engine (`neptune_field_regions.KINDS`) now accept two new region types:
