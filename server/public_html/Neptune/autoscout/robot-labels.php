@@ -261,7 +261,7 @@ pillar_summary('robot','Finds every robot’s bumpers in a frame, in wide and cl
        upBtn=document.getElementById('robot-test-upload'),ytStatus=document.getElementById('robot-test-yt-status');
  if(!app||!picker||!btn)return;
  const endpoint=location.pathname.endsWith('robot-labels-preview.php')?'robot-labels-preview.php':'robot-labels.php';
- let tests=[],computers=[],currentId='',edited=false,ytConnected=false;
+ let tests=[],computers=[],currentId='',edited=false,ytConnected=false,uploading=false;
  picker.addEventListener('matchselect',e=>{
   const d=e.detail||{};
   btn.disabled=!d.id;
@@ -329,6 +329,7 @@ pillar_summary('robot','Finds every robot’s bumpers in a frame, in wide and cl
     const targetName=active.target&&(computers.find(c=>c.id===active.target)?.name||'chosen helper');
     status.textContent=`Test match (${active.match_key||''}): ${active.state==='queued'?(targetName?`waiting for ${targetName}`:'waiting for a connected helper'):((active.message||'running on helper').split('\n').filter(line=>!line.startsWith('Progress:')).join('\n'))}`;
    }
+   if(uploading)return; // Keep the upload status and controls stable while the POST is in flight.
    const list=d.robot_tests||[];
    const prevNewest=tests[0]?.id;
    tests=list;
@@ -357,13 +358,14 @@ pillar_summary('robot','Finds every robot’s bumpers in a frame, in wide and cl
  });
  upBtn.addEventListener('click',async()=>{
   if(!currentId)return;
-  upBtn.disabled=true;ytStatus.textContent='Uploading video to YouTube…';
+  uploading=true;sel.disabled=true;upBtn.disabled=true;ytStatus.textContent='Uploading video to YouTube…';
   try{
    const r=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json','X-Robot-Labels-CSRF':app.dataset.csrf},body:JSON.stringify({action:'upload_robot_test_youtube',request_id:currentId,title:titleIn.value,description:descIn.value})});
    const d=await r.json();if(!r.ok)throw Error(d.error||'YouTube upload failed');
    const idx=tests.findIndex(x=>x.id===currentId);if(idx>=0&&d.test)tests[idx]=d.test;
    edited=false;renderTest(currentId,true);
-  }catch(e){ytStatus.textContent=e.message;upBtn.disabled=false}
+  }catch(e){ytStatus.textContent=e.message}
+  finally{uploading=false;sel.disabled=false;upBtn.disabled=!ytConnected||!tests.find(t=>t.id===currentId)?.has_video}
  });
  refreshTests();setInterval(refreshTests,10000);
 })();
