@@ -19,6 +19,7 @@ def main():
     auth.add_argument('--connection',type=Path)
     auth.add_argument('--mac-keychain',action='store_true',help='Use the existing Mac helper connection without exporting its credential')
     p.add_argument('--receipt',type=Path,required=True)
+    p.add_argument('--local-directory',type=Path,action='append',default=[],help='Also reuse original sources from this directory')
     a=p.parse_args()
     config=json.loads(subprocess.check_output(['security','find-generic-password','-a','owner','-s','com.neptunefrc.traininghelper.connection','-w'])) if a.mac_keychain else json.loads(a.connection.read_text())
     docs={d['video_id']:d.get('match_key') or d['video_id'] for d in labels.sync(config) if d.get('frames')}
@@ -27,6 +28,15 @@ def main():
         vid=doc_video(d)
         if vid and yolo_labels(d) and training_geometry(d):
             docs.setdefault(vid,(d.get('source') or {}).get('match_key') or vid)
+    local_sources={}
+    for folder in a.local_directory:
+        for path in folder.rglob('*.mp4'):
+            if path.is_symlink():continue
+            vid=path.stem
+            if vid not in docs and vid=='source':
+                matches=[v for v,k in docs.items() if k in str(path)]
+                if len(matches)==1:vid=matches[0]
+            if vid in docs and (vid not in local_sources or path.stat().st_size>local_sources[vid].stat().st_size):local_sources[vid]=path
     # Cached originals are also needed for held-out evaluation; this never adds examples to training.
     receipt={'completed':{},'failed':{},'state':'running','matches':len(docs)}
     if a.receipt.is_file():
@@ -38,7 +48,7 @@ def main():
         try:
             info=cache._api(config,'video_cache_info',{'video_id':vid})
             if not info.get('available'):
-                video=labels.local_video(vid)
+                video=labels.local_video(vid) or local_sources.get(vid)
                 if video is None:
                     video=labels.VIDEOS/(vid+'.mp4');video.parent.mkdir(parents=True,exist_ok=True)
                     time.sleep(8)
