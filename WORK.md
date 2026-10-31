@@ -2,6 +2,126 @@
 
 The YouTube resumable PUT now streams the MP4 file instead of loading it into PHP memory. Integration test uploaded 20 MiB with an 8 MiB PHP memory limit and verified exact bytes. The Robots test status omits the helper's misleading phase-based ETA while retaining current stage and processed-frame messages. The live Başkent Q5 test is processing its close-up camera views on updated Mac 3.2.82; no final video or YouTube upload has been claimed yet.
 
+## 2026-10-31 — Climb/defense regions release: Mac 3.2.83, Windows 6.5.54, Linux 6.6.45, engine 2.7.68 (Claude, deployed)
+
+The owner approved publishing and deploying. Main moved during the push (f3cfc6f: a robot-match-test check and WORK.md only), so I merged it (60bbe70) and pushed. The packages were unaffected.
+- GitHub releases: helper-3.2.83, helper-windows-6.5.54, helper-linux-6.6.45.
+- SSM deploy: 71 files fetched and verified, 76 installed. Backup is `/root/climb-defense-regions-release-backup-20261031`. Pruned 4 old releases.
+- Checked from outside: appcast 3.2.83; Windows latest.json 6.5.54 and Linux 6.6.45, both on engine 2.7.68; apt Packages 6.6.45. The live Scoring Areas `scoring-areas.php` and `app.js` match the commit.
+
+
+Merged origin/main (afff06f, robot match test 3.2.82). Conflicts in the region-type lists were resolved by keeping `field_reference` and adding `climb_zone` and `defense_zone`. The engine now skips unknown region types, so an event marked with a newer type keeps its other zones.
+
+Built in ~/Documents/ChatGPT/Neptune:
+- Mac-Helper-3.2.83-ready: 597 tests OK on the bundled Python, Sparkle signature verified.
+- Windows-Helper-6.5.54-ready and Linux-Helper-6.6.45-ready: package sizes within a few KB of 6.5.53/6.6.44.
+
+Also included and not wired in: scoreboard weak labels, the robot-points allocator and the geometry rules (evaluation only).
+
+## 2026-10-30 — Climb/defense region types deployed to the marking page (Claude, owner approved)
+
+The live `autoscout/scoring-areas.php` and `community/assets/field-regions/app.js` differ from this branch: they also have `field_reference`, which is on main. So I didn't replace them whole. Instead I applied targeted edits over AWS SSM that add `climb_zone` and `defense_zone` to the save check and the Region type list. `php -l` passes. The backup is `/root/region-kinds-backup-20261030`.
+
+Caution: released helpers (engine 2.7.41) reject a field-region document with an unknown type. An event marked with a climb or defense area loses all its zone hints on those helpers until a helper release. `validate` on this branch now skips unknown region types instead of failing (test added; suite passes, 531). This branch's `KINDS` also needs `field_reference` from main when it merges.
+
+## 2026-10-30 — Climb and defense region types for marking (Claude, local only, not deployed)
+
+The Scoring Areas page (`autoscout/scoring-areas.php`, with the save check in `community/assets/field-regions/app.js`) and the engine (`neptune_field_regions.KINDS`) now accept two new region types:
+- `climb_zone`: the climb area at the end of the match.
+- `defense_zone`: where the selected alliance plays defense.
+
+`neptune_geometry_rules.defense` uses a marked `defense_zone` and falls back to the opponent's scoring zone. `climb` reads `climb_zone`. The engine suite passes (530). The site change still needs the owner's approval to deploy.
+
+## 2026-10-30 — Scoreboard-constrained robot points and geometry rules: measured, not wired in (Claude, local only)
+
+Added `neptune_score_labels.allocate`. It splits each held scoreboard increase evenly among that alliance's robots inside a marked scoring zone in the delay-corrected window. With no robot inside, the points stay unassigned. Robot points plus unassigned always equal the displayed increases.
+
+Added `neptune_geometry_rules.py`:
+- Defense: sustained (3 s or more) presence in the opponent's marked scoring zone.
+- Climb: last tracked position in a region of the game pack's `climb_region_kind`. It returns `unavailable` when nothing is marked.
+
+`engine/evaluation/evaluate_rules.py` compares both with hand labels. Tests are in `engine/test_geometry_rules.py`; the engine suite passes (528).
+
+Results on txcmp1 qm1/3/4/6 with a fixed 5.0 s delay. The pooled delay came partly from qm3/qm4, so it is slightly optimistic.
+- Robot-point share against hand score-click share, compared with an even split: qm3 .307 vs .272 (worse), qm4 .302 vs .326, qm6 .102 vs .397. qm1 assigned nothing: its tracking has no robots in a zone.
+  Hand clicks cover only some robots (qm6: one alliance), so this truth is itself partial.
+- Points assigned: 65–98% per alliance.
+- Defense, share of hand defense clicks inside a rule interval: qm3 0/13, qm4 3/28, qm6 16/19. Robot AUC .50 / 1.0 / .56. Defense in this game is mostly not inside the opponent's scoring zone, so the rule is not good enough.
+- Climb: no climb regions are marked for any event, so it can't be measured.
+- Auto: no facts on this helper for the only auto-labelled match (qm2).
+
+Next: mark a climb region and a defense region (the opponent's half, as a field-wide polygon) for txcmp1, then re-run.
+
+## 2026-10-30 — Weak scoreboard labels on unlabelled matches: no measurable gain (Claude, local only)
+
+The owner marked scoring zones for 2026kett (qm7), 2026week0 (qm8) and 2026txfor (qm10). I copied the marks read-only from the server (AWS SSM, with the owner's approval) into `~/.neptune-trainer/field-regions/events/`. 2026ctwat has no marks; its earlier local file was an empty list.
+
+Added `engine/evaluation/build_weak_matches.py` (facts + tracking, then weak and unlabelled R3D-18 clips per match) and `evaluate_score_labels.unlabelled_match_effect`. Outputs are in `~/.neptune-trainer/weak-labels/`. Run it with NEPTUNE_GAMES_HOME at a job folder: the engine's built-in pack lacks the AGE and Week 0 layouts.
+
+- **Kettering is dropped.** The mid-build broadcast shows clock and teams but no alliance scores.
+- **Facts built:** Week 0 qm3/6/8/11/14, txcmp1 qm8 (tracking unavailable: "OCR stream ended"), ctwat qm4/56/62. ctwat qm32 failed: an AGE variant with only 39 of 167 overlay frames showing the marker.
+- **Delay:** 5.0 s, pooled over the hand clicks on txcmp1 qm1/3/4/6. No Week 0 data was used.
+- **Week 0 yield:** 113 score changes, 26 credited to one robot, 14 usable clips. The Week 0 marks cover only the wide camera, so most changes are "no marked zone" or "no alliance robot seen".
+
+**Held-out AUC on hand positives.** Folds are the hand-labelled txcmp1 matches; Week 0 rows are in every fold's training set and never scored.
+
+| Action | Folds | Week 0 unlabelled clips only | With 14 weak positives |
+|---|---|---|---|
+| score_1_fuel | 3 | 0.674 | 0.673 |
+| score_2_fuel | 3 | 0.624 | 0.641 |
+| scoring | 2 | 0.468 | 0.467 |
+
+No measurable gain. 14 labels is too few, and the differences are noise-level.
+
+**Alliance-total check on unlabelled matches** (points model trained on all 249 score examples): only Week 0 qm14 red could be checked, at +118 (predicted 217 vs displayed 99). Every other alliance has a robot with too few sightings for the points model, or the video is incomplete, so robot points can't yet be checked on matches like these.
+
+**What would change this:** marks on the close-up cameras as well as the wide view, more complete tracking per robot, and events whose broadcast shows scores. Nothing is wired into training. Not pushed or released.
+
+## 2026-10-26 — Scoring labels from scoreboard changes; alliance-total check (Claude, local only)
+
+The owner asked for weak scoring labels built from scoreboard score changes, plus a check of robot points against the alliance total. Kept local: not pushed, released or deployed.
+
+Added `engine/neptune_score_labels.py`:
+- `score_events`: an alliance score increase counts only if the new value is read at least twice in a row. Drops and one-read jumps are ignored.
+- `measure_delay`: the broadcast delay between a robot's action and the scoreboard change, measured from hand clicks (most common lag, -2 to 10 s). It is measured, not assumed.
+- `attribute`: an event goes to a robot only when exactly one of the alliance's tracked robots was inside a marked scoring zone in the 3 s before the delay-corrected change. Otherwise it is kept, unattributed, with a reason.
+- Labels carry source `scoreboard_change`, weight 0.25 and `weak_supervision`, and are never merged into hand labels.
+- `alliance_check`: the summed robot points per alliance against the final displayed score. Alliance-level parts (results_screen_components other than auto/teleop) are removed when the results screen was read. Duplicate estimates of one robot are averaged; an alliance missing a robot is marked incomplete.
+- Nothing game-specific: zones come from marked field regions, and alliance-level parts from the game pack.
+
+Added `engine/evaluation/evaluate_score_labels.py`. The delay applied to each match is measured on the other matches only. Q7 is refused. Truth is the hand clicks on the four txcmp1 matches that still have facts on this Mac.
+
+**Delay:** 3.1 s (Q1), 5.0 s (Q3), 6.9 s (Q4) and 5.6 s (Q6) measured per match. It is not constant, which limits timing precision.
+
+**Attribution against hand clicks.** Precision = attributed events with a click from that robot within the window. "Other robot" = the same events credited to another alliance robot that was seen (chance).
+
+| Match | Window (s) | Events attributed | Precision | Other robot | Recall |
+|---|---|---|---|---|---|
+| Q3 | 2 | 18/34 | 0.72 | 0.12 | 0.38 |
+| Q3 | 3 | 22/34 | 0.73 | 0.17 | 0.54 |
+| Q3 | 5 | 24/34 | 0.79 | 0.28 | 0.67 |
+| Q4 | 2 | 19/34 | 0.47 | 0.00 | 0.42 |
+| Q4 | 3 | 20/34 | 0.45 | 0.04 | 0.51 |
+| Q4 | 5 | 21/34 | 0.52 | 0.03 | 0.64 |
+| Q1, Q6 | any | 0 | — | — | — |
+
+Q1 and Q6 have no marked scoring zones on this Mac, so nothing is attributed there, by design.
+
+**Weak labels added to training.** Match-held-out folds and gates unchanged. AUC is measured on hand positives only.
+
+| Action | Weak positives | AUC hand only → with weak | Recall | Gate |
+|---|---|---|---|---|
+| score_1_fuel | 14 | 0.678 → 0.679 | 0.49 → 0.49 | passes both |
+| score_2_fuel | 17 | 0.652 → 0.672 | 0.54 → 0.61 | passes both |
+| scoring | 31 | 0.649 → 0.660 | — | no signal both |
+
+These are small gains from 14–31 rows on two matches that already have dense hand labels: not evidence of improvement. The labels should matter on matches with marked zones and no hand labels, and none of those have facts on this Mac.
+
+**Robot points.** The weak labels don't feed the points regressor, so leave-one-match-out MAE is unchanged (48.3). Alliance-total check with leave-one-match-out predictions: Q3 red +52 (blue incomplete), Q4 red −18, Q4 blue +41, Q6 red +74 (blue incomplete). Mean |gap| is 46 points per alliance. No results screen was read on these matches, so the totals still include fouls. Hand estimates match the totals by construction, so only the model's gap is informative.
+
+Checked: `test_score_labels.py` (11 tests); 524 engine tests OK on the bundled Python. Not wired into training, `neptune_engine.FILES` or the server.
+
+Next, if the owner wants it: mark scoring zones for more events, run facts on unlabelled matches, and measure the weak labels' effect on matches without hand labels.
 ## 2026-10-30 — Codex: robot match test completion and compatibility
 
 Found the live test failed before producing a video: a 3.2.81 helper accepted unknown test_robot work and fell through to detector training. Test jobs now require an explicit helper capability; new helpers reject unknown kinds. The Robots page shows failures and the first finished result, loads newly available media, releases the session while streaming/uploading, and includes a download link plus editable YouTube upload fields. Native source frames/rate render to H.264 fast-start MP4; verified chunk transfer supports larger full-match videos and preserves the local output until server acknowledgement. Local PHP integration checks cover old-helper refusal, compatible claim, chunk retries/order/hash integrity and saved playback; Python robot job suite (17) and a 15fps H.264 smoke render pass. Built and published Mac 3.2.82, Windows 6.5.53 and Linux 6.6.44 (engine 2.7.67). Mac release passed 579 engine tests. Deployed nine server files with before/after hash verification, published update feeds, and pruned old releases (SSM 8d6f6e60). Updated the connected Mac through Sparkle and verified its capability check-in. Başkent Q5 retry d5139366db9e4aa138f4ff4b is running on the new helper; final video and YouTube verification remain pending. Frontend regression checks also pass for failure display, first result, media availability, preserved edits and upload metadata.
