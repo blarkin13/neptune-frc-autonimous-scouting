@@ -1,3 +1,11 @@
+## 2026-10-31 — Codex: review and deploy Gemini light-mode fixes
+
+Reviewed Gemini commit `7eb936d`. Applied its nine-file CSS patch to the actual live sources, preserving live-only admin ocean layers and video-tagging theme/dock additions. Fixed the invalid select font shorthand, preserved dark-mode contrast for completed training steps, and bumped community/video-tag stylesheet URLs. Deployed only 11 affected files with guarded before/after SHA-256 checks, PHP lint, a 296,806-byte file-only rollback backup, temporary-stage cleanup, and release pruning. Local Chromium fixtures using live shared styles passed light/dark text contrast checks (all six sampled components >= 4.5:1) and reduced-motion checks; visually inspected both themes. Deployment and verification receipts: `/Users/brianlarkin/Documents/ChatGPT/autonomous_scouting/local/light-mode-review/`. The original broader deployment archive was not installed.
+
+## 2026-10-31 — Codex: March 19, 2025 QM5 bumper labels
+
+Manually reviewed and saved 25 varied native frames for each of 10 events starting March 19, 2025: 250 frames and 2,150 bumper boxes. Reviewed wide views and close-up panes, merged split detections, removed false chassis/field objects, and added missed visible foam. Preserved immutable source frames and guarded concurrent edits. Verified exact live labels, native JPEG hashes, and web-user ownership for all 250 frames. No training was started. Receipts and Neptune links are in `/Users/brianlarkin/Documents/ChatGPT/autonomous_scouting/local/march19-2025-qm5-review/final-verification.json` and `REVIEW.md`. Heartland's source is dark and has one camera view.
+
 ## 2026-10-31 — Codex: streaming YouTube upload for match test videos
 
 The YouTube resumable PUT now streams the MP4 file instead of loading it into PHP memory. Integration test uploaded 20 MiB with an 8 MiB PHP memory limit and verified exact bytes. The Robots test status omits the helper's misleading phase-based ETA while retaining current stage and processed-frame messages. The live Başkent Q5 test is processing its close-up camera views on updated Mac 3.2.82; no final video or YouTube upload has been claimed yet.

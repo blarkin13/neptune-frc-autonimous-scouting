@@ -233,7 +233,7 @@ pillar_summary('robot','Finds every robot’s bumpers in a frame, in wide and cl
 .rl-test-bar{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;margin:12px 0}
 .rl-test-bar .match-picker-v2{flex:1 1 520px}
 .rl-test-helper{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--as-muted,var(--muted,#9aa7b8));font-weight:600;min-width:210px}
-.rl-test-helper select{background:var(--panel2,#070d15);color:var(--text,#eaf2ff);border:1px solid var(--as-line,var(--line,#28384f));border-radius:9px;padding:9px 11px;font:13px/1.4 inherit}
+.rl-test-helper select{background:var(--panel2,#070d15);color:var(--text,#eaf2ff);border:1px solid var(--as-line,var(--line,#28384f));border-radius:9px;padding:9px 11px;font:inherit;font-size:13px;line-height:1.4}
 .rl-test-bar #robot-test-btn{width:auto;min-width:120px;margin:0;padding:10px 20px}
 .rl-test-viewer{margin-top:14px;padding-top:14px;border-top:1px solid var(--as-line,var(--line,#1e2b3c))}
 .rl-test-head{display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:space-between;margin-bottom:12px}
