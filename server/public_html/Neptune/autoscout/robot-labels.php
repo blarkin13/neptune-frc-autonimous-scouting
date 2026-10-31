@@ -60,6 +60,7 @@ if($_SERVER['REQUEST_METHOD']==='GET'&&isset($_GET['frame_image'])){
 if($_SERVER['REQUEST_METHOD']==='GET'&&isset($_GET['robot_test_video'])){
  try{$mp4=$robotJobs->robotTestVideoPath((string)$_GET['robot_test_video']);}catch(InvalidArgumentException){robot_reply(422,['error'=>'Invalid test']);}
  if(!$mp4)robot_reply(404,['error'=>'Test video not found.']);
+ session_write_close(); // Video requests must not block status polling or uploads.
  $size=filesize($mp4);$start=0;$end=$size-1;$status=200;
  if(!empty($_SERVER['HTTP_RANGE'])&&preg_match('/^bytes=(\d+)-(\d*)$/D',(string)$_SERVER['HTTP_RANGE'],$m)){
   $start=(int)$m[1];$end=$m[2]!==''?min($size-1,(int)$m[2]):$size-1;$status=206;
@@ -79,7 +80,7 @@ if($_SERVER['REQUEST_METHOD']==='GET'&&isset($_GET['detector_status'])){
   foreach($cq->fetchAll(PDO::FETCH_ASSOC) as $c){
    $cid=(string)$c['id'];$st=$robotJobs->status($cid)?:[];
    $online=((int)$c['expires_at']>time())&&((int)$c['last_seen']>time()-75||((int)($st['at']??0)>time()-75));
-   $computers[]=['id'=>$cid,'name'=>(string)($c['name']?:'Computer'),'online'=>$online,'busy'=>!empty($st['busy']),'version'=>(string)($st['version']??'')];
+   $computers[]=['id'=>$cid,'name'=>(string)($c['name']?:'Computer'),'online'=>$online,'busy'=>!empty($st['busy']),'version'=>(string)($st['version']??''),'supports_robot_test'=>$robotJobs->supportsRobotTest($cid)];
   }
  }catch(Throwable $e){}
  robot_reply(200,['requests'=>array_map(fn($r)=>array_diff_key($r,['lease'=>1]),array_slice($robotJobs->requests(),0,12)),'current'=>$cur['detector'],'robot_tests'=>$robotJobs->robotTests(),'youtube'=>$yt,'computers'=>$computers]);
@@ -104,6 +105,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     $cq=$pdo->prepare('SELECT id FROM community_training_computers WHERE id=? AND user_id=? AND revoked=0');
     $cq->execute([$comp,(int)$u['id']]);
     if(!$cq->fetchColumn())throw new RuntimeException('Choose one of your connected helper computers.');
+    if(!$robotJobs->supportsRobotTest($comp))throw new RuntimeException('Update this helper to a release that supports Test a match before testing.');
    }
    $q=$pdo->prepare('SELECT id,match_key,title,roster_json,source_url FROM community_matches WHERE id=?');$q->execute([$mid]);$m=$q->fetch(PDO::FETCH_ASSOC);
    if(!$m||!($vid=CommunityVideoTags::videoId((string)$m['source_url'])))throw new RuntimeException('This match does not have a linked YouTube video.');
@@ -111,6 +113,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
    robot_reply(200,['request'=>$robotJobs->queue('test_robot',['match_id'=>(int)$m['id'],'match_key'=>(string)$m['match_key'],'title'=>(string)($m['title']?:$m['match_key']),'video_id'=>$vid,'roster'=>is_array($roster)?$roster:null,'computer'=>$comp],(int)$u['id'])]);
   }
   if(($p['action']??'')==='upload_robot_test_youtube'){
+   session_write_close();
    $rec=$robotJobs->uploadRobotTestToYouTube((string)($p['request_id']??''),(string)($p['title']??''),(string)($p['description']??''),new YouTubeUploader(dirname(__DIR__,3).'/neptune_secure'));
    robot_reply(200,['ok'=>true,'test'=>$rec]);
   }
@@ -207,6 +210,7 @@ pillar_summary('robot','Finds every robot’s bumpers in a frame, in wide and cl
   <div class="rl-test-grid">
    <div class="rl-test-player-wrap">
     <video id="robot-test-video" class="rl-test-video" controls preload="metadata" playsinline></video>
+    <a id="robot-test-download" hidden download>Download test video</a>
    </div>
    <div class="rl-test-yt">
     <h3>Upload to YouTube</h3>
@@ -272,8 +276,11 @@ pillar_summary('robot','Finds every robot’s bumpers in a frame, in wide and cl
   const changed=currentId!==t.id;
   currentId=t.id;
   sel.value=t.id;
-  if(changed){
-   vid.src=t.has_video?`${endpoint}?robot_test_video=${encodeURIComponent(t.id)}`:'';
+  const download=document.getElementById('robot-test-download');
+  const videoUrl=t.has_video?`${endpoint}?robot_test_video=${encodeURIComponent(t.id)}`:'';
+  if(download){download.hidden=!t.has_video;download.href=videoUrl;}
+  if(vid.getAttribute('src')!==videoUrl){
+   vid.setAttribute('src',videoUrl);vid.load();
   }
   if(changed||forceFields||!edited){
    titleIn.value=t.title||`Robot detection test - ${t.match_key||''}`;
@@ -299,7 +306,7 @@ pillar_summary('robot','Finds every robot’s bumpers in a frame, in wide and cl
    ytStatus.textContent='Ready to upload to YouTube as unlisted.';
    upBtn.textContent='Upload to YouTube';
   }
-  upBtn.disabled=!t.has_video;
+  upBtn.disabled=!t.has_video||!ytConnected;
  }
  async function refreshTests(){
   try{
@@ -311,10 +318,12 @@ pillar_summary('robot','Finds every robot’s bumpers in a frame, in wide and cl
     const prevComp=compSel.value;
     compSel.replaceChildren(
      new Option('First available helper',''),
-     ...computers.map(c=>new Option(`${c.name} (${c.online?(c.busy?'online · busy':'online · idle'):'offline'})`,c.id))
+     ...computers.map(c=>new Option(`${c.name} (${!c.supports_robot_test?'update required':c.online?(c.busy?'online · busy':'online · idle'):'offline'})`,c.id))
     );
     if(prevComp&&computers.some(c=>c.id===prevComp))compSel.value=prevComp;
    }
+   const latest=(d.requests||[]).find(q=>q.kind==='test_robot');
+   if(latest&&['failed','cancelled'].includes(latest.state))status.textContent=`Test ${latest.state}: ${latest.message||'No video was produced. Retry after resolving the error.'}`;
    const active=(d.requests||[]).find(q=>q.kind==='test_robot'&&['queued','claimed'].includes(q.state));
    if(active){
     const targetName=active.target&&(computers.find(c=>c.id===active.target)?.name||'chosen helper');
@@ -328,10 +337,11 @@ pillar_summary('robot','Finds every robot’s bumpers in a frame, in wide and cl
     const dstr=t.saved_at?new Date(t.saved_at*1000).toLocaleString(undefined,{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'';
     return new Option(`${t.match_title||t.match_key||t.id} (${dstr})${t.youtube_id?' · YouTube ✓':''}`,t.id);
    }));
-   if(prevNewest&&list[0].id!==prevNewest){currentId='';edited=false;status.textContent=`Finished testing ${list[0].match_title||list[0].match_key}. Watch the video below or upload to YouTube.`;}
+   if(list[0].id!==prevNewest){currentId='';edited=false;status.textContent=`Finished testing ${list[0].match_title||list[0].match_key}. Watch the video below or upload to YouTube.`;}
    renderTest(currentId&&list.some(x=>x.id===currentId)?currentId:list[0].id,false);
-  }catch(e){}
+  }catch(e){status.textContent='Could not refresh match tests: '+e.message}
  }
+ vid.addEventListener('error',()=>{if(vid.getAttribute('src'))sum.textContent='Video could not play. Retry loading this test or download the MP4.'});
  sel.addEventListener('change',()=>{edited=false;renderTest(sel.value,true)});
  btn.addEventListener('click',async()=>{
   const mid=Number(picker.dataset.matchId||0);if(!mid)return;

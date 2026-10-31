@@ -36,7 +36,10 @@ def api(config, action, payload=None, timeout=120):
     import urllib.request
     from neptune_helper import public_https, NoRedirect
     url = public_https(config['site'].rstrip('/')+'/api/robot-detector.php')
-    body = json.dumps(dict(payload or {}, action=action)).encode()
+    data = dict(payload or {}, action=action)
+    if action == 'computer_poll':
+        data['capabilities'] = ['test_robot_v1']
+    body = json.dumps(data).encode()
     request = urllib.request.Request(url, data=body, headers={'Content-Type': 'application/json', 'Authorization': 'Bearer '+config['token']})
     with urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect()).open(request, timeout=timeout) as response:
         return json.loads(response.read(80*1024*1024))
@@ -722,16 +725,27 @@ def test_robot(config, req, progress):
     progress('Rendering original view with boxes, bumper OCR, and top-down homography')
     out = HOME/'review-videos'/('robot-test-'+req['id']+'.mp4'); out.parent.mkdir(parents=True, exist_ok=True)
     _, summary = rv.robot_test_video(out, video, facts, game['game_key'], title)
-    if out.stat().st_size > 45*1024*1024:
-        out.unlink(missing_ok=True)
-        raise ValueError('Rendered match test video exceeds the 45 MB upload limit.')
+    if out.stat().st_size > 512*1024*1024:
+        raise ValueError('Rendered match test exceeds 512 MB; the local video has been kept.')
     yt_title, yt_desc = rv.describe_robot_test(title, match_key, summary, VERSION)
     progress('Sending match test video to Neptune')
+    offset = 0
+    with out.open('rb') as stream:
+        while chunk := stream.read(1024*1024):
+            ack = api(config, 'robot_test_chunk', {'request_id': req['id'], 'lease': req['lease'],
+                'offset': offset, 'data_b64': base64.b64encode(chunk).decode()}, timeout=120)
+            offset += len(chunk)
+            if ack.get('next_offset') != offset:
+                raise ValueError('Neptune did not confirm the video transfer; local video kept.')
+            progress('Sending match test video to Neptune: %d%%' % (offset*100/out.stat().st_size))
     reply = api(config, 'robot_test_put', {
         'request_id': req['id'], 'lease': req['lease'],
         'title': yt_title, 'description': yt_desc, 'summary': summary,
-        'video_b64': base64.b64encode(out.read_bytes()).decode()
+        'chunked': True, 'size': out.stat().st_size,
+        'sha256': hashlib.sha256(out.read_bytes()).hexdigest()
     }, timeout=900)
+    if not reply.get('test', {}).get('id'):
+        raise ValueError('Neptune did not confirm the saved test video; local video kept.')
     out.unlink(missing_ok=True)
     return {'match_key': match_key, 'summary': summary, 'test': reply.get('test')}
 
@@ -757,6 +771,8 @@ def run_pending(config, progress, busy=lambda value: None):
             if reply.get('cancelled'):
                 raise InterruptedError('Cancelled on Neptune')
     try:
+        if req.get('kind') not in ('prepare', 'test_robot', 'train_field', 'train'):
+            raise ValueError('Unsupported helper job: '+str(req.get('kind')))
         result = prepare(config, req, report) if req['kind'] == 'prepare' else \
                  test_robot(config, req, report) if req['kind'] == 'test_robot' else \
                  train_field(config, req, report) if req['kind'] == 'train_field' else train(config, req, report)

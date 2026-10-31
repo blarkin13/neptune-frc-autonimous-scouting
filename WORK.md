@@ -1,3 +1,17 @@
+## 2026-10-30 — Codex: robot match test completion and compatibility
+
+Found the live test failed before producing a video: a 3.2.81 helper accepted unknown test_robot work and fell through to detector training. Test jobs now require an explicit helper capability; new helpers reject unknown kinds. The Robots page shows failures and the first finished result, loads newly available media, releases the session while streaming/uploading, and includes a download link plus editable YouTube upload fields. Native source frames/rate render to H.264 fast-start MP4; verified chunk transfer supports larger full-match videos and preserves the local output until server acknowledgement. Local PHP integration checks cover old-helper refusal, compatible claim, chunk retries/order/hash integrity and saved playback; Python robot job suite (17) and a 15fps H.264 smoke render pass. Release/deployment validation is pending.
+
+## 2026-10-30 — Codex: TXCMP1 Q4 bumper extent redo
+
+Reviewed the 75 current Q4 source-frame box sets, tightened chassis/mechanism extents to visible bumper foam, retained visible partial foam, removed unsupported labels, and reconciled 11 later edits. Saved per frame with exact previous-row guards; final readback of all 75 rows matches correction records and all normalized boxes are in bounds. 585 boxes remain. Training was not started. Receipts and source review artifacts: local/qm4-label-audit-20261026/current-corrections (artifact workspace).
+
+## 2026-10-30 — Codex: March4 Q5 full visible bumper perimeter correction
+
+- User found systematic front-face-only boxes after initial batch. Re-audited all125 exact native frames and wide/inset panels using expanded context, enclosing all visible foam faces per robot appearance. Expanded angled bounds, merged split faces, removed unsupported rail/glare/mechanism labels. Existing user edits used as baseline and guarded against concurrent change.
+- Saved25 corrected rows each for2026bcvi,2026mndu,2026mnwi,2026mndu2,2026okok Q5. Currenttotal 1039 bumperboxes. Eachrow read back; independent server pass verifies all125 reviewed-row hashes and immutable source images. No training started.
+- Evidence and receipts: `/Users/brianlarkin/Documents/ChatGPT/autonomous_scouting/local/march4-qm5-review/correction-final-verification.json`, per-match correction-reviewed.json and correction-save-result.json. Supersedes earlier narrow-box audit. User next authorized March5,2026 Q5,25frames each, about10 usefulclose-up-pane frames/match, save eachframe as completed.
+
 ## 2026-10-30 — Robot detection match test + helper selector on 1 · Robots page (Gemini)
 
 - Added a **Test a match** section to `server/public_html/Neptune/autoscout/robot-labels.php` using the shared Year / Event / Match selector (`server/public_html/Neptune/community/assets/match-picker/match-picker.js`, updated to support multiple pickers and `data-select-only="1"` mode without page navigation), a **Helper** dropdown (`#robot-test-computer` populated from `community_training_computers` with live online/busy status), and a **Test** button.
