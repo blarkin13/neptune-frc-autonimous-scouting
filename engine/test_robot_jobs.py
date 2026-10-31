@@ -69,7 +69,7 @@ class RobotJobs(unittest.TestCase):
             root = Path(folder); weights = root/'current.pt'; weights.write_bytes(b'weights')
             (root/'manifest.json').write_text(json.dumps({'trained_on': ['2026train_qm1']}))
             with patch.object(rj, 'SHARED', root), patch.object(rj, 'current_wide_weights', return_value=weights), \
-                 patch.object(rj, 'model_scale', return_value='s'):
+                 patch.object(rj, 'model_scale', return_value='n'):
                 self.assertEqual(rj.training_base('2026held_qm2'), (weights, rj.WARM_RECIPE))
 
     def test_nano_detector_is_replaced_by_a_fresh_small_run(self):
@@ -77,7 +77,8 @@ class RobotJobs(unittest.TestCase):
             root = Path(folder); weights = root/'current.pt'; weights.write_bytes(b'weights'); base = root/'yolo11s.pt'
             (root/'manifest.json').write_text(json.dumps({'trained_on': ['2026held_qm2']}))
             with patch.object(rj, 'SHARED', root), patch.object(rj, 'current_wide_weights', return_value=weights), \
-                 patch.object(rj, 'model_scale', return_value='n'), patch.object(rj, 'small_base', return_value=base):
+                 patch.object(rj, 'model_scale', return_value='n'), patch.object(rj, 'small_base', return_value=base), \
+                 patch.object(rj, 'MODEL_SIZE', 's'):
                 self.assertEqual(rj.training_base('2026held_qm2'), (base, rj.SMALL_RECIPE))
 
     def test_small_base_refuses_a_wrong_download(self):
@@ -95,7 +96,7 @@ class RobotJobs(unittest.TestCase):
             root = Path(folder); weights = root/'current.pt'; weights.write_bytes(b'weights')
             (root/'manifest.json').write_text(json.dumps({'trained_on': ['2026held_qm2']}))
             with patch.object(rj, 'SHARED', root), patch.object(rj, 'current_wide_weights', return_value=weights), \
-                 patch.object(rj, 'model_scale', return_value='s'):
+                 patch.object(rj, 'model_scale', return_value='n'):
                 with self.assertRaisesRegex(ValueError, 'starting detector trained'):
                     rj.training_base('2026held_qm2')
 
@@ -160,7 +161,7 @@ class RobotJobs(unittest.TestCase):
             self.assertEqual(used, [str(parent)])
             self.assertFalse(report['adopted'])
             self.assertEqual(report['training_recipe'], 'adopted-bumper-warm-start-v2-train-validation')
-            self.assertEqual(report['model_size'], 's')
+            self.assertEqual(report['model_size'], 'n')
             self.assertEqual(validated, [root])
             self.assertEqual(report['trained_on'], ['2026few_qm1'])
             self.assertEqual(len(report['starting_weights_sha256']), 64)

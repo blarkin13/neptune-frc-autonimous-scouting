@@ -25,7 +25,7 @@ SMALL_BUMPER_H = .025             # bumpers shorter than this (of frame height) 
 WIDE_BAND = (.24, .6506)          # 2026 broadcast wide-camera band (normalized y)
 ADOPT_MARGIN = .02                # new detector must beat the current one's held-out F1 by this much
 MIN_FRAMES_PER_MATCH = 8
-MODEL_SIZE = 's'                  # YOLO11 Small; a Nano detector in use is replaced by a fresh Small run, not fine-tuned
+MODEL_SIZE = 'n'                  # YOLO11 Nano, warm-started from the detector in use ('s' trains a fresh Small run instead)
 SMALL_BASE = {'file': 'yolo11s.pt', 'sha256': '85a76fe86dd8afe384648546b56a7a78580c7cb7b404fc595f97969322d502d5',
               'url': 'https://github.com/ultralytics/assets/releases/download/v8.3.0/yolo11s.pt'}
 WARM_RECIPE = 'adopted-bumper-warm-start-v2-train-validation'
@@ -175,8 +175,8 @@ def small_base():
 
 
 def training_base(holdout):
-    """(starting weights, recipe). Continue the proven bumper detector when it is already Small;
-    a Nano detector in use is replaced by a fresh Small run from COCO, which never saw any match.
+    """(starting weights, recipe). Continue the proven bumper detector when it is MODEL_SIZE;
+    otherwise (MODEL_SIZE 's' with Nano in use) start a fresh Small run from COCO, which never saw any match.
 
     Refuse an inherited model that learned the evaluation match: excluding it
     from this run alone would not remove its influence from the weights.

@@ -120,11 +120,11 @@ final class RobotDetectorJobs {
   $v=(string)($this->status($computer)['version']??'');
   // Robot runs need helpers that keep the held-out match out of YOLO's validation set and score it after
   // the same nested-box cleanup tracking uses, so every candidate and the detector in use are checked alike,
-  // and that train the YOLO11 Small detector (an older helper would keep fine-tuning Nano).
-  if(preg_match('/^engine (\d+\.\d+\.\d+)/D',$v,$m))return version_compare($m[1],'2.7.63','>=');
-  if(preg_match('/^3\./',$v))return version_compare($v,'3.2.78','>=');
-  if(preg_match('/^6\.5\./',$v))return version_compare($v,'6.5.49','>=');
-  if(preg_match('/^6\.6\./',$v))return version_compare($v,'6.6.40','>=');
+  // and that warm-start the Nano detector in use (3.2.78-3.2.83 helpers train a fresh Small one).
+  if(preg_match('/^engine (\d+\.\d+\.\d+)/D',$v,$m))return version_compare($m[1],'2.7.69','>=');
+  if(preg_match('/^3\./',$v))return version_compare($v,'3.2.84','>=');
+  if(preg_match('/^6\.5\./',$v))return version_compare($v,'6.5.55','>=');
+  if(preg_match('/^6\.6\./',$v))return version_compare($v,'6.6.46','>=');
   return false;
  }
  private function supportsHardFrames(string $computer):bool{
