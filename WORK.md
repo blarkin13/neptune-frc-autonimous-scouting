@@ -1,3 +1,9 @@
+## 2026-10-31 — Three held-out matches: Mac 3.2.85, Windows 6.5.56, Linux 6.6.47, engine 2.7.70 (Claude, deployed)
+
+Owner asked for more held-out matches. `EXTRA_HOLDOUTS = ('2026mnwi_qm5', '2026brba_qm5')` (other events, labelled after the Oct 26 adoption) are held out with Neptune's pick (2026txcmp1_qm4), never trained on, and scored together; the warm-start guard refuses a starting detector that learned any of them. Report adds `holdout_matches`; the Robots page lists all three. Adoption margin unchanged (0.02). The first run's "current" score is the new three-match baseline, not comparable with the old QM4-only 0.86.
+- GitHub releases helper-3.2.85, helper-windows-6.5.56, helper-linux-6.6.47; Mac passed 599 tests first try.
+- SSM 9a4c0d77: 16 files verified, 21 changed; backup `/root/three-holdouts-release-backup-20261031`; pruned 316 MB. Feeds: appcast 3.2.85, Windows 6.5.56, Linux 6.6.47.
+
 ## 2026-10-31 — Nano detector release: Mac 3.2.84, Windows 6.5.55, Linux 6.6.46, engine 2.7.69 (Claude, deployed)
 
 Owner asked to go back to Nano after Small runs scored 0.84/0.86/0.79/0.78 against Nano's 0.86. `MODEL_SIZE='n'`: runs warm-start the Nano detector in use; `'s'` still trains a fresh Small run. Robot runs need these helpers (an older 3.2.78+ helper would train Small).
