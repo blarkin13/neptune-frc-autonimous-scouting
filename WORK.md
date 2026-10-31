@@ -1,4 +1,10 @@
-## 2026-10-31 — Climb/defense regions release built: Mac 3.2.83, Windows 6.5.54, Linux 6.6.45, engine 2.7.68 (Claude, not published)
+## 2026-10-31 — Climb/defense regions release: Mac 3.2.83, Windows 6.5.54, Linux 6.6.45, engine 2.7.68 (Claude, deployed)
+
+The owner approved publishing and deploying. Main moved during the push (f3cfc6f: a robot-match-test check and WORK.md only), so I merged it (60bbe70) and pushed. The packages were unaffected.
+- GitHub releases: helper-3.2.83, helper-windows-6.5.54, helper-linux-6.6.45.
+- SSM deploy: 71 files fetched and verified, 76 installed. Backup is `/root/climb-defense-regions-release-backup-20261031`. Pruned 4 old releases.
+- Checked from outside: appcast 3.2.83; Windows latest.json 6.5.54 and Linux 6.6.45, both on engine 2.7.68; apt Packages 6.6.45. The live Scoring Areas `scoring-areas.php` and `app.js` match the commit.
+
 
 Merged origin/main (afff06f, robot match test 3.2.82). Conflicts in the region-type lists were resolved by keeping `field_reference` and adding `climb_zone` and `defense_zone`. The engine now skips unknown region types, so an event marked with a newer type keeps its other zones.
 
