@@ -76,7 +76,7 @@ def match_report(facts, labels, delay):
         row['defense_click_recall'] = round(sum(inside) / len(inside), 3); row['defense_clicks'] = len(dclicks)
         spans = [(t, a, b) for t, v in robots.items() for a, b in v['intervals']]
         row['defense_interval_precision'] = round(sum(any(r['team_number'] == t and a - 2 <= r['start_ms'] / 1000 <= b + 2 for r in dclicks) for t, a, b in spans) / len(spans), 3) if spans else None
-    row['climb'] = rules.climb(facts, d, game.get('climb_region_kind'))
+    row['climb'] = rules.climb(facts, d)
     return row
 
 

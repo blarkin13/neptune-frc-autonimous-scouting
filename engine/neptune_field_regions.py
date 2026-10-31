@@ -2,7 +2,7 @@
 import bisect,hashlib,json,math,re
 from pathlib import Path
 VERSION='source-bound-field-context-v1'
-KINDS={'scoring_target','scoring_zone','feeding_zone','collection_zone','field_boundary','field_calibration'}
+KINDS={'scoring_target','scoring_zone','feeding_zone','collection_zone','climb_zone','defense_zone','field_boundary','field_calibration'}
 
 def validate(d):
     if d.get('contract')!='neptune-field-regions-v1' or d.get('schema_version')!=1 or d.get('coordinate_system')!='normalized_full_video_frame' or d.get('time_basis')!='video_elapsed_ms':raise ValueError('Unsupported field-region contract')

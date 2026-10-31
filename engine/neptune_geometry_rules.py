@@ -1,7 +1,7 @@
 """Robot actions from tracked positions and marked field regions, with no learned model.
 
-Defense: a robot standing inside the opposing alliance's marked scoring zone for a sustained stretch.
-Climb: a robot's last tracked position inside a marked region of the game pack's climb kind.
+Defense: a robot inside its alliance's marked defense_zone (else the opponent's scoring zone) for a sustained stretch.
+Climb: a robot's last tracked position inside a marked climb_zone.
 Nothing is game-specific: region kinds come from the marks and the game pack, and a rule whose regions are not
 marked returns status 'unavailable' rather than a guess.
 """
@@ -46,14 +46,16 @@ def stretches(times, gap=GAP_S):
     return out
 
 
-def defense(facts, d, min_s=DEFENSE_MIN_S, zone_kind='scoring_zone'):
-    """{status, robots: {team: {seconds, intervals}}} from presence in the opponent's marked zone."""
+def defense(facts, d, min_s=DEFENSE_MIN_S):
+    """{status, basis, robots: {team: {seconds, intervals}}}: sustained presence in the alliance's own marked
+    defense_zone (where it defends), or, when none is marked, in the opponent's marked scoring zone."""
     if not d:
         return {'version': VERSION, 'status': 'unavailable', 'reason': 'no_marked_regions'}
+    own = any(r['kind'] == 'defense_zone' for r in d['regions'])
     hits = collections.defaultdict(list); checked = set()
     for p in positions(facts):
         other = 'blue' if p['alliance'] == 'red' else 'red'
-        inside = in_kind(p, d, facts, zone_kind, other)
+        inside = in_kind(p, d, facts, 'defense_zone', p['alliance']) if own else in_kind(p, d, facts, 'scoring_zone', other)
         if inside is None:
             continue
         checked.add(p['team'])
@@ -65,10 +67,10 @@ def defense(facts, d, min_s=DEFENSE_MIN_S, zone_kind='scoring_zone'):
     for team in checked:
         spans = [s for s in stretches(hits[team]) if s[1] - s[0] >= min_s]
         robots[team] = {'seconds': round(sum(b - a for a, b in spans), 1), 'intervals': [[round(a, 1), round(b, 1)] for a, b in spans]}
-    return {'version': VERSION, 'status': 'measured', 'robots': robots}
+    return {'version': VERSION, 'status': 'measured', 'basis': 'defense_zone' if own else 'opponent_scoring_zone', 'robots': robots}
 
 
-def climb(facts, d, kind, end_s=None, last_s=5.):
+def climb(facts, d, kind='climb_zone', end_s=None, last_s=5.):
     """{status, robots: {team: bool}}: last tracked position (within `last_s` of the end) inside a `kind` region."""
     if not kind or not d or not any(r['kind'] == kind for r in d['regions']):
         return {'version': VERSION, 'status': 'unavailable', 'reason': 'no_marked_%s' % (kind or 'climb_region')}

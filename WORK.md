@@ -1,3 +1,11 @@
+## 2026-10-30 — Climb and defense region types for marking (Claude, local only, not deployed)
+
+The Scoring Areas page (`autoscout/scoring-areas.php`, with the save check in `community/assets/field-regions/app.js`) and the engine (`neptune_field_regions.KINDS`) now accept two new region types:
+- `climb_zone`: the climb area at the end of the match.
+- `defense_zone`: where the selected alliance plays defense.
+
+`neptune_geometry_rules.defense` uses a marked `defense_zone` and falls back to the opponent's scoring zone. `climb` reads `climb_zone`. The engine suite passes (530). The site change still needs the owner's approval to deploy.
+
 ## 2026-10-30 — Scoreboard-constrained robot points and geometry rules: measured, not wired in (Claude, local only)
 
 Added `neptune_score_labels.allocate`. It splits each held scoreboard increase evenly among that alliance's robots inside a marked scoring zone in the delay-corrected window. With no robot inside, the points stay unassigned. Robot points plus unassigned always equal the displayed increases.

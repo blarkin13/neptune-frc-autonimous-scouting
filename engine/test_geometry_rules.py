@@ -23,6 +23,16 @@ class Defense(unittest.TestCase):
         self.assertEqual(r['robots'][1]['seconds'], 0)
         self.assertNotIn(2, r['robots'])
 
+    def test_marked_defense_zone_replaces_opponent_zone(self):
+        own = dict(ZONE, kind='defense_zone', alliance='red', points=[[.6, 0], [1, 0], [1, 1], [.6, 1]])
+        r = rules.defense(facts([(1, s, .8) for s in range(5)] + [(2, s, .2) for s in range(5)]), {'regions': [ZONE, own]})
+        self.assertEqual((r['basis'], r['robots'][1]['seconds']), ('defense_zone', 4))
+
+    def test_climb_reads_last_position(self):
+        top = dict(ZONE, kind='climb_zone', alliance='neutral')
+        r = rules.climb(facts([(1, 0, .8), (1, 10, .2), (2, 10, .8)]), {'regions': [top]})
+        self.assertEqual(r['robots'], {1: True, 2: False})
+
     def test_unmarked_is_unavailable(self):
         self.assertEqual(rules.defense(facts([(1, 0, .2)]), None)['status'], 'unavailable')
         self.assertEqual(rules.climb(facts([(1, 0, .2)]), {'regions': [ZONE]}, 'climb_zone')['status'], 'unavailable')
