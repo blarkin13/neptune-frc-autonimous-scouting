@@ -327,7 +327,7 @@ pillar_summary('robot','Finds every robot’s bumpers in a frame, in wide and cl
    const active=(d.requests||[]).find(q=>q.kind==='test_robot'&&['queued','claimed'].includes(q.state));
    if(active){
     const targetName=active.target&&(computers.find(c=>c.id===active.target)?.name||'chosen helper');
-    status.textContent=`Test match (${active.match_key||''}): ${active.state==='queued'?(targetName?`waiting for ${targetName}`:'waiting for a connected helper'):(active.message||'running on helper')}`;
+    status.textContent=`Test match (${active.match_key||''}): ${active.state==='queued'?(targetName?`waiting for ${targetName}`:'waiting for a connected helper'):((active.message||'running on helper').split('\n').filter(line=>!line.startsWith('Progress:')).join('\n'))}`;
    }
    const list=d.robot_tests||[];
    const prevNewest=tests[0]?.id;
