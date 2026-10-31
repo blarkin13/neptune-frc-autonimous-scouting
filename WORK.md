@@ -1,3 +1,13 @@
+## 2026-10-31 — Climb/defense regions release built: Mac 3.2.83, Windows 6.5.54, Linux 6.6.45, engine 2.7.68 (Claude, not published)
+
+Merged origin/main (afff06f, robot match test 3.2.82). Conflicts in the region-type lists were resolved by keeping `field_reference` and adding `climb_zone` and `defense_zone`. The engine now skips unknown region types, so an event marked with a newer type keeps its other zones.
+
+Built in ~/Documents/ChatGPT/Neptune:
+- Mac-Helper-3.2.83-ready: 597 tests OK on the bundled Python, Sparkle signature verified.
+- Windows-Helper-6.5.54-ready and Linux-Helper-6.6.45-ready: package sizes within a few KB of 6.5.53/6.6.44.
+
+Also included and not wired in: scoreboard weak labels, the robot-points allocator and the geometry rules (evaluation only).
+
 ## 2026-10-30 — Climb/defense region types deployed to the marking page (Claude, owner approved)
 
 The live `autoscout/scoring-areas.php` and `community/assets/field-regions/app.js` differ from this branch: they also have `field_reference`, which is on main. So I didn't replace them whole. Instead I applied targeted edits over AWS SSM that add `climb_zone` and `defense_zone` to the save check and the Region type list. `php -l` passes. The backup is `/root/region-kinds-backup-20261030`.
