@@ -252,16 +252,9 @@ def detect(model, image, conf=.25):
             for d in unique_bumpers(found)]
 
 
-def match_video(video_id, folder):
-    from neptune_robot_labels import local_video, youtube_download
-    video = local_video(video_id)
-    if video:
-        return video
-    from neptune_robot_labels import VIDEOS
-    video = VIDEOS/(video_id+'.mp4'); video.parent.mkdir(parents=True, exist_ok=True)
-    if not video.is_file():
-        youtube_download(video_id, video)
-    return video
+def match_video(video_id, folder, config=None):
+    from neptune_match_videos import acquire
+    return acquire(config, video_id)
 
 
 def frame_times(length_s, labelled=(), picked=None):
@@ -280,7 +273,7 @@ def prepare(config, req, progress):
         raise ValueError('No robot detector is installed on this helper yet.')
     work = HOME/'robot-detector-work'/req['id']; work.mkdir(parents=True, exist_ok=True)
     progress('Downloading '+req['match_key'])
-    video = match_video(req['video_id'], work)
+    video = match_video(req['video_id'], work, config)
     length = duration_s(video); model = YOLO(str(weights)); frames = {}
     source_sha=hashlib.sha256(video.read_bytes()).hexdigest()
     from neptune_robot_labels import sync
@@ -405,7 +398,11 @@ def train(config, req, progress):
         raw=base64.b64decode(reply['image_b64'],validate=True)
         if hashlib.sha256(raw).hexdigest()!=sha:raise ValueError('Training frame failed its saved-image checksum')
         path.write_bytes(raw)
-    built = labels.build(docs, work/'frames', holdout=held, download=labels.youtube_download, progress=progress,snapshot_download=snapshot_download)
+    def source_download(video_id, path):
+        video = match_video(video_id, path.parent, config)
+        if video != path:
+            shutil.copyfile(video, path)
+    built = labels.build(docs, work/'frames', holdout=held, download=source_download, progress=progress,snapshot_download=snapshot_download)
     config_yaml = prepare_dataset(Path(built['manifest']), work/'dataset')
     yolo_validation_from_training(config_yaml.parent)   # before workshop images join training
     from neptune_external_bumpers import append_workshop
@@ -607,7 +604,7 @@ def train_field(config, req, progress):
     for d in docs:
         vid = doc_video(d); split = 'val' if d is holdout else 'train'
         progress('Preparing field frames from '+((d.get('source') or {}).get('match_key') or vid))
-        video=match_video(vid,work)
+        video=match_video(vid,work,config)
         source_fingerprints[doc_key(d)]=hashlib.sha256(Path(video).read_bytes()).hexdigest()
         if source_fingerprints[doc_key(d)] in HELD_OUT_SOURCES:raise ValueError('Reserved benchmark source cannot train or tune a field detector')
         frames=ft.samples(d,sample_frames(video,step=2.0 if split=='val' else 4.0),lambda t:frame(video,t))
@@ -689,7 +686,7 @@ def test_robot(config, req, progress):
     match_key = req['match_key']
     title = req.get('title') or match_key
     progress('Downloading '+match_key)
-    video = match_video(req['video_id'], work)
+    video = match_video(req['video_id'], work, config)
     sha = hashlib.sha256(Path(video).read_bytes()).hexdigest()
     dur = duration_s(video)
     game = games.select(match_key)

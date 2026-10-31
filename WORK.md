@@ -1,3 +1,11 @@
+## 2026-10-31 — Codex: shared original match-video cache
+
+Implemented an authenticated organization-private cache for original MP4 match sources, with one resumable upload at a time, SHA-256 verification before publication, a global 10 GiB cap, and a 10 GiB free-disk reserve. Robot prepare/train/test and field training now use local → shared cache → YouTube. Added sequential robot/field source-cache CLI; it pauses on bot checks or disk limits and never starts training. No transcoding or changes to saved labels, source stills, provenance gates or held-out matches.
+
+Robot training now uses exact saved label images without fetching the video when their immutable frame metadata provides the original video fingerprint. Legacy frames retain the original-video requirement. YouTube bot-check failures remain identifiable instead of being hidden behind the generic download error.
+
+Validation: PHP private-cache tests cover ownership isolation, resumable staging, hidden partial uploads, bad offsets/checksums, source preservation and quota refusal. All 23 targeted Python tests pass. Broad engine suite: 603/604 pass; the unchanged Apple Vision batch OCR test reports `vision failed` on this Mac, also reproduced in isolation. Live original-cache round trip verified byte-for-byte at 1920×1080; 25 existing TXCMP1 QM1 saved images built a training manifest with zero YouTube calls. Server code deployment verified eight hashes and pruned release backups. Helper releases: Mac 3.2.86, Windows 6.5.57, Linux 6.6.48, engine 2.7.71; publication and bulk-cache receipts are in the workspace's `local/shared-video-cache-20261031/`.
+
 ## 2026-10-31 — Three held-out matches: Mac 3.2.85, Windows 6.5.56, Linux 6.6.47, engine 2.7.70 (Claude, deployed)
 
 Owner asked for more held-out matches. `EXTRA_HOLDOUTS = ('2026mnwi_qm5', '2026brba_qm5')` (other events, labelled after the Oct 26 adoption) are held out with Neptune's pick (2026txcmp1_qm4), never trained on, and scored together; the warm-start guard refuses a starting detector that learned any of them. Report adds `holdout_matches`; the Robots page lists all three. Adoption margin unchanged (0.02). The first run's "current" score is the new three-match baseline, not comparable with the old QM4-only 0.86.

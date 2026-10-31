@@ -39,6 +39,20 @@ class RobotLabels(unittest.TestCase):
                 self.assertEqual(r['frames'],1)
                 self.assertEqual((Path(folder)/'output/images/AAAAAAAAAAA_00001000.jpg').read_bytes(),raw)
 
+    def test_saved_stills_do_not_need_youtube_or_local_video(self):
+        import hashlib, json
+        raw = b'exact-reviewed-frame'; sha = hashlib.sha256(raw).hexdigest()
+        source = hashlib.sha256(b'original-video').hexdigest()
+        doc = {'video_id': 'AAAAAAAAAAA', 'match_key': '2026test_qm1', 'frames': {
+            '1000': {'complete': True, 'boxes': [], 'frame_sha256': sha, 'source_sha256': source}}}
+        with tempfile.TemporaryDirectory() as folder:
+            def fetch(vid, t, digest, path): path.write_bytes(raw)
+            with patch.object(rl, 'local_video', side_effect=AssertionError('No video needed')), patch.object(rl.subprocess, 'run', side_effect=AssertionError('No extraction needed')):
+                result = rl.build([doc], folder, snapshot_download=fetch, download=lambda *a: self.fail('YouTube must not be requested'))
+            row = json.loads(Path(result['manifest']).read_text())['frames'][0]
+            self.assertEqual(row['source_sha256'], source)
+            self.assertEqual(row['image_sha256'], sha)
+
     def test_changed_training_image_is_rejected(self):
         import hashlib
         doc={'video_id':'AAAAAAAAAAA','match_key':'2026test_qm1','frames':{'1000':{'complete':True,'boxes':[],'frame_sha256':hashlib.sha256(b'correct').hexdigest()}}}
