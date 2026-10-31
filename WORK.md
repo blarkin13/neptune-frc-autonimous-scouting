@@ -1,3 +1,23 @@
+## 2026-10-30 — Scoreboard-constrained robot points and geometry rules: measured, not wired in (Claude, local only)
+
+Added `neptune_score_labels.allocate`. It splits each held scoreboard increase evenly among that alliance's robots inside a marked scoring zone in the delay-corrected window. With no robot inside, the points stay unassigned. Robot points plus unassigned always equal the displayed increases.
+
+Added `neptune_geometry_rules.py`:
+- Defense: sustained (3 s or more) presence in the opponent's marked scoring zone.
+- Climb: last tracked position in a region of the game pack's `climb_region_kind`. It returns `unavailable` when nothing is marked.
+
+`engine/evaluation/evaluate_rules.py` compares both with hand labels. Tests are in `engine/test_geometry_rules.py`; the engine suite passes (528).
+
+Results on txcmp1 qm1/3/4/6 with a fixed 5.0 s delay. The pooled delay came partly from qm3/qm4, so it is slightly optimistic.
+- Robot-point share against hand score-click share, compared with an even split: qm3 .307 vs .272 (worse), qm4 .302 vs .326, qm6 .102 vs .397. qm1 assigned nothing: its tracking has no robots in a zone.
+  Hand clicks cover only some robots (qm6: one alliance), so this truth is itself partial.
+- Points assigned: 65–98% per alliance.
+- Defense, share of hand defense clicks inside a rule interval: qm3 0/13, qm4 3/28, qm6 16/19. Robot AUC .50 / 1.0 / .56. Defense in this game is mostly not inside the opponent's scoring zone, so the rule is not good enough.
+- Climb: no climb regions are marked for any event, so it can't be measured.
+- Auto: no facts on this helper for the only auto-labelled match (qm2).
+
+Next: mark a climb region and a defense region (the opponent's half, as a field-wide polygon) for txcmp1, then re-run.
+
 ## 2026-10-30 — Weak scoreboard labels on unlabelled matches: no measurable gain (Claude, local only)
 
 The owner marked scoring zones for 2026kett (qm7), 2026week0 (qm8) and 2026txfor (qm10). I copied the marks read-only from the server (AWS SSM, with the owner's approval) into `~/.neptune-trainer/field-regions/events/`. 2026ctwat has no marks; its earlier local file was an empty list.

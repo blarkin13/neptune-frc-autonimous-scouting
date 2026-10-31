@@ -163,3 +163,21 @@ def weak_label_rows(attributed, facts, match_key, tag):
                      'label_scope': 'moment', 'polarity': 'present', 'weak_supervision': True, 'source': SOURCE, 'weight': WEIGHT,
                      'points': e['points'], 'scoreboard_t': e['t'], 'version': VERSION})
     return rows
+
+
+def allocate(events, facts, sightings, reach, delay, window=WINDOW):
+    """Scoreboard-constrained robot points: every held scoreboard increase is split evenly among the scoring
+    alliance's robots seen inside a marked scoring zone in the delay-corrected window; with none, it stays
+    unassigned. Per alliance, robot points plus unassigned always equal the displayed increases.
+
+    Returns {'robots': {team: points}, 'unassigned': {alliance: points}, 'displayed': {alliance: points}}."""
+    robots = collections.defaultdict(float); unassigned = collections.defaultdict(float); shown = collections.defaultdict(float)
+    for e in attribute(events, facts, sightings, reach, delay, window):
+        shown[e['alliance']] += e['points']
+        start, end = e['window']
+        inside = sorted({s['team'] for s in sightings if start <= s['t'] <= end and alliance_of(facts, s['team']) == e['alliance'] and reach(s) is True})
+        if not inside:
+            unassigned[e['alliance']] += e['points']; continue
+        for t in inside:
+            robots[t] += e['points'] / len(inside)
+    return {'version': VERSION, 'robots': {t: round(v, 2) for t, v in robots.items()}, 'unassigned': dict(unassigned), 'displayed': dict(shown)}
