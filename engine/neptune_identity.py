@@ -14,6 +14,12 @@ def roster_check(roster):
     values=[n for c in ('red','blue') for n in roster[c]]
     if any(type(n)!=int or n<=0 for n in values) or len(set(values))!=6:raise ValueError('Roster entries must be six distinct team numbers')
 
+FULL_FIELD_CAMERA='wide'
+
+def unconfirmed(p):
+    """The box follower numbers detections the tracker did not confirm with negative serials."""
+    return type(p.get('track_id'))==int and p['track_id']<0
+
 def motion(a,b,dt,association=None):
     ax,ay,aw,ah=a['box'];bx,by,bw,bh=b['box']
     distance=math.hypot(ax+aw/2-bx-bw/2,ay+ah/2-by-bh/2)
@@ -72,8 +78,16 @@ def solve_window(frames,teams,margin,association=None):
                 after=next((q for q in known if 0<q['t']-p['t']<=1.5),None)
                 contact_supported=before is not None and after is not None and before['verified_team']==after['verified_team']==team and motion(before,p,p['t']-before['t'])<4 and motion(p,after,after['t']-p['t'])<4
             if contact and not contact_supported:team=None
+            guarded=None
+            if trusted is None and team is not None and not contact_supported:
+                # A box the tracker never confirmed (the follower's negative serials) carries no
+                # identity of its own; a lone box in a close-up can be any robot that drove into
+                # view, so it keeps a carried name only when its own track has a bumper read.
+                if unconfirmed(p):guarded='unconfirmed_track_needs_review'
+                elif p['camera']!=FULL_FIELD_CAMERA and len(frame)==1 and not anchors[(p['camera'],str(p['scene']),p['track_id'])]:guarded='lone_closeup_box_needs_review'
+                if guarded:team=None
             status='verified' if trusted is not None else 'inferred' if team is not None else 'unknown'
-            out.append(dict(p,team=team,identity_status=status,reason='verified_ocr_segment' if trusted is not None else 'same_number_before_and_after_contact' if contact_supported else 'bidirectional_motion_and_roster' if team is not None else 'same_alliance_overlap_needs_review' if contact else 'multiple_roster_assignments',
+            out.append(dict(p,team=team,identity_status=status,reason='verified_ocr_segment' if trusted is not None else 'same_number_before_and_after_contact' if contact_supported else 'bidirectional_motion_and_roster' if team is not None else 'same_alliance_overlap_needs_review' if contact else guarded or 'multiple_roster_assignments',
                 candidate_teams=plausible,identity_evidence={'solver':VERSION,'uses_future_evidence':True,'training_eligible':trusted is not None}))
     return out
 
@@ -89,7 +103,7 @@ def bridge_short_gap(previous,current,association=None):
     if not 1.5<gap<=3.:return 0
     sources=[p for p in previous if p['t']==end and p['team'] is not None and
              any(r['team']==p['team'] and r['identity_status']=='verified' for r in previous)]
-    targets=[p for p in current if p['t']==start and p['team'] is None and p.get('reason')=='multiple_roster_assignments']
+    targets=[p for p in current if p['t']==start and p['team'] is None and p.get('reason')=='multiple_roster_assignments' and not unconfirmed(p)]
     pairs=[]
     for a in sources:
         for b in targets:
@@ -142,7 +156,7 @@ def bridge_track_fragments(points):
         if fragment:fragments.append(fragment)
     sources=[f for f in fragments if f[-1]['team'] is not None and
              any(p['identity_status']=='verified' and p['team']==f[-1]['team'] for p in f)]
-    targets=[f for f in fragments if f[0]['team'] is None and f[0].get('reason')=='multiple_roster_assignments']
+    targets=[f for f in fragments if f[0]['team'] is None and f[0].get('reason')=='multiple_roster_assignments' and not unconfirmed(f[0])]
     by_time=collections.defaultdict(list)
     for p in points:by_time[p['t']].append(p)
     def isolated(p):
@@ -245,8 +259,12 @@ def apply_corrections(review,corrections):
         if not selected:raise ValueError('Correction does not match a visible track interval')
         team=edit['team']
         if edit.get('ignored') and team is not None:raise ValueError('Excluded boxes cannot carry an identity')
-        if team is not None and (type(team)!=int or any(team not in review['roster'][p['alliance']] for p in selected)):raise ValueError('Correction team is not in this alliance')
-        for p in selected:manual[p['point_id']]={'team':team,'ignored':edit.get('ignored',False)}
+        if team is not None and (type(team)!=int or not any(team in review['roster'][c] for c in ('red','blue'))):raise ValueError('Correction team is not in this match')
+        # Naming a team from the other alliance also fixes a box the detector gave the wrong colour.
+        alliance=next((c for c in ('red','blue') if team in review['roster'][c]),None)
+        for p in selected:
+            manual[p['point_id']]={'team':team,'ignored':edit.get('ignored',False)}
+            if alliance and p['alliance']!=alliance:p['alliance']=alliance;p['alliance_corrected']=True
     frames=collections.defaultdict(dict)
     for p in points:
         m=manual.get(p['point_id'])
@@ -287,10 +305,15 @@ def with_roster_inferred(tracking):
     for p in base:
         taken[(p.get('camera'), p['team'])].append(p['t'])
     added = []
+    # A close-up shows part of the field, so roster elimination there can name a still non-robot
+    # box (2026txcmp1 QM3: 60 human-excluded boxes). There it needs a number read on that track.
+    read = {(p.get('camera'), str(p.get('scene')), p.get('track_id')) for p in review.get('points', []) if p.get('read_teams')}
     for p in review.get('points', []):
         if p.get('identity_status') != 'inferred' or p.get('reason') not in TRAINING_INFERENCE_REASONS or p.get('team') is None:
             continue
         if p.get('box_source') == 'optical_flow' or p.get('occluded'):
+            continue
+        if p.get('reason') == 'bidirectional_motion_and_roster' and p.get('camera', 'wide') != 'wide' and (p.get('camera'), str(p.get('scene')), p.get('track_id')) not in read:
             continue
         if any(abs(t-p['t']) < .2 for t in taken[(p.get('camera'), p['team'])]):
             continue

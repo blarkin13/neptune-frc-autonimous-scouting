@@ -11,7 +11,7 @@ import tempfile
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[2]
-VERSION = '6.6.18'
+VERSION = '6.6.44'
 
 
 def ar_member(name, data):
@@ -40,6 +40,25 @@ def tar_bytes(files):
     return output.getvalue()
 
 
+def write_update(app, folder, engine):
+    """The code-only update a running Linux helper installs into its per-user copy (same format as Windows), and its feed."""
+    sha = lambda data: hashlib.sha256(data).hexdigest()
+    names = {('app/' + p.relative_to(app).as_posix()): p.read_bytes() for p in sorted(app.rglob('*'))
+             if p.is_file() and p.suffix != '.pt' and p.name != 'trainer-connection.json'}
+    update = folder / ('Neptune-Training-Helper-' + VERSION + '-update.zip')
+    folder.mkdir(parents=True, exist_ok=True)
+    with zipfile.ZipFile(update, 'w', compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
+        for name, data in names.items():
+            archive.writestr(zipfile.ZipInfo(name, (1980, 1, 1, 0, 0, 0)), data, zipfile.ZIP_DEFLATED)
+        archive.writestr(zipfile.ZipInfo('files.json', (1980, 1, 1, 0, 0, 0)), json.dumps({n: sha(d) for n, d in names.items()}, indent=2, sort_keys=True) + '\n', zipfile.ZIP_DEFLATED)
+    data = update.read_bytes()
+    feed = {'schema_version': 1, 'platform': 'linux', 'version': VERSION, 'engine_version': engine,
+            'archive_url': 'https://neptunefrc.com/community/downloads/linux/' + update.name,
+            'archive_sha256': sha(data), 'archive_size': len(data)}
+    (folder / 'latest.json').write_text(json.dumps(feed, indent=2, sort_keys=True) + '\n')
+    print(update, len(data), sha(data))
+
+
 def build(base, output):
     with tempfile.TemporaryDirectory(prefix='neptune-linux-deb-') as temp:
         stage = Path(temp)
@@ -59,6 +78,8 @@ def build(base, output):
         for name in ('neptune_trainer_entry.py', 'neptune_trainer_pairing.py'):
             shutil.copy2(ROOT / 'trainer-app/common' / name, app / name)
         shutil.copy2(ROOT / 'trainer-app/linux/Neptune.png', app / 'Neptune.png')
+        for name in ('neptune_windows_update.py', 'neptune_update_apply.py'):     # self-updates (6.6.26+)
+            shutil.copy2(ROOT / 'trainer-app/windows' / name, app / name)
         (app / 'build-version.json').write_text(json.dumps({'version': VERSION}) + '\n')
         # Shipped detectors and region data live in folders next to the engine files.
         for name in ('robot-detector', 'field-detector', 'field-regions'):
@@ -66,6 +87,7 @@ def build(base, output):
             shutil.copytree(ROOT / 'engine' / name, app / name, ignore=shutil.ignore_patterns('README.md'))
         files = {'usr/share/neptune-training-helper/app/' + path.relative_to(app).as_posix(): (path.read_bytes(), 0o644)
                  for path in app.rglob('*') if path.is_file()}
+        write_update(app, output.parent, neptune_engine.VERSION)
         bootstrap = ROOT / 'trainer-app/linux/bootstrap.py'
         icon = ROOT / 'trainer-app/linux/Neptune.png'
         files['usr/share/neptune-training-helper/bootstrap.py'] = (bootstrap.read_bytes(), 0o644)

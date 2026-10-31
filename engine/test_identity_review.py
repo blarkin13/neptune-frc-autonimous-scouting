@@ -39,7 +39,13 @@ class Identity(unittest.TestCase):
  def test_corrections_are_bounded_and_leave_original_data_unchanged(self):
   original=reconcile([point(t,1,.1) for t in (0,.5,1)],R,SHA);before=copy.deepcopy(original);track=original['points'][0]['review_track'];edit={'review_track':track,'start':.5,'end':1,'team':2}
   out=apply_corrections(original,[edit]);self.assertEqual(out['points'][0]['team'],2);self.assertEqual(out['points'][0]['identity_status'],'inferred');self.assertEqual([p['team'] for p in out['points'][1:]],[2,2]);self.assertEqual(original,before)
-  with self.assertRaises(ValueError):apply_corrections(original,[dict(edit,team=4)])
+  with self.assertRaises(ValueError):apply_corrections(original,[dict(edit,team=9)])
+ def test_other_alliance_team_fixes_the_box_colour(self):
+  # A blue robot the detector called red: naming it moves those boxes to blue; the rest of the track stays red.
+  original=reconcile([point(t,1,.1) for t in (0,.5,1)],R,SHA);track=original['points'][0]['review_track']
+  out=apply_corrections(original,[{'review_track':track,'start':0,'end':.5,'team':4}])
+  self.assertEqual([(p['alliance'],p['team'],p['identity_status']) for p in out['points'][:2]],[('blue',4,'corrected')]*2)
+  self.assertEqual(out['points'][2]['alliance'],'red');self.assertEqual(original['points'][0]['alliance'],'red')
  def test_duplicate_human_assignments_are_rejected(self):
   review=reconcile([point(0,1,.1),point(0,2,.5)],R,SHA)
   edits=[{'review_track':p['review_track'],'start':0,'end':0,'team':1} for p in review['points']]

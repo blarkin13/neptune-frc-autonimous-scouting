@@ -1,0 +1,2516 @@
+{
+ "about": "Held-out bumpers: 2026capoh_qm9 (another event, camera and overlay), never used for tuning. Boxes from the shipped bumper detector (bumper_wide_b77206cbc115, conf >= 0.35, width >= 70 px, below the overlay) on one frame every 4 s; numbers read by eye (Claude, 2026-10-27). Roster from the overlay.",
+ "rosters": {
+  "2026capoh_qm9": {
+   "red": [
+    6764,
+    9772,
+    1148
+   ],
+   "blue": [
+    2584,
+    5025,
+    10147
+   ]
+  }
+ },
+ "scoreboard": [],
+ "bumpers": [
+  {
+   "frame": "capoh9_014",
+   "box": 0,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_014.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.07835,
+    0.32013,
+    0.08573,
+    0.05787
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "587263fbe717d36f5066062d5ab55d1b5826a57862e2d321c509ffd11819c6cf"
+  },
+  {
+   "frame": "capoh9_014",
+   "box": 1,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_014.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.0817,
+    0.93692,
+    0.09157,
+    0.05461
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "587263fbe717d36f5066062d5ab55d1b5826a57862e2d321c509ffd11819c6cf"
+  },
+  {
+   "frame": "capoh9_014",
+   "box": 2,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_014.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "red",
+   "xywh": [
+    0.83159,
+    0.34382,
+    0.07946,
+    0.06168
+   ],
+   "team": 1148,
+   "legible": "full",
+   "sha256": "587263fbe717d36f5066062d5ab55d1b5826a57862e2d321c509ffd11819c6cf"
+  },
+  {
+   "frame": "capoh9_014",
+   "box": 3,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_014.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "red",
+   "xywh": [
+    0.81422,
+    0.91893,
+    0.05523,
+    0.03992
+   ],
+   "team": 6764,
+   "legible": "partial",
+   "sha256": "587263fbe717d36f5066062d5ab55d1b5826a57862e2d321c509ffd11819c6cf"
+  },
+  {
+   "frame": "capoh9_018",
+   "box": 0,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_018.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.07922,
+    0.32228,
+    0.08488,
+    0.05589
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "1fada1d8a396d4720657e02a0bffccac0f296c15e4332cff333cab3bae48e9d0"
+  },
+  {
+   "frame": "capoh9_018",
+   "box": 1,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_018.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.0818,
+    0.93815,
+    0.09084,
+    0.05327
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "1fada1d8a396d4720657e02a0bffccac0f296c15e4332cff333cab3bae48e9d0"
+  },
+  {
+   "frame": "capoh9_018",
+   "box": 2,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_018.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "red",
+   "xywh": [
+    0.83309,
+    0.35115,
+    0.07663,
+    0.05184
+   ],
+   "team": 1148,
+   "legible": "full",
+   "sha256": "1fada1d8a396d4720657e02a0bffccac0f296c15e4332cff333cab3bae48e9d0"
+  },
+  {
+   "frame": "capoh9_018",
+   "box": 3,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_018.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "red",
+   "xywh": [
+    0.81846,
+    0.92258,
+    0.04856,
+    0.03703
+   ],
+   "team": null,
+   "legible": "none",
+   "sha256": "1fada1d8a396d4720657e02a0bffccac0f296c15e4332cff333cab3bae48e9d0"
+  },
+  {
+   "frame": "capoh9_022",
+   "box": 0,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_022.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.07852,
+    0.32062,
+    0.08639,
+    0.05716
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "2945960d0efd911b856f28f2dd8b023e368e27a18e5f322cde4ae958747835ce"
+  },
+  {
+   "frame": "capoh9_022",
+   "box": 1,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_022.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.08167,
+    0.93802,
+    0.09123,
+    0.05351
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "2945960d0efd911b856f28f2dd8b023e368e27a18e5f322cde4ae958747835ce"
+  },
+  {
+   "frame": "capoh9_022",
+   "box": 2,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_022.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "red",
+   "xywh": [
+    0.83314,
+    0.35109,
+    0.07677,
+    0.05177
+   ],
+   "team": 1148,
+   "legible": "full",
+   "sha256": "2945960d0efd911b856f28f2dd8b023e368e27a18e5f322cde4ae958747835ce"
+  },
+  {
+   "frame": "capoh9_022",
+   "box": 3,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_022.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "red",
+   "xywh": [
+    0.81721,
+    0.92174,
+    0.05064,
+    0.03798
+   ],
+   "team": null,
+   "legible": "none",
+   "sha256": "2945960d0efd911b856f28f2dd8b023e368e27a18e5f322cde4ae958747835ce"
+  },
+  {
+   "frame": "capoh9_022",
+   "box": 4,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_022.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "red",
+   "xywh": [
+    0.75056,
+    0.94438,
+    0.07,
+    0.04392
+   ],
+   "team": 1148,
+   "legible": "partial",
+   "sha256": "2945960d0efd911b856f28f2dd8b023e368e27a18e5f322cde4ae958747835ce"
+  },
+  {
+   "frame": "capoh9_026",
+   "box": 0,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_026.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.07864,
+    0.32025,
+    0.08708,
+    0.05753
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "69aa2a4917b058f08200b72b2b0a18fd4c2841470c95c7f0699f01eafd6b4ee1"
+  },
+  {
+   "frame": "capoh9_026",
+   "box": 1,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_026.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.08157,
+    0.93792,
+    0.09106,
+    0.05362
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "69aa2a4917b058f08200b72b2b0a18fd4c2841470c95c7f0699f01eafd6b4ee1"
+  },
+  {
+   "frame": "capoh9_026",
+   "box": 2,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_026.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "red",
+   "xywh": [
+    0.83312,
+    0.35103,
+    0.0766,
+    0.05178
+   ],
+   "team": 1148,
+   "legible": "full",
+   "sha256": "69aa2a4917b058f08200b72b2b0a18fd4c2841470c95c7f0699f01eafd6b4ee1"
+  },
+  {
+   "frame": "capoh9_026",
+   "box": 3,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_026.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "red",
+   "xywh": [
+    0.75071,
+    0.94389,
+    0.06974,
+    0.04433
+   ],
+   "team": 1148,
+   "legible": "partial",
+   "sha256": "69aa2a4917b058f08200b72b2b0a18fd4c2841470c95c7f0699f01eafd6b4ee1"
+  },
+  {
+   "frame": "capoh9_026",
+   "box": 4,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_026.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "red",
+   "xywh": [
+    0.8173,
+    0.92171,
+    0.05026,
+    0.03788
+   ],
+   "team": null,
+   "legible": "none",
+   "sha256": "69aa2a4917b058f08200b72b2b0a18fd4c2841470c95c7f0699f01eafd6b4ee1"
+  },
+  {
+   "frame": "capoh9_030",
+   "box": 0,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_030.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.07854,
+    0.32057,
+    0.08677,
+    0.05723
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "729252c54cadc98dd2118f4c3aea44cd2e52adeaaf9f23c79b888df9520b53da"
+  },
+  {
+   "frame": "capoh9_030",
+   "box": 1,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_030.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.08184,
+    0.93717,
+    0.09092,
+    0.05419
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "729252c54cadc98dd2118f4c3aea44cd2e52adeaaf9f23c79b888df9520b53da"
+  },
+  {
+   "frame": "capoh9_030",
+   "box": 2,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_030.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "red",
+   "xywh": [
+    0.83316,
+    0.35105,
+    0.07661,
+    0.05177
+   ],
+   "team": 1148,
+   "legible": "full",
+   "sha256": "729252c54cadc98dd2118f4c3aea44cd2e52adeaaf9f23c79b888df9520b53da"
+  },
+  {
+   "frame": "capoh9_030",
+   "box": 3,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_030.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "red",
+   "xywh": [
+    0.75081,
+    0.94423,
+    0.06949,
+    0.04403
+   ],
+   "team": 1148,
+   "legible": "partial",
+   "sha256": "729252c54cadc98dd2118f4c3aea44cd2e52adeaaf9f23c79b888df9520b53da"
+  },
+  {
+   "frame": "capoh9_030",
+   "box": 4,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_030.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "red",
+   "xywh": [
+    0.8161,
+    0.92079,
+    0.05124,
+    0.0388
+   ],
+   "team": null,
+   "legible": "none",
+   "sha256": "729252c54cadc98dd2118f4c3aea44cd2e52adeaaf9f23c79b888df9520b53da"
+  },
+  {
+   "frame": "capoh9_034",
+   "box": 0,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_034.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "red",
+   "xywh": [
+    0.67712,
+    0.94248,
+    0.08416,
+    0.05098
+   ],
+   "team": null,
+   "legible": "none",
+   "sha256": "c5124c8a639f7b982faf16dd4306cae32f1233c3af457f5e9b7ae0627001fda7"
+  },
+  {
+   "frame": "capoh9_034",
+   "box": 1,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_034.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.07467,
+    0.30811,
+    0.0892,
+    0.06795
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "c5124c8a639f7b982faf16dd4306cae32f1233c3af457f5e9b7ae0627001fda7"
+  },
+  {
+   "frame": "capoh9_034",
+   "box": 2,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_034.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "red",
+   "xywh": [
+    0.82656,
+    0.36975,
+    0.0887,
+    0.06343
+   ],
+   "team": 9772,
+   "legible": "full",
+   "sha256": "c5124c8a639f7b982faf16dd4306cae32f1233c3af457f5e9b7ae0627001fda7"
+  },
+  {
+   "frame": "capoh9_034",
+   "box": 3,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_034.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.06422,
+    0.93501,
+    0.08854,
+    0.05574
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "c5124c8a639f7b982faf16dd4306cae32f1233c3af457f5e9b7ae0627001fda7"
+  },
+  {
+   "frame": "capoh9_034",
+   "box": 4,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_034.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "red",
+   "xywh": [
+    0.81533,
+    0.92031,
+    0.05226,
+    0.0393
+   ],
+   "team": null,
+   "legible": "none",
+   "sha256": "c5124c8a639f7b982faf16dd4306cae32f1233c3af457f5e9b7ae0627001fda7"
+  },
+  {
+   "frame": "capoh9_038",
+   "box": 0,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_038.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.09207,
+    0.35852,
+    0.09937,
+    0.07111
+   ],
+   "team": null,
+   "legible": "none",
+   "sha256": "23e244f6c4b7d59847bc02e99e81784141e351f7608f42cb08848495f4e22f74"
+  },
+  {
+   "frame": "capoh9_038",
+   "box": 1,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_038.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.32952,
+    0.36133,
+    0.09675,
+    0.06386
+   ],
+   "team": 2584,
+   "legible": "full",
+   "sha256": "23e244f6c4b7d59847bc02e99e81784141e351f7608f42cb08848495f4e22f74"
+  },
+  {
+   "frame": "capoh9_038",
+   "box": 2,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_038.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.17629,
+    0.92372,
+    0.11584,
+    0.07323
+   ],
+   "team": null,
+   "legible": "none",
+   "sha256": "23e244f6c4b7d59847bc02e99e81784141e351f7608f42cb08848495f4e22f74"
+  },
+  {
+   "frame": "capoh9_038",
+   "box": 3,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_038.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "red",
+   "xywh": [
+    0.81426,
+    0.92028,
+    0.05322,
+    0.03976
+   ],
+   "team": null,
+   "legible": "none",
+   "sha256": "23e244f6c4b7d59847bc02e99e81784141e351f7608f42cb08848495f4e22f74"
+  },
+  {
+   "frame": "capoh9_042",
+   "box": 0,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_042.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "red",
+   "xywh": [
+    0.86747,
+    0.37388,
+    0.09859,
+    0.07151
+   ],
+   "team": 9772,
+   "legible": "full",
+   "sha256": "4a33cb8e8d31e4fff40f7f6ff0826a275f6395fb589fc754c0865b381b2492b8"
+  },
+  {
+   "frame": "capoh9_042",
+   "box": 1,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_042.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.06529,
+    0.32353,
+    0.09345,
+    0.06153
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "4a33cb8e8d31e4fff40f7f6ff0826a275f6395fb589fc754c0865b381b2492b8"
+  },
+  {
+   "frame": "capoh9_042",
+   "box": 2,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_042.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.2902,
+    0.3877,
+    0.099,
+    0.06965
+   ],
+   "team": 2584,
+   "legible": "full",
+   "sha256": "4a33cb8e8d31e4fff40f7f6ff0826a275f6395fb589fc754c0865b381b2492b8"
+  },
+  {
+   "frame": "capoh9_042",
+   "box": 3,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_042.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.07067,
+    0.93895,
+    0.09535,
+    0.05666
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "4a33cb8e8d31e4fff40f7f6ff0826a275f6395fb589fc754c0865b381b2492b8"
+  },
+  {
+   "frame": "capoh9_042",
+   "box": 4,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_042.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "red",
+   "xywh": [
+    0.70265,
+    0.49311,
+    0.12142,
+    0.08878
+   ],
+   "team": null,
+   "legible": "none",
+   "sha256": "4a33cb8e8d31e4fff40f7f6ff0826a275f6395fb589fc754c0865b381b2492b8"
+  },
+  {
+   "frame": "capoh9_042",
+   "box": 5,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_042.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "red",
+   "xywh": [
+    0.71695,
+    0.94269,
+    0.09462,
+    0.05731
+   ],
+   "team": null,
+   "legible": "none",
+   "sha256": "4a33cb8e8d31e4fff40f7f6ff0826a275f6395fb589fc754c0865b381b2492b8"
+  },
+  {
+   "frame": "capoh9_042",
+   "box": 6,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_042.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.28385,
+    0.36658,
+    0.10573,
+    0.08448
+   ],
+   "team": 2584,
+   "legible": "full",
+   "sha256": "4a33cb8e8d31e4fff40f7f6ff0826a275f6395fb589fc754c0865b381b2492b8"
+  },
+  {
+   "frame": "capoh9_042",
+   "box": 7,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_042.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "red",
+   "xywh": [
+    0.81562,
+    0.92095,
+    0.05242,
+    0.039
+   ],
+   "team": null,
+   "legible": "none",
+   "sha256": "4a33cb8e8d31e4fff40f7f6ff0826a275f6395fb589fc754c0865b381b2492b8"
+  },
+  {
+   "frame": "capoh9_046",
+   "box": 0,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_046.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "red",
+   "xywh": [
+    0.88919,
+    0.36489,
+    0.09652,
+    0.07043
+   ],
+   "team": 9772,
+   "legible": "full",
+   "sha256": "b7e5755af433b08e5d9da42e4363165146dfb6a16bbf1600dac98322df0c266d"
+  },
+  {
+   "frame": "capoh9_046",
+   "box": 1,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_046.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.06566,
+    0.3233,
+    0.09276,
+    0.06126
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "b7e5755af433b08e5d9da42e4363165146dfb6a16bbf1600dac98322df0c266d"
+  },
+  {
+   "frame": "capoh9_046",
+   "box": 2,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_046.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "red",
+   "xywh": [
+    0.59405,
+    0.39965,
+    0.10426,
+    0.07615
+   ],
+   "team": 1148,
+   "legible": "full",
+   "sha256": "b7e5755af433b08e5d9da42e4363165146dfb6a16bbf1600dac98322df0c266d"
+  },
+  {
+   "frame": "capoh9_046",
+   "box": 3,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_046.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.07121,
+    0.94108,
+    0.09363,
+    0.05418
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "b7e5755af433b08e5d9da42e4363165146dfb6a16bbf1600dac98322df0c266d"
+  },
+  {
+   "frame": "capoh9_046",
+   "box": 4,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_046.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "red",
+   "xywh": [
+    0.82941,
+    0.92449,
+    0.03795,
+    0.03422
+   ],
+   "team": null,
+   "legible": "none",
+   "sha256": "b7e5755af433b08e5d9da42e4363165146dfb6a16bbf1600dac98322df0c266d"
+  },
+  {
+   "frame": "capoh9_050",
+   "box": 0,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_050.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "red",
+   "xywh": [
+    0.94642,
+    0.37937,
+    0.05358,
+    0.06227
+   ],
+   "team": 9772,
+   "legible": "partial",
+   "sha256": "3334ed374da79cb41d13940f33bfb1750b7584406e6a3205d79fb65bf5c773eb"
+  },
+  {
+   "frame": "capoh9_050",
+   "box": 1,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_050.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "red",
+   "xywh": [
+    0.58484,
+    0.34627,
+    0.09174,
+    0.07896
+   ],
+   "team": 1148,
+   "legible": "full",
+   "sha256": "3334ed374da79cb41d13940f33bfb1750b7584406e6a3205d79fb65bf5c773eb"
+  },
+  {
+   "frame": "capoh9_050",
+   "box": 2,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_050.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.07493,
+    0.9436,
+    0.08459,
+    0.05113
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "3334ed374da79cb41d13940f33bfb1750b7584406e6a3205d79fb65bf5c773eb"
+  },
+  {
+   "frame": "capoh9_050",
+   "box": 3,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_050.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.06602,
+    0.31517,
+    0.09392,
+    0.05992
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "3334ed374da79cb41d13940f33bfb1750b7584406e6a3205d79fb65bf5c773eb"
+  },
+  {
+   "frame": "capoh9_050",
+   "box": 4,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_050.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "red",
+   "xywh": [
+    0.07211,
+    0.27624,
+    0.06607,
+    0.03496
+   ],
+   "team": null,
+   "legible": "none",
+   "sha256": "3334ed374da79cb41d13940f33bfb1750b7584406e6a3205d79fb65bf5c773eb"
+  },
+  {
+   "frame": "capoh9_054",
+   "box": 0,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_054.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "red",
+   "xywh": [
+    0.9603,
+    0.37139,
+    0.0397,
+    0.06665
+   ],
+   "team": null,
+   "legible": "none",
+   "sha256": "5c9cc907c60014d1f067c2baef0f830022529ce8db0240ee3ec82cb4c1de600a"
+  },
+  {
+   "frame": "capoh9_054",
+   "box": 1,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_054.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.07685,
+    0.31852,
+    0.09217,
+    0.06522
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "5c9cc907c60014d1f067c2baef0f830022529ce8db0240ee3ec82cb4c1de600a"
+  },
+  {
+   "frame": "capoh9_054",
+   "box": 2,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_054.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.08797,
+    0.93893,
+    0.08447,
+    0.05178
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "5c9cc907c60014d1f067c2baef0f830022529ce8db0240ee3ec82cb4c1de600a"
+  },
+  {
+   "frame": "capoh9_058",
+   "box": 0,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_058.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "red",
+   "xywh": [
+    0.66453,
+    0.38984,
+    0.10866,
+    0.10241
+   ],
+   "team": 1148,
+   "legible": "partial",
+   "sha256": "3dad32c69874feb7bac2447d676864586e528b6a9e77a399cde32112cd21a1e6"
+  },
+  {
+   "frame": "capoh9_058",
+   "box": 1,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_058.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.08719,
+    0.93076,
+    0.0974,
+    0.0604
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "3dad32c69874feb7bac2447d676864586e528b6a9e77a399cde32112cd21a1e6"
+  },
+  {
+   "frame": "capoh9_058",
+   "box": 2,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_058.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.08511,
+    0.32165,
+    0.07869,
+    0.05862
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "3dad32c69874feb7bac2447d676864586e528b6a9e77a399cde32112cd21a1e6"
+  },
+  {
+   "frame": "capoh9_058",
+   "box": 3,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_058.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.1684,
+    0.28538,
+    0.05783,
+    0.05383
+   ],
+   "team": 10147,
+   "legible": "full",
+   "sha256": "3dad32c69874feb7bac2447d676864586e528b6a9e77a399cde32112cd21a1e6"
+  },
+  {
+   "frame": "capoh9_058",
+   "box": 4,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_058.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "red",
+   "xywh": [
+    0.81467,
+    0.92242,
+    0.05214,
+    0.03719
+   ],
+   "team": 6764,
+   "legible": "partial",
+   "sha256": "3dad32c69874feb7bac2447d676864586e528b6a9e77a399cde32112cd21a1e6"
+  },
+  {
+   "frame": "capoh9_062",
+   "box": 0,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_062.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "red",
+   "xywh": [
+    0.82088,
+    0.9218,
+    0.04418,
+    0.0359
+   ],
+   "team": 6764,
+   "legible": "partial",
+   "sha256": "a4cc3fdc8a2c8bf800dc12647d497bab18e131d7e227aae71a955b982ac5ff93"
+  },
+  {
+   "frame": "capoh9_062",
+   "box": 1,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_062.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "red",
+   "xywh": [
+    0.82428,
+    0.93096,
+    0.04029,
+    0.02707
+   ],
+   "team": 6764,
+   "legible": "partial",
+   "sha256": "a4cc3fdc8a2c8bf800dc12647d497bab18e131d7e227aae71a955b982ac5ff93"
+  },
+  {
+   "frame": "capoh9_066",
+   "box": 0,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_066.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.10809,
+    0.94209,
+    0.08661,
+    0.05189
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "d8b3b0959ca28ad81d42a6fbd66911ade90b74bdb801d5b7892abb84349e4b34"
+  },
+  {
+   "frame": "capoh9_066",
+   "box": 1,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_066.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.07816,
+    0.33045,
+    0.09031,
+    0.06408
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "d8b3b0959ca28ad81d42a6fbd66911ade90b74bdb801d5b7892abb84349e4b34"
+  },
+  {
+   "frame": "capoh9_066",
+   "box": 2,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_066.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.14353,
+    0.26578,
+    0.06507,
+    0.0512
+   ],
+   "team": null,
+   "legible": "none",
+   "sha256": "d8b3b0959ca28ad81d42a6fbd66911ade90b74bdb801d5b7892abb84349e4b34"
+  },
+  {
+   "frame": "capoh9_070",
+   "box": 0,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_070.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.08728,
+    0.31236,
+    0.09838,
+    0.06873
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "16c82fcfd48226a7c2b31340583c0108a0dc4949d22b36f538875f5e17150c7b"
+  },
+  {
+   "frame": "capoh9_070",
+   "box": 1,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_070.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.0966,
+    0.9328,
+    0.09272,
+    0.05586
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "16c82fcfd48226a7c2b31340583c0108a0dc4949d22b36f538875f5e17150c7b"
+  },
+  {
+   "frame": "capoh9_070",
+   "box": 2,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_070.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "red",
+   "xywh": [
+    0.82396,
+    0.92415,
+    0.04358,
+    0.03372
+   ],
+   "team": null,
+   "legible": "none",
+   "sha256": "16c82fcfd48226a7c2b31340583c0108a0dc4949d22b36f538875f5e17150c7b"
+  },
+  {
+   "frame": "capoh9_070",
+   "box": 3,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_070.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.08658,
+    0.32823,
+    0.07585,
+    0.04789
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "16c82fcfd48226a7c2b31340583c0108a0dc4949d22b36f538875f5e17150c7b"
+  },
+  {
+   "frame": "capoh9_074",
+   "box": 0,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_074.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.09463,
+    0.31825,
+    0.09121,
+    0.05981
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "a252e7f3ce1513c125b26de2e790451c8b142cf1d57b88be6b1f129282349dae"
+  },
+  {
+   "frame": "capoh9_074",
+   "box": 1,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_074.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.0957,
+    0.92395,
+    0.09597,
+    0.0618
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "a252e7f3ce1513c125b26de2e790451c8b142cf1d57b88be6b1f129282349dae"
+  },
+  {
+   "frame": "capoh9_074",
+   "box": 2,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_074.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "red",
+   "xywh": [
+    0.39786,
+    0.32025,
+    0.07384,
+    0.05852
+   ],
+   "team": 1148,
+   "legible": "full",
+   "sha256": "a252e7f3ce1513c125b26de2e790451c8b142cf1d57b88be6b1f129282349dae"
+  },
+  {
+   "frame": "capoh9_074",
+   "box": 3,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_074.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "red",
+   "xywh": [
+    0.82068,
+    0.92176,
+    0.0462,
+    0.03597
+   ],
+   "team": null,
+   "legible": "none",
+   "sha256": "a252e7f3ce1513c125b26de2e790451c8b142cf1d57b88be6b1f129282349dae"
+  },
+  {
+   "frame": "capoh9_078",
+   "box": 0,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_078.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.07299,
+    0.31641,
+    0.09194,
+    0.06408
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "c1cce4cdc5b3947c62b7fb79d2deea60579366bbe1f430190b1aa0a4a57f1820"
+  },
+  {
+   "frame": "capoh9_078",
+   "box": 1,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_078.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.0754,
+    0.93807,
+    0.09294,
+    0.05583
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "c1cce4cdc5b3947c62b7fb79d2deea60579366bbe1f430190b1aa0a4a57f1820"
+  },
+  {
+   "frame": "capoh9_078",
+   "box": 2,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_078.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "red",
+   "xywh": [
+    0.82221,
+    0.92305,
+    0.04447,
+    0.03395
+   ],
+   "team": null,
+   "legible": "none",
+   "sha256": "c1cce4cdc5b3947c62b7fb79d2deea60579366bbe1f430190b1aa0a4a57f1820"
+  },
+  {
+   "frame": "capoh9_082",
+   "box": 0,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_082.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "red",
+   "xywh": [
+    0.6825,
+    0.37192,
+    0.09176,
+    0.07602
+   ],
+   "team": 1148,
+   "legible": "full",
+   "sha256": "1ad5abd34d434c7386d8cbcb8b46f0fa2a0872569461c275ff9bbfd8da67eec4"
+  },
+  {
+   "frame": "capoh9_082",
+   "box": 1,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_082.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.131,
+    0.31465,
+    0.08012,
+    0.05969
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "1ad5abd34d434c7386d8cbcb8b46f0fa2a0872569461c275ff9bbfd8da67eec4"
+  },
+  {
+   "frame": "capoh9_082",
+   "box": 2,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_082.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.13267,
+    0.93012,
+    0.06863,
+    0.04436
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "1ad5abd34d434c7386d8cbcb8b46f0fa2a0872569461c275ff9bbfd8da67eec4"
+  },
+  {
+   "frame": "capoh9_086",
+   "box": 0,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_086.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.13254,
+    0.24911,
+    0.06787,
+    0.04554
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "aeceb03dc8adf30bf8a1bcfa566f6bc6749c29ab11efc12d22c03ba5a6e94a1a"
+  },
+  {
+   "frame": "capoh9_090",
+   "box": 0,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_090.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.09991,
+    0.30484,
+    0.07857,
+    0.0514
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "4b40fee388a960b039a012c1ce4e82d556a755f30b99cee509d8d3c3f807b634"
+  },
+  {
+   "frame": "capoh9_090",
+   "box": 1,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_090.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "red",
+   "xywh": [
+    0.4786,
+    0.32117,
+    0.07706,
+    0.0673
+   ],
+   "team": 1148,
+   "legible": "partial",
+   "sha256": "4b40fee388a960b039a012c1ce4e82d556a755f30b99cee509d8d3c3f807b634"
+  },
+  {
+   "frame": "capoh9_090",
+   "box": 2,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_090.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.06013,
+    0.92625,
+    0.09284,
+    0.05674
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "4b40fee388a960b039a012c1ce4e82d556a755f30b99cee509d8d3c3f807b634"
+  },
+  {
+   "frame": "capoh9_094",
+   "box": 0,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_094.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.08062,
+    0.32079,
+    0.09249,
+    0.06045
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "b3710d20127753c41a7b3dc99de5365465ea803daf136dfb4df1b1b1b7081e05"
+  },
+  {
+   "frame": "capoh9_094",
+   "box": 1,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_094.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "red",
+   "xywh": [
+    0.62372,
+    0.27718,
+    0.07661,
+    0.057
+   ],
+   "team": 1148,
+   "legible": "full",
+   "sha256": "b3710d20127753c41a7b3dc99de5365465ea803daf136dfb4df1b1b1b7081e05"
+  },
+  {
+   "frame": "capoh9_094",
+   "box": 2,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_094.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.08713,
+    0.93779,
+    0.08478,
+    0.05081
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "b3710d20127753c41a7b3dc99de5365465ea803daf136dfb4df1b1b1b7081e05"
+  },
+  {
+   "frame": "capoh9_094",
+   "box": 3,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_094.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "red",
+   "xywh": [
+    0.8223,
+    0.92213,
+    0.04518,
+    0.03494
+   ],
+   "team": null,
+   "legible": "none",
+   "sha256": "b3710d20127753c41a7b3dc99de5365465ea803daf136dfb4df1b1b1b7081e05"
+  },
+  {
+   "frame": "capoh9_098",
+   "box": 0,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_098.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.08077,
+    0.31942,
+    0.0943,
+    0.06075
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "853879da4dbe085e1993e189c6d531c3ca8e411413ea6ebc938f8b9e50255ddc"
+  },
+  {
+   "frame": "capoh9_098",
+   "box": 1,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_098.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "red",
+   "xywh": [
+    0.60287,
+    0.46843,
+    0.0996,
+    0.08003
+   ],
+   "team": 1148,
+   "legible": "full",
+   "sha256": "853879da4dbe085e1993e189c6d531c3ca8e411413ea6ebc938f8b9e50255ddc"
+  },
+  {
+   "frame": "capoh9_102",
+   "box": 0,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_102.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.08139,
+    0.3203,
+    0.09269,
+    0.05932
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "4cc396a99b8a9045dbb707bf31f4c719c254577d79e3d02d010a7208ed7b222f"
+  },
+  {
+   "frame": "capoh9_102",
+   "box": 1,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_102.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "red",
+   "xywh": [
+    0.8226,
+    0.92233,
+    0.04497,
+    0.03531
+   ],
+   "team": null,
+   "legible": "none",
+   "sha256": "4cc396a99b8a9045dbb707bf31f4c719c254577d79e3d02d010a7208ed7b222f"
+  },
+  {
+   "frame": "capoh9_102",
+   "box": 3,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_102.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "red",
+   "xywh": [
+    0.55798,
+    0.47517,
+    0.10991,
+    0.06973
+   ],
+   "team": 1148,
+   "legible": "partial",
+   "sha256": "4cc396a99b8a9045dbb707bf31f4c719c254577d79e3d02d010a7208ed7b222f"
+  },
+  {
+   "frame": "capoh9_106",
+   "box": 0,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_106.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.09676,
+    0.9311,
+    0.09738,
+    0.05968
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "7d0534c8168f6d3176bd1fdb9197177f412228bce45e6cadc34b48ea075d4d53"
+  },
+  {
+   "frame": "capoh9_106",
+   "box": 1,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_106.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.087,
+    0.32306,
+    0.09263,
+    0.0615
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "7d0534c8168f6d3176bd1fdb9197177f412228bce45e6cadc34b48ea075d4d53"
+  },
+  {
+   "frame": "capoh9_106",
+   "box": 2,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_106.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "red",
+   "xywh": [
+    0.82281,
+    0.92263,
+    0.04445,
+    0.03495
+   ],
+   "team": null,
+   "legible": "none",
+   "sha256": "7d0534c8168f6d3176bd1fdb9197177f412228bce45e6cadc34b48ea075d4d53"
+  },
+  {
+   "frame": "capoh9_110",
+   "box": 0,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_110.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.12382,
+    0.31647,
+    0.08601,
+    0.05779
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "b3f48ee6e6a1357222c80b1fc2b740fa7a8eb4d45de3e5f2f205201d6f4b2c18"
+  },
+  {
+   "frame": "capoh9_110",
+   "box": 1,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_110.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.13155,
+    0.92412,
+    0.08383,
+    0.05314
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "b3f48ee6e6a1357222c80b1fc2b740fa7a8eb4d45de3e5f2f205201d6f4b2c18"
+  },
+  {
+   "frame": "capoh9_114",
+   "box": 0,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_114.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.13735,
+    0.31866,
+    0.08731,
+    0.06438
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "eaf4fa89177ab084185ce009ba043d062af71c781c332dc88a07537fb4c33666"
+  },
+  {
+   "frame": "capoh9_114",
+   "box": 1,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_114.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.16507,
+    0.92616,
+    0.07411,
+    0.0501
+   ],
+   "team": null,
+   "legible": "none",
+   "sha256": "eaf4fa89177ab084185ce009ba043d062af71c781c332dc88a07537fb4c33666"
+  },
+  {
+   "frame": "capoh9_118",
+   "box": 0,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_118.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.19324,
+    0.25639,
+    0.037,
+    0.0528
+   ],
+   "team": 10147,
+   "legible": "partial",
+   "sha256": "cba5200ecf9e4304ca1c13e7406b97fb3e1c13809e72a1396e6e7f3924c2f380"
+  },
+  {
+   "frame": "capoh9_118",
+   "box": 1,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_118.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.10205,
+    0.90866,
+    0.06426,
+    0.04311
+   ],
+   "team": 10147,
+   "legible": "full",
+   "sha256": "cba5200ecf9e4304ca1c13e7406b97fb3e1c13809e72a1396e6e7f3924c2f380"
+  },
+  {
+   "frame": "capoh9_118",
+   "box": 2,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_118.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.11341,
+    0.34625,
+    0.09239,
+    0.0646
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "cba5200ecf9e4304ca1c13e7406b97fb3e1c13809e72a1396e6e7f3924c2f380"
+  },
+  {
+   "frame": "capoh9_118",
+   "box": 3,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_118.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "red",
+   "xywh": [
+    0.88219,
+    0.36717,
+    0.091,
+    0.07775
+   ],
+   "team": 1148,
+   "legible": "partial",
+   "sha256": "cba5200ecf9e4304ca1c13e7406b97fb3e1c13809e72a1396e6e7f3924c2f380"
+  },
+  {
+   "frame": "capoh9_122",
+   "box": 0,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_122.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.04542,
+    0.4067,
+    0.09163,
+    0.06701
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "b618114d22239b9bddf9f3c2867fddf84fb234722ff15d0367c670abb840231f"
+  },
+  {
+   "frame": "capoh9_122",
+   "box": 1,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_122.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.59684,
+    0.24171,
+    0.07202,
+    0.04111
+   ],
+   "team": 2584,
+   "legible": "full",
+   "sha256": "b618114d22239b9bddf9f3c2867fddf84fb234722ff15d0367c670abb840231f"
+  },
+  {
+   "frame": "capoh9_122",
+   "box": 2,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_122.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "red",
+   "xywh": [
+    0.83056,
+    0.34512,
+    0.08502,
+    0.08309
+   ],
+   "team": 1148,
+   "legible": "full",
+   "sha256": "b618114d22239b9bddf9f3c2867fddf84fb234722ff15d0367c670abb840231f"
+  },
+  {
+   "frame": "capoh9_122",
+   "box": 3,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_122.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.10232,
+    0.91017,
+    0.07018,
+    0.04777
+   ],
+   "team": 10147,
+   "legible": "full",
+   "sha256": "b618114d22239b9bddf9f3c2867fddf84fb234722ff15d0367c670abb840231f"
+  },
+  {
+   "frame": "capoh9_122",
+   "box": 4,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_122.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.17623,
+    0.26575,
+    0.05427,
+    0.05982
+   ],
+   "team": 10147,
+   "legible": "partial",
+   "sha256": "b618114d22239b9bddf9f3c2867fddf84fb234722ff15d0367c670abb840231f"
+  },
+  {
+   "frame": "capoh9_126",
+   "box": 0,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_126.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "red",
+   "xywh": [
+    0.83684,
+    0.36478,
+    0.10618,
+    0.06369
+   ],
+   "team": 1148,
+   "legible": "full",
+   "sha256": "ce797416ee2c69aa1f69c83aae11375dfb111c17e930fd5edf17e846d12e6aa4"
+  },
+  {
+   "frame": "capoh9_126",
+   "box": 1,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_126.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.07308,
+    0.93988,
+    0.10547,
+    0.06008
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "ce797416ee2c69aa1f69c83aae11375dfb111c17e930fd5edf17e846d12e6aa4"
+  },
+  {
+   "frame": "capoh9_126",
+   "box": 2,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_126.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.0682,
+    0.33523,
+    0.08183,
+    0.05897
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "ce797416ee2c69aa1f69c83aae11375dfb111c17e930fd5edf17e846d12e6aa4"
+  },
+  {
+   "frame": "capoh9_126",
+   "box": 3,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_126.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "red",
+   "xywh": [
+    0.836,
+    0.3542,
+    0.10234,
+    0.08744
+   ],
+   "team": 1148,
+   "legible": "full",
+   "sha256": "ce797416ee2c69aa1f69c83aae11375dfb111c17e930fd5edf17e846d12e6aa4"
+  },
+  {
+   "frame": "capoh9_126",
+   "box": 4,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_126.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "red",
+   "xywh": [
+    0.8254,
+    0.92367,
+    0.04196,
+    0.03391
+   ],
+   "team": null,
+   "legible": "none",
+   "sha256": "ce797416ee2c69aa1f69c83aae11375dfb111c17e930fd5edf17e846d12e6aa4"
+  },
+  {
+   "frame": "capoh9_130",
+   "box": 0,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_130.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "red",
+   "xywh": [
+    0.86398,
+    0.36778,
+    0.10505,
+    0.082
+   ],
+   "team": 1148,
+   "legible": "full",
+   "sha256": "7ee14c2f6c27e7638215427597f0645fe3b1be1b1da846f390063a9948733404"
+  },
+  {
+   "frame": "capoh9_130",
+   "box": 1,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_130.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.07856,
+    0.93002,
+    0.09893,
+    0.06213
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "7ee14c2f6c27e7638215427597f0645fe3b1be1b1da846f390063a9948733404"
+  },
+  {
+   "frame": "capoh9_130",
+   "box": 2,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_130.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.07732,
+    0.3258,
+    0.08703,
+    0.05742
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "7ee14c2f6c27e7638215427597f0645fe3b1be1b1da846f390063a9948733404"
+  },
+  {
+   "frame": "capoh9_134",
+   "box": 0,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_134.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.07713,
+    0.32018,
+    0.09152,
+    0.05916
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "66641d9c5e402c59a63247af3de8d65e281ff7de53e2bbe6c9a379a4921a64e3"
+  },
+  {
+   "frame": "capoh9_134",
+   "box": 1,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_134.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.07994,
+    0.93206,
+    0.09254,
+    0.05848
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "66641d9c5e402c59a63247af3de8d65e281ff7de53e2bbe6c9a379a4921a64e3"
+  },
+  {
+   "frame": "capoh9_134",
+   "box": 2,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_134.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "red",
+   "xywh": [
+    0.8247,
+    0.92464,
+    0.04228,
+    0.0346
+   ],
+   "team": null,
+   "legible": "none",
+   "sha256": "66641d9c5e402c59a63247af3de8d65e281ff7de53e2bbe6c9a379a4921a64e3"
+  },
+  {
+   "frame": "capoh9_138",
+   "box": 0,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_138.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.07701,
+    0.31611,
+    0.09524,
+    0.06318
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "7333be29f70d098fa678d3fbee97499f6baf617f17e559c0595a73952b46ac82"
+  },
+  {
+   "frame": "capoh9_138",
+   "box": 1,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_138.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.31746,
+    0.39974,
+    0.10533,
+    0.07007
+   ],
+   "team": null,
+   "legible": "none",
+   "sha256": "7333be29f70d098fa678d3fbee97499f6baf617f17e559c0595a73952b46ac82"
+  },
+  {
+   "frame": "capoh9_138",
+   "box": 2,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_138.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.07992,
+    0.92982,
+    0.09189,
+    0.06015
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "7333be29f70d098fa678d3fbee97499f6baf617f17e559c0595a73952b46ac82"
+  },
+  {
+   "frame": "capoh9_142",
+   "box": 0,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_142.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.0763,
+    0.31605,
+    0.09519,
+    0.06374
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "f755c1e6170150bee8bf2206385ed78c858b96a84cb2298d8af7ed790893d1cf"
+  },
+  {
+   "frame": "capoh9_142",
+   "box": 1,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_142.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "red",
+   "xywh": [
+    0.96004,
+    0.39406,
+    0.03996,
+    0.07786
+   ],
+   "team": null,
+   "legible": "none",
+   "sha256": "f755c1e6170150bee8bf2206385ed78c858b96a84cb2298d8af7ed790893d1cf"
+  },
+  {
+   "frame": "capoh9_142",
+   "box": 2,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_142.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.07997,
+    0.93237,
+    0.08733,
+    0.05821
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "f755c1e6170150bee8bf2206385ed78c858b96a84cb2298d8af7ed790893d1cf"
+  },
+  {
+   "frame": "capoh9_146",
+   "box": 0,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_146.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.07646,
+    0.31531,
+    0.09369,
+    0.06428
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "364ba5d134f6fbad9f2b54764fe455f4c2559afd62f505723801cbfff2f35117"
+  },
+  {
+   "frame": "capoh9_146",
+   "box": 1,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_146.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "red",
+   "xywh": [
+    0.96136,
+    0.43657,
+    0.03864,
+    0.07604
+   ],
+   "team": null,
+   "legible": "none",
+   "sha256": "364ba5d134f6fbad9f2b54764fe455f4c2559afd62f505723801cbfff2f35117"
+  },
+  {
+   "frame": "capoh9_146",
+   "box": 2,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_146.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.08059,
+    0.93214,
+    0.08822,
+    0.05846
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "364ba5d134f6fbad9f2b54764fe455f4c2559afd62f505723801cbfff2f35117"
+  },
+  {
+   "frame": "capoh9_146",
+   "box": 3,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_146.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "red",
+   "xywh": [
+    0.82321,
+    0.37039,
+    0.08818,
+    0.06577
+   ],
+   "team": 9772,
+   "legible": "full",
+   "sha256": "364ba5d134f6fbad9f2b54764fe455f4c2559afd62f505723801cbfff2f35117"
+  },
+  {
+   "frame": "capoh9_150",
+   "box": 0,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_150.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.08663,
+    0.3203,
+    0.09463,
+    0.05996
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "ec445dae0b5448eb8696b7b6086a1577fb1f5795e004468fd8a4cec9af60f2dc"
+  },
+  {
+   "frame": "capoh9_150",
+   "box": 1,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_150.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "red",
+   "xywh": [
+    0.8458,
+    0.38317,
+    0.09868,
+    0.07323
+   ],
+   "team": null,
+   "legible": "none",
+   "sha256": "ec445dae0b5448eb8696b7b6086a1577fb1f5795e004468fd8a4cec9af60f2dc"
+  },
+  {
+   "frame": "capoh9_150",
+   "box": 2,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_150.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.15354,
+    0.26042,
+    0.07019,
+    0.0567
+   ],
+   "team": 10147,
+   "legible": "full",
+   "sha256": "ec445dae0b5448eb8696b7b6086a1577fb1f5795e004468fd8a4cec9af60f2dc"
+  },
+  {
+   "frame": "capoh9_154",
+   "box": 0,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_154.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "red",
+   "xywh": [
+    0.86921,
+    0.36521,
+    0.08886,
+    0.0647
+   ],
+   "team": null,
+   "legible": "none",
+   "sha256": "9384aa513a7a780def8965300ccda6980ac3d060432da97394173692a52bb246"
+  },
+  {
+   "frame": "capoh9_154",
+   "box": 1,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_154.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.13981,
+    0.32436,
+    0.07289,
+    0.05437
+   ],
+   "team": 5025,
+   "legible": "partial",
+   "sha256": "9384aa513a7a780def8965300ccda6980ac3d060432da97394173692a52bb246"
+  },
+  {
+   "frame": "capoh9_154",
+   "box": 2,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_154.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.07424,
+    0.91994,
+    0.05775,
+    0.03517
+   ],
+   "team": 10147,
+   "legible": "full",
+   "sha256": "9384aa513a7a780def8965300ccda6980ac3d060432da97394173692a52bb246"
+  },
+  {
+   "frame": "capoh9_158",
+   "box": 0,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_158.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.10265,
+    0.31899,
+    0.07809,
+    0.05385
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "126515f2b4af01a62e12e833664ef4ddcfeeecd34a0784b4b4c98cdc8ce04cb8"
+  },
+  {
+   "frame": "capoh9_158",
+   "box": 1,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_158.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.0914,
+    0.92515,
+    0.09182,
+    0.05835
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "126515f2b4af01a62e12e833664ef4ddcfeeecd34a0784b4b4c98cdc8ce04cb8"
+  },
+  {
+   "frame": "capoh9_158",
+   "box": 2,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_158.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "red",
+   "xywh": [
+    0.91551,
+    0.41934,
+    0.08449,
+    0.0748
+   ],
+   "team": null,
+   "legible": "none",
+   "sha256": "126515f2b4af01a62e12e833664ef4ddcfeeecd34a0784b4b4c98cdc8ce04cb8"
+  },
+  {
+   "frame": "capoh9_162",
+   "box": 0,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_162.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.06293,
+    0.34473,
+    0.09602,
+    0.06322
+   ],
+   "team": 5025,
+   "legible": "partial",
+   "sha256": "33a3c6b08e70093f2e46622365c399c89e7fb1093e2ef0c2490fedc4d3359e42"
+  },
+  {
+   "frame": "capoh9_162",
+   "box": 1,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_162.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.1721,
+    0.25523,
+    0.05372,
+    0.05489
+   ],
+   "team": 10147,
+   "legible": "full",
+   "sha256": "33a3c6b08e70093f2e46622365c399c89e7fb1093e2ef0c2490fedc4d3359e42"
+  },
+  {
+   "frame": "capoh9_162",
+   "box": 2,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_162.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "red",
+   "xywh": [
+    0.92971,
+    0.35968,
+    0.07029,
+    0.08544
+   ],
+   "team": null,
+   "legible": "none",
+   "sha256": "33a3c6b08e70093f2e46622365c399c89e7fb1093e2ef0c2490fedc4d3359e42"
+  },
+  {
+   "frame": "capoh9_162",
+   "box": 3,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_162.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "red",
+   "xywh": [
+    0.92588,
+    0.43235,
+    0.04586,
+    0.04268
+   ],
+   "team": null,
+   "legible": "none",
+   "sha256": "33a3c6b08e70093f2e46622365c399c89e7fb1093e2ef0c2490fedc4d3359e42"
+  },
+  {
+   "frame": "capoh9_166",
+   "box": 0,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_166.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "red",
+   "xywh": [
+    0.93948,
+    0.33669,
+    0.06052,
+    0.07068
+   ],
+   "team": 1148,
+   "legible": "partial",
+   "sha256": "ae0070e4107adab3174253879314873c6869ebbab22cd81c144367bede9327e5"
+  },
+  {
+   "frame": "capoh9_166",
+   "box": 1,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_166.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.09897,
+    0.31782,
+    0.08874,
+    0.05691
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "ae0070e4107adab3174253879314873c6869ebbab22cd81c144367bede9327e5"
+  },
+  {
+   "frame": "capoh9_166",
+   "box": 2,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_166.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.17542,
+    0.25755,
+    0.05038,
+    0.05193
+   ],
+   "team": 10147,
+   "legible": "full",
+   "sha256": "ae0070e4107adab3174253879314873c6869ebbab22cd81c144367bede9327e5"
+  },
+  {
+   "frame": "capoh9_166",
+   "box": 3,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_166.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.09514,
+    0.92834,
+    0.08241,
+    0.05414
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "ae0070e4107adab3174253879314873c6869ebbab22cd81c144367bede9327e5"
+  },
+  {
+   "frame": "capoh9_170",
+   "box": 0,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_170.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "red",
+   "xywh": [
+    0.93865,
+    0.3312,
+    0.06135,
+    0.07198
+   ],
+   "team": 1148,
+   "legible": "partial",
+   "sha256": "7f7f1f332a45a4a8eddf7a912c488b2529898e3bc52d210dab03bfaa5f070bbb"
+  },
+  {
+   "frame": "capoh9_170",
+   "box": 1,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_170.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.0903,
+    0.3086,
+    0.09315,
+    0.06658
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "7f7f1f332a45a4a8eddf7a912c488b2529898e3bc52d210dab03bfaa5f070bbb"
+  },
+  {
+   "frame": "capoh9_170",
+   "box": 2,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_170.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.08598,
+    0.92987,
+    0.08758,
+    0.05512
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "7f7f1f332a45a4a8eddf7a912c488b2529898e3bc52d210dab03bfaa5f070bbb"
+  },
+  {
+   "frame": "capoh9_174",
+   "box": 0,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_174.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.09336,
+    0.41488,
+    0.09258,
+    0.06528
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "d88f732a4d2a47aa52271ab66d0e78a57956f155c8a49f2afbcd53981d422efd"
+  },
+  {
+   "frame": "capoh9_174",
+   "box": 1,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_174.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "red",
+   "xywh": [
+    0.9309,
+    0.43989,
+    0.0691,
+    0.07207
+   ],
+   "team": 1148,
+   "legible": "partial",
+   "sha256": "d88f732a4d2a47aa52271ab66d0e78a57956f155c8a49f2afbcd53981d422efd"
+  },
+  {
+   "frame": "capoh9_174",
+   "box": 2,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_174.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "red",
+   "xywh": [
+    0.93623,
+    0.45754,
+    0.06377,
+    0.05265
+   ],
+   "team": 1148,
+   "legible": "partial",
+   "sha256": "d88f732a4d2a47aa52271ab66d0e78a57956f155c8a49f2afbcd53981d422efd"
+  },
+  {
+   "frame": "capoh9_178",
+   "box": 0,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_178.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.09325,
+    0.41456,
+    0.09272,
+    0.06578
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "5c4570e2967ab3c6492c0ac3648fdb07123ee02f5deb7b9fbe114a77acc6b310"
+  },
+  {
+   "frame": "capoh9_178",
+   "box": 1,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_178.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "red",
+   "xywh": [
+    0.93104,
+    0.44085,
+    0.06896,
+    0.07096
+   ],
+   "team": 1148,
+   "legible": "partial",
+   "sha256": "5c4570e2967ab3c6492c0ac3648fdb07123ee02f5deb7b9fbe114a77acc6b310"
+  },
+  {
+   "frame": "capoh9_178",
+   "box": 2,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_178.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "red",
+   "xywh": [
+    0.93682,
+    0.45718,
+    0.06318,
+    0.05261
+   ],
+   "team": 1148,
+   "legible": "partial",
+   "sha256": "5c4570e2967ab3c6492c0ac3648fdb07123ee02f5deb7b9fbe114a77acc6b310"
+  },
+  {
+   "frame": "capoh9_182",
+   "box": 0,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_182.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "blue",
+   "xywh": [
+    0.09301,
+    0.42002,
+    0.09558,
+    0.06135
+   ],
+   "team": 5025,
+   "legible": "full",
+   "sha256": "4e4bb63d11d41654df53ddc6871d94f7e3c843a2776bae673db1386ead7dad87"
+  },
+  {
+   "frame": "capoh9_182",
+   "box": 1,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_182.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "red",
+   "xywh": [
+    0.93088,
+    0.44156,
+    0.06912,
+    0.07031
+   ],
+   "team": 1148,
+   "legible": "partial",
+   "sha256": "4e4bb63d11d41654df53ddc6871d94f7e3c843a2776bae673db1386ead7dad87"
+  },
+  {
+   "frame": "capoh9_182",
+   "box": 2,
+   "image": "ocr-benchmark/heldout-capoh/frames/capoh9_182.jpg",
+   "match_key": "2026capoh_qm9",
+   "alliance": "red",
+   "xywh": [
+    0.93638,
+    0.45741,
+    0.06362,
+    0.05253
+   ],
+   "team": 1148,
+   "legible": "partial",
+   "sha256": "4e4bb63d11d41654df53ddc6871d94f7e3c843a2776bae673db1386ead7dad87"
+  }
+ ]
+}

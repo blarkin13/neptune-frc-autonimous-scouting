@@ -44,6 +44,16 @@ class DetectorData(unittest.TestCase):
                 data['frames'][1][field] = data['frames'][0][field]
                 with self.assertRaises(ValueError):self.run_data(root, data)
 
+    def test_matches_from_other_seasons_train_too(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp); data = self.fixture(root); data['frames'][0]['match_key'] = '2023txhou_qm12'
+            self.assertEqual(len(list((self.run_data(root, data).parent/'labels/train').glob('*.txt'))), 1)
+
+    def test_match_key_must_start_with_a_year(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp); data = self.fixture(root); data['frames'][0]['match_key'] = 'qm12'
+            with self.assertRaisesRegex(ValueError, 'match and source-video'):self.run_data(root, data)
+
     def test_q7_reference_remains_reserved(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp); data = self.fixture(root); data['frames'][0]['match_key'] = '2026txcmp1_qm7'

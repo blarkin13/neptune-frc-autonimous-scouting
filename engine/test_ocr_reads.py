@@ -1,6 +1,10 @@
+import json
+import tempfile
 import unittest
+from pathlib import Path
 
 import neptune_facts
+import neptune_games
 import neptune_ocr
 
 ROSTER = {'red': [9492, 10340, 5417], 'blue': [9444, 6377, 4734]}
@@ -87,6 +91,82 @@ class GenericOverlay(unittest.TestCase):
         r = neptune_facts.parse_overlay_generic(items[1:])
         self.assertEqual((r['clock_value'], r['red_value'], r['blue_value']), (32, None, None))
         self.assertIsNone(neptune_facts.parse_overlay_generic(items[1:2]))
+
+    def test_unknown_overlay_settles_sides_and_reads_samples(self):
+        roster = {'red': [1148, 6764, 9772], 'blue': [5025, 10147, 2584]}
+        frames, texts = [], {}
+        for k in range(25):
+            p = '/v/ov_%05d.jpg' % k
+            frames.append((float(k), p))
+            texts[p] = [item('Qualification 9', x=0.4, y=0.02, w=0.2, h=0.08), item('5025', x=0.25, y=0.3, w=0.03, h=0.05),
+                        item('49', x=0.42, y=0.25, w=0.04, h=0.12), item('1:%02d' % (50 - k), x=0.47, y=0.25, w=0.06, h=0.12),
+                        item('13', x=0.54, y=0.25, w=0.03, h=0.12), item('1148', x=0.6, y=0.3, w=0.03, h=0.05)]
+        sides, top, stats = neptune_facts.generic_layout(frames, texts, roster, 0.3)
+        self.assertEqual((sides, stats['agreeing_frames']), ('blue-left', 25))
+        self.assertAlmostEqual(top, 0.121)
+        rules = {'teleop_seconds': 140}
+        samples, _ = neptune_facts.generic_samples(frames, texts, sides, rules, '/v')
+        s = samples[0]
+        self.assertEqual((s['clock'], s['red']['value'], s['blue']['value'], s['title_text']), (110, 13, 49, 'Qualification 9'))
+        self.assertEqual(([i['t'] for i in s['roster']['red']], [i['t'] for i in s['roster']['blue']]), (['1148'], ['5025']))
+        self.assertIsNone(neptune_facts.generic_layout(frames[:10], texts, roster, 0.3))
+
+
+class ScoreReread(unittest.TestCase):
+    def test_lone_round_letter_is_zero_and_tallest_number_wins(self):
+        self.assertEqual(neptune_facts.pick_score([item('O', h=0.5)])['t'], '0')
+        self.assertEqual(neptune_facts.pick_score([item('3', h=0.2), item('13', h=0.6)])['t'], '13')
+        self.assertIsNone(neptune_facts.pick_score([item('O:1'), item('KLD')]))
+
+    def test_score_region_stays_inside_the_band(self):
+        profile = neptune_facts.LAYOUTS['frc-2026-field-overlay-v1']
+        x, y, w, h = neptune_facts.score_region(profile, 'red')
+        self.assertTrue(0 <= x and 0 <= y and x + w <= 1 and y + h <= 1)
+        self.assertAlmostEqual(x, 0.26)
+
+
+class SavedGamePack(unittest.TestCase):
+    def test_older_copy_of_the_same_game_gains_newer_layouts(self):
+        built = json.loads(neptune_games.BUILTIN.read_text())['seasons']['2026']
+        old = dict(built, season=2026, layout_profiles={k: v for k, v in built['layout_profiles'].items() if k == 'frc-2026-field-overlay-v1'})
+        with tempfile.TemporaryDirectory() as home:
+            (Path(home) / 'games').mkdir()
+            (Path(home) / 'games' / '2026.json').write_text(json.dumps(old))
+            self.assertEqual(set(neptune_games.select('2026capoh_qm9', home)['layout_profiles']), set(built['layout_profiles']))
+            other = dict(old, game_key='2026-other-game')
+            (Path(home) / 'games' / '2026.json').write_text(json.dumps(other))
+            self.assertEqual(list(neptune_games.select('2026capoh_qm9', home)['layout_profiles']), ['frc-2026-field-overlay-v1'])
+
+
+class LearnedLayouts(unittest.TestCase):
+    def test_provisional_until_a_second_match_and_conflicts_stop_it(self):
+        import neptune_layouts as L
+        sig, clock = [100] * 288, [0.47, 0.25, 0.06, 0.12]
+        with tempfile.TemporaryDirectory() as home:
+            self.assertIsNone(L.find(2026, sig, clock, home))
+            e = L.learn(2026, sig, clock, 'blue-left', 0.12, '2026capoh_qm9', home)
+            self.assertFalse(L.usable(e))
+            e = L.learn(2026, sig, clock, 'blue-left', 0.12, '2026capoh_qm9', home)
+            self.assertFalse(L.usable(e))   # the same match twice is not a confirmation
+            L.learn(2026, [110] * 288, clock, 'blue-left', 0.12, '2026capoh_qm10', home)
+            self.assertTrue(L.usable(L.find(2026, sig, clock, home)))
+            self.assertIsNone(L.find(2026, [160] * 288, clock, home))                    # looks different
+            self.assertIsNone(L.find(2026, sig, [0.6, 0.25, 0.06, 0.12], home))          # clock elsewhere
+            self.assertIsNone(L.find(2027, sig, clock, home))                            # other season
+            L.learn(2026, sig, clock, 'red-left', 0.12, '2026capoh_qm11', home)
+            self.assertFalse(L.usable(L.find(2026, sig, clock, home)))
+
+    def test_generic_layout_takes_learned_sides_but_keeps_the_clock_gate(self):
+        frames, texts = [], {}
+        for k in range(25):
+            p = '/v/ov_%05d.jpg' % k
+            frames.append((float(k), p))
+            texts[p] = [item('49', x=0.42, y=0.25, w=0.04, h=0.12), item('1:%02d' % (50 - k), x=0.47, y=0.25, w=0.06, h=0.12),
+                        item('13', x=0.54, y=0.25, w=0.03, h=0.12)]
+        self.assertIsNone(neptune_facts.generic_layout(frames, texts, {}, 0.3))
+        sides, top, stats = neptune_facts.generic_layout(frames, texts, {}, 0.3, sides='blue-left')
+        self.assertEqual((sides, stats['agreeing_frames'], stats['clock']), ('blue-left', 0, [0.47, 0.25, 0.06, 0.12]))
+        self.assertIsNone(neptune_facts.generic_layout(frames[:10], texts, {}, 0.3, sides='blue-left'))
 
 
 if __name__ == '__main__':

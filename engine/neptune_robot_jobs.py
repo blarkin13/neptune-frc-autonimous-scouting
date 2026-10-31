@@ -25,13 +25,21 @@ SMALL_BUMPER_H = .025             # bumpers shorter than this (of frame height) 
 WIDE_BAND = (.24, .6506)          # 2026 broadcast wide-camera band (normalized y)
 ADOPT_MARGIN = .02                # new detector must beat the current one's held-out F1 by this much
 MIN_FRAMES_PER_MATCH = 8
+MODEL_SIZE = 's'                  # YOLO11 Small; a Nano detector in use is replaced by a fresh Small run, not fine-tuned
+SMALL_BASE = {'file': 'yolo11s.pt', 'sha256': '85a76fe86dd8afe384648546b56a7a78580c7cb7b404fc595f97969322d502d5',
+              'url': 'https://github.com/ultralytics/assets/releases/download/v8.3.0/yolo11s.pt'}
+WARM_RECIPE = 'adopted-bumper-warm-start-v2-train-validation'
+SMALL_RECIPE = 'coco-yolo11s-first-small-v1'
 
 
 def api(config, action, payload=None, timeout=120):
     import urllib.request
     from neptune_helper import public_https, NoRedirect
     url = public_https(config['site'].rstrip('/')+'/api/robot-detector.php')
-    body = json.dumps(dict(payload or {}, action=action)).encode()
+    data = dict(payload or {}, action=action)
+    if action == 'computer_poll':
+        data['capabilities'] = ['test_robot_v1']
+    body = json.dumps(data).encode()
     request = urllib.request.Request(url, data=body, headers={'Content-Type': 'application/json', 'Authorization': 'Bearer '+config['token']})
     with urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect()).open(request, timeout=timeout) as response:
         return json.loads(response.read(80*1024*1024))
@@ -143,19 +151,45 @@ def current_wide_weights():
     return Path(row['path']) if row else None
 
 
+def model_scale(weights):
+    """The YOLO size letter ('n', 's', ...) recorded in a checkpoint."""
+    from ultralytics import YOLO
+    return (getattr(YOLO(str(weights)).model, 'yaml', None) or {}).get('scale')
+
+
+def small_base():
+    """COCO-pretrained YOLO11 Small, downloaded once and checked against its pinned fingerprint."""
+    import urllib.request
+    path = HOME/'base-models'/SMALL_BASE['file']
+    if path.is_file() and hashlib.sha256(path.read_bytes()).hexdigest() == SMALL_BASE['sha256']:
+        return path
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix('.part')
+    with urllib.request.urlopen(SMALL_BASE['url'], timeout=300) as r, open(tmp, 'wb') as f:
+        shutil.copyfileobj(r, f, 1 << 20)
+    if hashlib.sha256(tmp.read_bytes()).hexdigest() != SMALL_BASE['sha256']:
+        tmp.unlink(missing_ok=True)
+        raise ValueError('The YOLO11 Small starting model failed its fingerprint check.')
+    tmp.replace(path)
+    return path
+
+
 def training_base(holdout):
-    """Continue the proven bumper detector, never the unrelated COCO context head.
+    """(starting weights, recipe). Continue the proven bumper detector when it is already Small;
+    a Nano detector in use is replaced by a fresh Small run from COCO, which never saw any match.
 
     Refuse an inherited model that learned the evaluation match: excluding it
     from this run alone would not remove its influence from the weights.
     """
     current = current_wide_weights()
     manifest = SHARED/'manifest.json' if (SHARED/'manifest.json').is_file() else Path(__file__).with_name('robot-detector')/'manifest.json'
+    if not (current and current.is_file()):
+        raise ValueError('Install the current wide bumper detector before fine-tuning; its training provenance is required.')
+    if model_scale(current) != MODEL_SIZE:
+        return small_base(), SMALL_RECIPE
     if holdout in adopted_trained_on(manifest):
         raise ValueError('The starting detector trained on the evaluation match; choose an independent holdout.')
-    if current and current.is_file():
-        return current
-    raise ValueError('Install the current wide bumper detector before fine-tuning; its training provenance is required.')
+    return current, WARM_RECIPE
 
 
 def dataset_audit(manifest, holdout):
@@ -201,14 +235,18 @@ def frame(video, t):
 def detect(model, image, conf=.25):
     """Bumper boxes {alliance,x,y,w,h} normalized to the full frame."""
     h, w = image.shape[:2]
+    from neptune_yolo import unique_bumpers
     r = model.predict(image, imgsz=1280, conf=conf, verbose=False, device=train_device())[0]
-    out = []
-    for (x0, y0, x1, y1), cls in zip(r.boxes.xyxy.tolist(), r.boxes.cls.tolist()):
+    found = []
+    for box, cls, score in zip(r.boxes.xyxy.tolist(), r.boxes.cls.tolist(), r.boxes.conf.tolist()):
         name = str(r.names[int(cls)]).lower()
         alliance = 'red' if 'red' in name else 'blue' if 'blue' in name else None
         if alliance:
-            out.append({'alliance': alliance, 'x': x0/w, 'y': y0/h, 'w': (x1-x0)/w, 'h': (y1-y0)/h})
-    return out
+            found.append({'alliance': alliance, 'box': box, 'confidence': float(score)})
+    # The same containment cleanup tracking uses: a smaller box nested in a stronger one on the same bumper
+    # is one bumper, not two, in the held-out check and in the labelling guesses.
+    return [{'alliance': d['alliance'], 'x': d['box'][0]/w, 'y': d['box'][1]/h, 'w': (d['box'][2]-d['box'][0])/w, 'h': (d['box'][3]-d['box'][1])/h}
+            for d in unique_bumpers(found)]
 
 
 def match_video(video_id, folder):
@@ -221,6 +259,12 @@ def match_video(video_id, folder):
     if not video.is_file():
         youtube_download(video_id, video)
     return video
+
+
+def frame_times(length_s, labelled=(), picked=None):
+    """The regular grid, frames already labelled, and hard frames picked from tracking reviews (neptune_hard_frames)."""
+    extra = {t for t in picked or [] if type(t) is int and 0 <= t < length_s*1000}
+    return sorted(set(range(0, int(length_s*1000), int(FRAME_STEP_S*1000))) | set(labelled) | extra)
 
 
 def prepare(config, req, progress):
@@ -238,7 +282,7 @@ def prepare(config, req, progress):
     source_sha=hashlib.sha256(video.read_bytes()).hexdigest()
     from neptune_robot_labels import sync
     labelled={int(t) for d in sync(config) if d.get('video_id')==req['video_id'] for t in d.get('frames',{})}
-    times = sorted(set(range(0, int(length*1000), int(FRAME_STEP_S*1000))) | labelled)
+    times = frame_times(length, labelled, req.get('times_ms'))
     for i, t in enumerate(times):
         still=work/('%08d.jpg'%t)
         subprocess.run([ffmpeg(),'-v','error','-y','-ss','%.3f'%(t/1000),'-i',str(video),'-frames:v','1','-q:v','2',str(still)],check=True,timeout=120)
@@ -316,10 +360,10 @@ def external_training_datasets(config):
 
 
 def yolo_validation_from_training(dataset, every=5):
-    """Point YOLO's validation folder at every fifth training frame instead of the held-out match.
+    """Move every fifth training frame to YOLO validation, away from the held-out match.
 
     YOLO picks best.pt and stops early by its validation score, so the held-out match must never be that
-    set: it is only for the comparison that decides adoption. Its images are removed from the dataset.
+    set: it is only for the comparison that decides adoption. Validation images are removed from training.
     """
     dataset = Path(dataset)
     for kind in ('images', 'labels'):
@@ -328,9 +372,9 @@ def yolo_validation_from_training(dataset, every=5):
     if not picked:
         raise ValueError('Detector training needs labelled training frames.')
     for image in picked:
-        shutil.copy2(image, dataset/'images'/'val'/image.name)
+        shutil.move(str(image), str(dataset/'images'/'val'/image.name))
         label = dataset/'labels'/'train'/(image.stem+'.txt')
-        shutil.copy2(label, dataset/'labels'/'val'/label.name)
+        shutil.move(str(label), str(dataset/'labels'/'val'/label.name))
     return len(picked)
 
 
@@ -362,13 +406,16 @@ def train(config, req, progress):
     supplemental = append_workshop(external_training_datasets(config), work/'dataset')
     if supplemental['frames']:
         progress('Including %d reviewed workshop images (%d bumper boxes) in training only' % (supplemental['frames'], supplemental['boxes']))
-    base = training_base(holdout)
+    base, recipe = training_base(holdout)
     base_sha256 = hashlib.sha256(base.read_bytes()).hexdigest()
     model = YOLO(str(base))
-    from neptune_yolo import bumper_classes
-    bumper_classes(model.names)  # refuse a generic context model even if the path is wrong
-    epochs = int(req.get('epochs') or 80)
-    progress('Fine-tuning the current bumper detector; evaluation match remains excluded')
+    if recipe == WARM_RECIPE:
+        from neptune_yolo import bumper_classes
+        bumper_classes(model.names)  # refuse a generic context model even if the path is wrong
+        progress('Fine-tuning the current bumper detector; evaluation match remains excluded')
+    else:
+        progress('Training a larger (YOLO11 Small) bumper detector from scratch; evaluation match remains excluded')
+    epochs = int(req.get('epochs') or (80 if recipe == WARM_RECIPE else 120))
     def epoch_end(trainer):
         progress('Training robot detector: pass %d of up to %d' % (trainer.epoch+1, epochs))
     model.add_callback('on_fit_epoch_end', epoch_end)
@@ -390,7 +437,7 @@ def train(config, req, progress):
     report = {'engine': VERSION, 'holdout_match': holdout, 'trained_on': audit['trained_on'], 'external_training': supplemental, 'frames': built['frames']+supplemental['frames'], 'train_frames': built['train']+supplemental['frames'], 'check_frames': built['val'],
               'bumpers': built['boxes']+supplemental['boxes'], 'matches': audit['matches'], 'frames_per_match': audit['frames_per_match'],
               'evaluation_sha256': audit['evaluation_sha256'], 'starting_weights_sha256': base_sha256,
-              'training_recipe': 'adopted-bumper-warm-start-v2-train-validation', 'new': new, 'current': old, 'adopted': adopt, 'margin': ADOPT_MARGIN, 'skipped': built['skipped']}
+              'training_recipe': recipe, 'model_size': MODEL_SIZE, 'new': new, 'current': old, 'adopted': adopt, 'margin': ADOPT_MARGIN, 'skipped': built['skipped']}
     progress('Making the review video')
     report['review'] = send_review(config, req, report, lambda out: __import__('neptune_review_video').robot_video(out, check, best, current, report))
     if adopt:
@@ -530,16 +577,20 @@ def train_field(config, req, progress):
     game = req.get('game_key') or fd.shipped_game()
     progress('Downloading scoring areas')
     docs = [dict(d, regions=[r for r in d.get('regions', []) if r.get('game_key') == game]) for d in region_documents(config)]
-    docs = [d for d in docs if doc_video(d) and fd.yolo_labels(d) and fd.boundary_corners(d) and (d.get('source') or {}).get('match_key') not in HELD_OUT_MATCHES and d.get('source_sha256') not in HELD_OUT_SOURCES]
+    docs = [d for d in docs if doc_video(d) and fd.yolo_labels(d) and fd.training_geometry(d) and (d.get('source') or {}).get('match_key') not in HELD_OUT_MATCHES and d.get('source_sha256') not in HELD_OUT_SOURCES]
     if len(docs) < 2:
-        raise ValueError('Mark scoring targets and the four field corners on at least two %s matches first.' % game)
+        raise ValueError('Mark scoring targets and a visible field boundary on at least two %s matches first.' % game)
     docs=list({doc_video(d):d for d in docs}.values())  # site corrections replace earlier seed documents
     docs.sort(key=lambda d: ((d.get('source') or {}).get('match_key') or '', doc_video(d)))
     doc_key = lambda d: (d.get('source') or {}).get('match_key') or doc_video(d)   # Neptune adds match_key
     keys = [doc_key(d) for d in docs]
     shipped = json.loads((fd.model_dir()/'trained_on.json').read_text()).get(game, []) if (fd.model_dir()/'trained_on.json').is_file() else []
     in_use = adopted_trained_on(fd.shared_dir(game)/'manifest.json') if (fd.shared_dir(game)/'manifest.json').is_file() else shipped
-    held_key = req.get('holdout') if req.get('holdout') in keys else pick_holdout(keys, adopted_holdout(fd.shared_dir(game)/'manifest.json'), in_use)
+    corner_keys = [doc_key(d) for d in docs if fd.visible_corners(d)]
+    if not corner_keys:raise ValueError('The held-out check still needs a match with confirmed physical corners; boundary-only matches can train targets')
+    requested_holdout = req.get('holdout')
+    if requested_holdout and requested_holdout not in corner_keys:raise ValueError('The requested held-out match needs confirmed physical corners; it was not replaced')
+    held_key = requested_holdout or pick_holdout(corner_keys, adopted_holdout(fd.shared_dir(game)/'manifest.json'), in_use)
     holdout = next(d for d in docs if doc_key(d) == held_key)   # checked, never trained on
     base,recipe=field_training_base(game,held_key)
     base_sha256=hashlib.sha256(base.read_bytes()).hexdigest()
@@ -615,6 +666,90 @@ def send_review(config, req, report, render):
         return {'status': 'failed', 'error': str(error)[:200]}
 
 
+def test_robot(config, req, progress):
+    """Run the current robot detector, tracker, bumper OCR, constant identity, and top-down homography on a match,
+    then render and upload the review video to Neptune for viewing and optional YouTube upload."""
+    import neptune_games as games
+    import neptune_training as training
+    import neptune_review_video as rv
+    from neptune_facts import analyze_video
+    from neptune_field_regions import sync as sync_regions, sync_events, event_key, match_key_of
+    try:
+        sync_detector(config)
+        sync_field_detector(config)
+    except Exception:
+        pass
+    work = HOME/'robot-detector-work'/req['id']; shutil.rmtree(work, ignore_errors=True); work.mkdir(parents=True, exist_ok=True)
+    match_key = req['match_key']
+    title = req.get('title') or match_key
+    progress('Downloading '+match_key)
+    video = match_video(req['video_id'], work)
+    sha = hashlib.sha256(Path(video).read_bytes()).hexdigest()
+    dur = duration_s(video)
+    game = games.select(match_key)
+    roster = req.get('roster') if isinstance(req.get('roster'), dict) else None
+    site_key = hashlib.sha256(config['site'].rstrip('/').encode()).hexdigest()[:24]
+    cache_dir = HOME/'cache'/site_key/'localizations'/sha/game['fingerprint']
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    facts_file = cache_dir/'facts.json'
+
+    class Stage(list):
+        def __setitem__(self, key, value):
+            super().__setitem__(key, value); progress(str(value))
+
+    facts = None
+    if facts_file.is_file():
+        try:
+            cand = json.loads(facts_file.read_text())
+            if cand.get('source', {}).get('sha256') == sha:
+                facts = cand
+        except Exception:
+            facts = None
+    match_rec = {'key': match_key, 'title': title, 'roster': roster or {'red': [], 'blue': []},
+                 'source_url': 'https://www.youtube.com/watch?v='+req['video_id']}
+    if facts is None:
+        progress('Reading scoreboard and bumper numbers in '+match_key)
+        facts = analyze_video(video, match_rec, cache_dir, Stage(['Reading match video']), duration=dur, source_sha256=sha)
+        training.write(facts_file, facts)
+    else:
+        facts = training.refresh_cached_facts(facts_file, facts, match_rec, game, sha, video=video, progress=progress)
+    progress('Tracking robots, reading bumpers, and resolving constant identity')
+    facts = training.ensure_tracking(video, facts, game, cache_dir, progress)
+    training.write(facts_file, facts)
+    progress('Mapping top-down field homography')
+    try:
+        sync_regions(config, video, facts)
+        sync_events(config, [event_key(match_key_of(facts) or match_key)])
+    except Exception:
+        pass
+    progress('Rendering original view with boxes, bumper OCR, and top-down homography')
+    out = HOME/'review-videos'/('robot-test-'+req['id']+'.mp4'); out.parent.mkdir(parents=True, exist_ok=True)
+    _, summary = rv.robot_test_video(out, video, facts, game['game_key'], title)
+    if out.stat().st_size > 512*1024*1024:
+        raise ValueError('Rendered match test exceeds 512 MB; the local video has been kept.')
+    yt_title, yt_desc = rv.describe_robot_test(title, match_key, summary, VERSION)
+    progress('Sending match test video to Neptune')
+    offset = 0
+    with out.open('rb') as stream:
+        while chunk := stream.read(1024*1024):
+            ack = api(config, 'robot_test_chunk', {'request_id': req['id'], 'lease': req['lease'],
+                'offset': offset, 'data_b64': base64.b64encode(chunk).decode()}, timeout=120)
+            offset += len(chunk)
+            if ack.get('next_offset') != offset:
+                raise ValueError('Neptune did not confirm the video transfer; local video kept.')
+            progress('Sending match test video to Neptune: %d%%' % (offset*100/out.stat().st_size))
+    reply = api(config, 'robot_test_put', {
+        'request_id': req['id'], 'lease': req['lease'],
+        'title': yt_title, 'description': yt_desc, 'summary': summary,
+        'chunked': True, 'size': out.stat().st_size,
+        'sha256': hashlib.sha256(out.read_bytes()).hexdigest()
+    }, timeout=900)
+    if not reply.get('test', {}).get('id'):
+        raise ValueError('Neptune did not confirm the saved test video; local video kept.')
+    out.unlink(missing_ok=True)
+    return {'match_key': match_key, 'summary': summary, 'test': reply.get('test')}
+
+
 # ---------- polling ----------
 
 def run_pending(config, progress, busy=lambda value: None):
@@ -636,9 +771,14 @@ def run_pending(config, progress, busy=lambda value: None):
             if reply.get('cancelled'):
                 raise InterruptedError('Cancelled on Neptune')
     try:
-        result = prepare(config, req, report) if req['kind'] == 'prepare' else train_field(config, req, report) if req['kind'] == 'train_field' else train(config, req, report)
+        if req.get('kind') not in ('prepare', 'test_robot', 'train_field', 'train'):
+            raise ValueError('Unsupported helper job: '+str(req.get('kind')))
+        result = prepare(config, req, report) if req['kind'] == 'prepare' else \
+                 test_robot(config, req, report) if req['kind'] == 'test_robot' else \
+                 train_field(config, req, report) if req['kind'] == 'train_field' else train(config, req, report)
         fmt = lambda p: 'none found' if not p or not p['found'] else '%d/%d within %.1f%%' % (p['found'], p['expected'], p['mean_error']*100)
         message = ('Prepared %d frames' % result['frames']) if req['kind'] == 'prepare' else \
+            ('Tested %s: %d OCR verified, %d constant ID' % (result['match_key'], result['summary']['verified_points'], result['summary']['constant_points'])) if req['kind'] == 'test_robot' else \
             (('Adopted: targets/corners %s vs %s' if result['adopted'] else 'Kept the current field detector: new %s vs %s') % (fmt(result['new']), fmt(result['current']))) if req['kind'] == 'train_field' else \
             ('Adopted: held-out F1 %.2f vs %s' % (result['new']['f1'], '%.2f' % result['current']['f1'] if result['current'] else 'none')) if result['adopted'] else \
             ('Kept the current detector: new held-out F1 %.2f vs %.2f' % (result['new']['f1'], result['current']['f1']))

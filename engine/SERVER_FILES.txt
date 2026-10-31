@@ -15,6 +15,7 @@ neptune_homography.py
 neptune_housekeeping.py
 neptune_identity.py
 neptune_persistent_identity.py
+neptune_constant_identity.py
 neptune_identity_review.py
 neptune_learning.py
 neptune_ocr.py

@@ -4,7 +4,7 @@ declare(strict_types=1);
 // A pillar page: pillar_open() · pillar_summary() (what's trained, data, what's next) · its own work area · pillar_close().
 
 function pillar_open(int $season,bool $helpers=false):void { ?>
-<link rel="stylesheet" href="/community/assets/train-tabs.css?v=11-collapse">
+<link rel="stylesheet" href="/community/assets/train-tabs.css?v=12-auto-update-toggle">
 <div id="pillar" data-season="<?=$season?>" data-csrf="<?=e(csrf_token())?>" data-endpoint="/autoscout/train.php">
  <?php if($helpers):?>
  <div id="pillar-status" class="ts" aria-live="polite">
@@ -25,7 +25,7 @@ function pillar_summary(string $part,string $how,?string $train=null):void { ?>
    <div data-sum-panel="current"><div data-slot="current">Loading…</div><details class="tt-runs-more"><summary>Past runs</summary><div data-slot="runs"></div></details><?php if($part!=='actions'):?><button type="button" class="button-secondary tt-undo" data-rollback="<?=e($part)?>" hidden>Go back to the previous model</button><?php endif?></div>
    <div data-sum-panel="data" hidden><div data-slot="data">Loading…</div></div>
    <div data-sum-panel="next" hidden><ul class="tt-next" data-slot="next"><li>Loading…</li></ul></div>
-   <?php if($train):?><div class="tt-sum-train"><button type="button" data-train="<?=e($part)?>"><?=e($train)?></button><p class="training-note" data-slot="train-note"></p></div><?php endif?>
+   <?php if($train):?><div class="tt-sum-train"><button type="button" data-train="<?=e($part)?>"><?=e($train)?></button><?php if($part==='robot'):?> <label class="tt-match-only"><input type="checkbox" id="match-video-only"> Match video only (leave out workshop and folder photos)</label><?php endif?><p class="training-note" data-slot="train-note"></p></div><?php endif?>
   </div>
  </section>
 <?php }

@@ -1,4 +1,4 @@
-"""Detached Windows updater; called only after a verified code-only release is staged."""
+"""Detached Windows/Linux updater; called only after a verified code-only release is staged. Reopens the helper afterwards."""
 import hashlib
 import json
 import os
@@ -19,7 +19,16 @@ def digest(path):
 
 def wait_for_parent(pid, timeout=90):
     if os.name != 'nt':
-        return
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            try:
+                os.kill(pid, 0)
+            except ProcessLookupError:
+                return
+            except PermissionError:
+                pass
+            time.sleep(.5)
+        raise RuntimeError('The helper did not close before the update deadline.')
     import ctypes
     kernel = ctypes.windll.kernel32
     SYNCHRONIZE = 0x00100000
@@ -71,12 +80,26 @@ def apply(app_dir, stage):
     (stage / 'result.json').write_text(json.dumps({'status': 'installed', 'version': json.loads((app_dir / 'build-version.json').read_text())['version']}), encoding='utf-8')
 
 
+def reopen(command):
+    """Start the helper again, detached, whether the install worked or rolled back."""
+    import subprocess
+    if not command:
+        return
+    if os.name == 'nt':
+        subprocess.Popen(command, close_fds=True, creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP)
+    else:
+        subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, close_fds=True, start_new_session=True)
+
+
 if __name__ == '__main__':
-    parent, app, stage = sys.argv[1:]
+    parent, app, stage = sys.argv[1:4]
+    command = json.loads(sys.argv[4]) if len(sys.argv) > 4 else None     # helpers before remote updates pass no command
     try:
         wait_for_parent(int(parent))
         apply(app, stage)
     except Exception as error:
         Path(stage).mkdir(parents=True, exist_ok=True)
         (Path(stage) / 'result.json').write_text(json.dumps({'status': 'failed', 'error': str(error)[:500]}), encoding='utf-8')
+        reopen(command)
         sys.exit(1)
+    reopen(command)

@@ -102,6 +102,715 @@ These are small gains from 14–31 rows on two matches that already have dense h
 Checked: `test_score_labels.py` (11 tests); 524 engine tests OK on the bundled Python. Not wired into training, `neptune_engine.FILES` or the server.
 
 Next, if the owner wants it: mark scoring zones for more events, run facts on unlabelled matches, and measure the weak labels' effect on matches without hand labels.
+## 2026-10-30 — Codex: robot match test completion and compatibility
+
+Found the live test failed before producing a video: a 3.2.81 helper accepted unknown test_robot work and fell through to detector training. Test jobs now require an explicit helper capability; new helpers reject unknown kinds. The Robots page shows failures and the first finished result, loads newly available media, releases the session while streaming/uploading, and includes a download link plus editable YouTube upload fields. Native source frames/rate render to H.264 fast-start MP4; verified chunk transfer supports larger full-match videos and preserves the local output until server acknowledgement. Local PHP integration checks cover old-helper refusal, compatible claim, chunk retries/order/hash integrity and saved playback; Python robot job suite (17) and a 15fps H.264 smoke render pass. Release/deployment validation is pending.
+
+## 2026-10-30 — Codex: TXCMP1 Q4 bumper extent redo
+
+Reviewed the 75 current Q4 source-frame box sets, tightened chassis/mechanism extents to visible bumper foam, retained visible partial foam, removed unsupported labels, and reconciled 11 later edits. Saved per frame with exact previous-row guards; final readback of all 75 rows matches correction records and all normalized boxes are in bounds. 585 boxes remain. Training was not started. Receipts and source review artifacts: local/qm4-label-audit-20261026/current-corrections (artifact workspace).
+
+## 2026-10-30 — Codex: March4 Q5 full visible bumper perimeter correction
+
+- User found systematic front-face-only boxes after initial batch. Re-audited all125 exact native frames and wide/inset panels using expanded context, enclosing all visible foam faces per robot appearance. Expanded angled bounds, merged split faces, removed unsupported rail/glare/mechanism labels. Existing user edits used as baseline and guarded against concurrent change.
+- Saved25 corrected rows each for2026bcvi,2026mndu,2026mnwi,2026mndu2,2026okok Q5. Currenttotal 1039 bumperboxes. Eachrow read back; independent server pass verifies all125 reviewed-row hashes and immutable source images. No training started.
+- Evidence and receipts: `/Users/brianlarkin/Documents/ChatGPT/autonomous_scouting/local/march4-qm5-review/correction-final-verification.json`, per-match correction-reviewed.json and correction-save-result.json. Supersedes earlier narrow-box audit. User next authorized March5,2026 Q5,25frames each, about10 usefulclose-up-pane frames/match, save eachframe as completed.
+
+## 2026-10-30 — Robot detection match test + helper selector on 1 · Robots page (Gemini)
+
+- Added a **Test a match** section to `server/public_html/Neptune/autoscout/robot-labels.php` using the shared Year / Event / Match selector (`server/public_html/Neptune/community/assets/match-picker/match-picker.js`, updated to support multiple pickers and `data-select-only="1"` mode without page navigation), a **Helper** dropdown (`#robot-test-computer` populated from `community_training_computers` with live online/busy status), and a **Test** button.
+- Queues `test_robot` jobs via `RobotDetectorJobs` (`server/neptune_secure/robot-detector-jobs.php`, `server/public_html/Neptune/api/robot-detector.php`, `server/neptune_secure/autoscout-train-overview.php`), targeting either the chosen helper computer or the first available helper. The helper runs `test_robot()` (`engine/neptune_robot_jobs.py`, `engine/neptune_steps.py`) using the current robot detector, BoT-SORT tracker, bumper OCR, `reconcile`, and `with_constant_identity`, then renders `robot_test_video()` (`engine/neptune_review_video.py`):
+  - **Original broadcast view**: colored bounding boxes and bumper OCR tags matching the Review tracking palette (`#69deb4` green = OCR verified, `#48d9ed` cyan = constant / inferred identity, `#ffc773` amber = unresolved).
+  - **Top-down homography view**: live 2D field projection with 3-second motion trails (using saved four-corner / boundary / `field_reference` marks from `neptune_homography.py`, or a wide-band perspective fallback when unmarked), plus a 6-robot constant identity status panel and full-match timeline strip.
+- Saves the rendered MP4 and pre-filled metadata on Neptune (`robot_test_put`) so it can be watched directly in an inline `<video>` player (`robot-labels.php?robot_test_video=<id>`) with editable **Title** and **Description** fields and an **Upload to YouTube** button (`upload_robot_test_youtube`).
+- Checked: PHP syntax (`php -l`), JS syntax (`node --check`), PHP `RobotDetectorJobs` end-to-end test, and Python unit tests in `engine/test_robot_jobs.py`. Committed and pushed to `main`; `site-autoscout` package built.
+
+## 2026-10-30 — Codex: March 4, 2026 Q5 bumper batch live
+
+- User requested Q5 at every event starting March4,2026,25frames each, and authorized parallel reviewers. Catalog: Canadian Pacific52981, Lake Superior53248, Minnesota Bluff Country73059, Northern Lights62776, Oklahoma62962. Registered125 native1920×1080 exact private source stills, manually reviewed main/inset foam appearances, corrected proposal misses/chassis extents and removed fieldhardware/fuel/banner falseboxes. Parent reviewed per-box evidence and enlarged ambiguous crops, completed checks after reviewer usage limits.
+- Saved25 complete rows per match,1,052 bumper appearance boxes. Locked new-timestamp writes preserved existing labels, checked immutable source/image hashes and exact readback after each save. Independent final server check verifies125 complete frames and125 source image hashes;116 rows unchanged, nine Canadian Pacific rows were subsequently edited by signed-in user4 and preserved. Final readback has1,056 boxes. No training started; reserved Q7 untouched.
+- Metadata, native stills, reviewed JSON, save receipts, current-state snapshots and final-verification.json: `/Users/brianlarkin/Documents/ChatGPT/autonomous_scouting/local/march4-qm5-review/`. Final batch payloads reflect our reviewed saves; current snapshots preserve subsequent user edits. Earlier generation scripts retain intermediate decisions and must not overwrite final saved labels.
+
+## 2026-10-30 — Codex: TXCMP1 Q3 full existing-frame bumper audit completed
+
+- Manually reviewed all 92 already-labeled timestamps of match 208, `2026txcmp1_qm3`, against immutable native 1920×1080 source stills, including main and inset panels. All 92 extracted JPEG hashes match server frame metadata. Corrected missed/loose bumper labels and removed false labels on field hardware, advertisements and chassis; visible occluded/clipped bumper foam retained, fully hidden bumpers omitted.
+- Saved all 92 reviewed rows with exact prior-row guards, per-batch server document backups and atomic replacement. Independent final server fetch confirms all 92 complete, 770 bumper appearance boxes, exact reviewed boxes and frame hashes. The original 92 timestamp keys remain unchanged. No model training started; broader Reefscape batch remains stopped.
+- This full audit supersedes the earlier frame 1/frame 2 entries: each now has nine boxes after two tiny fixed-field false positives were removed.
+- Evidence, source hash verification, reviewed JSON and save/readback receipts: `/Users/brianlarkin/Documents/ChatGPT/autonomous_scouting/local/txcmp1-qm3-full-audit/`; final receipt `final-verification.json`. Source video SHA-256: `8dc8db13fc738645cb1a2c1053ff808250b0ee2fe43d65f5c85a886ae259b5b0`. Server backup directories use `/root/q3-label-audit-backup-<timestamp>`.
+
+## 2026-10-30 — Codex: TXCMP1 Q3 frame 2 correction
+
+- Corrected match 208 second prepared frame (4,000 ms): inspected native 1920×1080 still and enlarged main/inset crops, saved 11 bumper appearances. Verified immutable frame SHA-256, guarded against concurrent edits, backed up prior document, and read back exact corrected row. Preserved the other 91 frames, including frame 1.
+- Before/after labels, source still, overlay and server receipt: `/Users/brianlarkin/Documents/ChatGPT/autonomous_scouting/local/txcmp1-qm3-frame2-audit/`. No training started.
+
+## 2026-10-30 — Codex: TXCMP1 Q3 frame 1 bumper correction
+
+- Corrected match 208, `2026txcmp1_qm3`, first prepared frame at 0 ms. Inspected immutable 1920×1080 source still and enlarged main/inset crops. Saved 11 bumper appearances replacing five prior boxes, including inset misses and partially occluded bumpers. Preserved the other frames using a guarded row comparison and backup; verified exact saved JSON and source SHA-256.
+- Receipt, before/after data and overlay: `/Users/brianlarkin/Documents/ChatGPT/autonomous_scouting/local/txcmp1-qm3-frame1-audit/`. No model training started. Earlier two-match audit remains unfinished.
+
+## 2026-10-30 — Field-references release: Mac 3.2.81, Windows 6.5.52, Linux 6.6.43, engine 2.7.66 (Claude, deployed)
+
+Owner asked to merge and build. Live helpers were on engine 2.7.65 with code main lacked, so main first merged `claude/exciting-kilby-bb0e78` (YOLO11 Small robot detector) and `release-2.7.43` (robot-identity check); only WORK.md conflicted. Merged main checked against the live Linux 6.6.42 package: every live line is present or superseded. Then committed Codex's polygon/corner work and the field references.
+
+Built in ~/Documents/ChatGPT/Neptune: Mac-Helper-3.2.81-ready (signed, Sparkle signature verified, 578 tests on the bundled Python; GitHub release step stubbed, not run), Windows-Helper-6.5.52-ready (update zip, full zip, Setup.exe; same file list as 6.5.51), Linux-Helper-6.6.43-ready (deb, update zip, apt repo; same file list as 6.6.42). Engine suite 578 OK, packaging tests 12 OK.
+
+Server changes against live: engine `neptune_homography.py`, `neptune_field_regions.py`, `season_rules.json`, `neptune_engine.py`; site `autoscout/scoring-areas.php`, `community/assets/field-regions/app.js`. Live app.js fetched publicly equals HEAD minus the field-reference edits.
+
+Owner approved publish and deploy. GitHub main had the tracking (2.7.64) and keep-awake (2.7.65) release commits under other hashes plus Windows/robot-labels changes, so main merged origin/main first (9057881) and all three helpers were rebuilt from it; 578 tests on the bundled Mac Python. GitHub releases helper-3.2.81, helper-windows-6.5.52, helper-linux-6.6.43.
+
+Deployed through AWS SSM f3851229: 16 files fetched and verified, 21 changed. Backup: `/root/field-references-release-backup-20261030`. Pruned 3 old copies (316 MB). The first attempt stopped at the live-hash check: the server engine's `neptune_homography.py` and `neptune_field_regions.py` were still the 2.7.65 versions (Codex's polygon patch hadn't reached them); this release installs them. A second attempt stopped on the leftover empty backup folder; it was removed.
+
+Checked from outside: Windows `latest.json` 6.5.52 and Linux 6.6.43 on engine 2.7.66 (update zip SHA-256 matches local), appcast 3.2.81 (zip size matches), apt lists 6.6.43, live Field page `app.js` matches the commit.
+
+## 2026-10-30 — Codex: local artifact cleanup
+
+- User requested purging unnecessary repository artifacts. Removed 13.9 GiB of downloaded original match videos, duplicate completed helper build trees, release/transfer archives and bytecode caches from the Documents workspace. Preserved source, datasets, model weights, labels, native audit stills, source metadata, decisions and save receipts.
+- Kept Codex checkpoint history intact while Codex is running. No Neptune server data changed and the labeling batch remains stopped. Verified all 2,046 Reefscape candidate stills remain. Removed-file manifest and receipt: `/Users/brianlarkin/Documents/ChatGPT/autonomous_scouting/local/cleanup-20261030/`.
+
+## 2026-10-30 — Top-down map from field references when the near corners are cut off (Claude, local, not released)
+
+Built the floor-reference map the 2026-10-29 geometry test pointed to. Nothing committed, pushed or deployed.
+
+- Game pack: `engine/season_rules.json` 2026 revision 4 adds `field_references` (sizes and positions from manual TU22 5.2–5.8): far corners, far guardrail, both alliance walls, centre line, both hub bases, and the tower upright pair (a direction parallel to the guardrails, since the towers are mirrored). The server copy matches. No game values in code.
+- Engine: `neptune_homography.reference_map()` solves the picture→field map from any mix of marked points, lines and directions; it returns nothing unless the marks pin the plane down, agree within 4% of the frame, and put the field in front of the camera. `trajectories()` uses it per wide shot only when no four-corner calibration exists. `field_reference` is a new region kind (1 point or 2), validated in `neptune_field_regions` and never treated as a zone.
+- Field page: new region type "Top-down map · field reference point or line" with a reference picker filled from the game pack; one click for a point, two for a line; server POST and JSON import accept it (1–2 points, reference name). `app.js?v=5-field-references`. Checked in a local harness with real clicks: marks save, draw, export, re-import, and pass both the engine and the server validation; bad marks are rejected.
+- Accuracy (engine code on the five full-view events, near edge hidden, 200 simulated markings each, error at visible floor points): hubs + far corners only: median 4–7 in at 0.3% marking noise, 8–14 in at 0.6%. All references: median 3–5 in (p90 6–10 in) at 0.3%, 6–9 in at 0.6%. Rejection at 4% tolerance: 0% at 0.3% noise, 0–13% at 0.6%; swapped hubs are always rejected, but a hub marked 4% of the frame too high is not.
+- Tests: `engine/test_field_references.py` (9). Full engine suite on the bundled helper Python: 571 OK.
+- Follow-ups: Train page and Field page text still say "four field corners"; the Train overview's calibration flag ignores references; per-mark residuals on the Field page would let markers fix a bad click.
+
+## 2026-10-29 — Codex: March 4–8, 2025 robot-labeling batch in progress
+
+- User requested two matches per event starting March 4–8, 2025, 25 manually reviewed bumper frames per match. Verified 31 events: 62 matches / 1,550 frames.
+- Prepared all 62 playable source videos and unreviewed detector proposals locally. Proposals are not completed training labels.
+- Saved and read back 25 reviewed frames each for İstanbul Q6 (`2025tuis_qm6`, match 66181; 188 boxes) and Bosphorus Q6 (`2025tuis2_qm6`, match 66094; 194 boxes). Imported immutable native source stills through Neptune; verified frame/source SHA-256 before guarded label merges. Preserved existing labels; ran release pruning after each save.
+- Remaining: 60 matches / 1,500 reviewed frames. No training or model adoption started. Local event/match index, decisions, source frames and receipts: `/Users/brianlarkin/Documents/ChatGPT/autonomous_scouting/local/reefscape-march4-8-batch/STATUS.md`.
+
+## 2026-10-29 — Field corners hidden by the picture: geometry test (Claude, local, not released)
+
+Owner asked whether clipped corners can be estimated with math. On the 60 marked documents, extending all four boundary edges gives a quad for 52, but in 47 the bottom edge is a flat crop (score overlay or split-screen top), so the near corners come out too high (checked on Kettering, Houston and txcmp1 frames). Only Dallas, capoh, cahal, orsal and okok show a real near edge.
+
+Using only the real edges (far guardrail, both alliance walls) with the manual's field size (651.2 x 317.7 in) and a level pinhole camera centred on the picture: near corners within 3–5% of frame width for Dallas and orsal, 30–50% off for capoh, cahal and okok. Adding both hub top openings (158.6 in from each alliance wall, centred, one fitted height): within 1–5% for Dallas, capoh and orsal; 15–42% off for cahal and okok. The fitted hub height sits at its 40 in lower bound in four of five matches, so an assumption is off: the manual text does not say whether 158.6 in is to the hub's centre or face, the hub height is not in the text, and split-screen panes move the picture centre. Not reliable enough to use; nothing added to the game pack or engine.
+
+Refit with the manual's exact hub numbers (TU22 pp. 21–23: the 158.6 in alliance zone ends at the hub's face, so the centre is 182.1 in from the wall; the opening's front edge is 72 in up): Dallas 1–3%, okok 4–8%, orsal 6%, capoh 23–28%, cahal 13–29%. Every variant (182.1/158.6 in, 72/60 in) fits the marked lines and hubs almost exactly, yet moves the hidden corners by 20–40% of frame width. The solve is ill-conditioned when the near corners are far off-screen, which is the case it was meant for. Verdict: estimated corners are dependable only where the near corners sit just outside the picture; elsewhere keep marked zones and the outer-target fallback. A physical floor line visible below the hubs (e.g. the CENTER LINE or ROBOT STARTING LINES, if marked) would add the missing constraint.
+
+Floor reference points fix it (simulated on the five matches with all four corners known, marking noise 0.3% / 0.6% of the frame, error for floor points inside the picture). Far corners + both hub bases (front-bottom edge centre, 158.6 in from each alliance wall, centred): median 4–7 in / 7–14 in. The owner's construction (far corners + field centre, found where the line between matching tower-upright bases crosses the CENTER LINE, + the vanishing point of both alliance walls and the CENTER LINE): 4–7 in / 7–14 in. Both together: 3–5 in / 6–10 in. The centre construction assumes the field is rotationally symmetric (matching uprights pair through the 180° turn); the drawings should confirm. Scripts: `hub_base_test.py`, `centre_point_test.py`. Scripts: `local/field-detector-eval-20261029/near_edge_solve.py`, `near_edge_hubs.py`, `recovered_corners.jpg`.
+
+## 2026-10-29 — Codex: completed 20 REEFSCAPE review frames
+
+The owner clarified 20 frames total in the same 2025 Northern Lights Q6 match, rather than 20 matches. Manually reviewed and saved 16 additional source instants: 24, 32, 40, 48, 56, 64, 72, 80, 88, 96, 104, 112, 128, 136, 144 and 152 seconds. Retained visually checked detector proposals, added missing visible bumper fragments and rejected duplicate, spectator/reflection and unverifiable occluded proposals. Inspected source wide/closeup crops with coordinate grids and final box overlays; no boxes were copied across timestamps.
+
+Save/read-back succeeded: 16 added completed frames with 136 boxes; 20 completed frames total including the original 30/60/90/120-second reviews (172 bumper appearances, not unique robots). Existing four reviewed frame records were preserved; remaining 30 prepared frames remain guesses. Server validated immutable JPEG fingerprints, shared video source fingerprint and normalized box bounds, refused timestamp conflicts, backed up only the existing label document, atomically saved and verified the document, and ran release pruning. No detector training or adoption was triggered. Task evidence: local/reefscape-20-frame-review/meta.json, reviewed.py, manual-labels.json, reviewed/ and save-result.json in the task workspace. Only review stills were produced. Neptune: https://neptunefrc.com/autoscout/robot-labels.php?match_id=60266.
+
+## 2026-10-29 — Field detector: measured on held-out venues; retraining does not fix it; keep marked zones (Claude, local, not released)
+
+The owner asked to improve the field detector. Measured first, on frames every 2 s from 8 owner-marked matches, scoring each hub and each in-view corner (found within 10% of frame width, per-frame hit rate, match-level as the adoption check). Candidates were trained like `train_field` (warm start from the bundled weights, 1280, batch 4, every fifth training frame as validation, 15 passes on the owner's Linux helper, CPU). Dallas qm6 and Q7 never trained anything.
+
+| Held-out match (camera) | Bundled (in use) | C0: data today's runs use (txcmp1 qm4 + cmptx sf2m1) | C1: all 7 marked matches | C2: C1 + scale .9 / perspective .001 |
+|---|---|---|---|---|
+| 2026dal_qm6 (side angle) | 3/6: hubs 2/2, corners 1/4 (per-frame 81%) | 3/6: hubs 2/2, corners 1/4 (89%) | 3/6: hubs 2/2, corners 1/4 (32%) | 3/6: hubs 2/2, corners 1/4 (35%) |
+| 2026kett_qm7 (bottom off frame) | 1/4: hubs 0/2 | 0/4: hubs 0/2 | trained on | trained on |
+| 2026cmptx_sf2m1 (Houston) | 0/4: hubs 0/2, corners 0/2 | trained on | trained on | trained on |
+| 2026txsan_qm8 | 4/8: hubs 2/2, corners 2/4 | 6/8 (both close-up hubs) | trained on | trained on |
+| 2026txcmp1_qm8, txfor_qm10, week0_qm8 | all hubs, txcmp1 corners 3/3 | same | trained on | trained on |
+
+C0 reproduces the site's Oct 29 11:52 run (3/6 vs 3/6), so the shown field runs could not beat the detector in use. The bundled detector's failures are hubs that appear large near the top of the picture (Kettering, Houston) and the three Dallas corners nobody's training data shows (Dallas is the only side-angle venue with corners). More marks from end-on venues and stronger scale augmentation did not move Dallas; they halved its per-frame corner hit rate. Target-only/boundary-only matches put visible but unlabelled corners in training frames, which teaches "not a corner"; worth watching now that 37 such matches were added.
+
+Upper bound with hand-marked landmarks (no detector), zone IoU against the owner's own zones at another venue: hubs only (similarity) 0.35–0.68; four-corner homography 0.56–0.81; two marked matches at the same event 0.77. A field-coordinate homography from any visible corners + hub feet failed (0.00–0.04 with two corners): hub feet land at inconsistent field positions across calibrated matches, so the marked corners are not the same physical points across venues.
+
+Found and fixed locally that `visible_corners`/`document_at`/`train_field` dropped every match whose boundary was not exactly four points (Kettering) or had no corners (Fort Worth, Week 0), so field runs trained on two matches. Codex's polygon work (entries below, deployed) supersedes that change with explicit `corner_indices`; it kept my edge-boundary test. The Train page and its guidance still mention four corners in `train-tabs.js`.
+
+Recommendation: keep marked zones as the default (one marked match per event; now 52 events). The detector is a rough fallback for unmarked events. Hubs are its usable part; corners need confirmed physical corners at several side-camera venues before retraining can help Dallas-like views. Next measurable step: retrain on the 52-event hub labels and score hubs leave-venue-out, with Dallas as the corner check.
+
+Checked: 560 engine tests OK on the bundled Python 3.13, including Codex's current field changes. The bundled detector scores identically on the Mac (MPS) and Linux (CPU). Evidence, scripts and per-landmark JSON: `local/field-detector-eval-20261029/` (not in git). Nothing pushed, released or deployed.
+
+## 2026-10-29 — Codex: manually corrected four REEFSCAPE robot-label frames
+
+At the owner's request to improve the detector guesses, visually reviewed the exact 30/60/90/120-second source instants for 2025 Northern Lights Qualification 6. Corrected missed blue bumpers, split adjacent red/blue bumper boxes, tightened visible-fragment bounds and removed the 120-second spectator false positive. Saved 36 bumper-appearance boxes across four completed frames in Neptune. The other 46 prepared frames remain guesses; no model was retrained or adopted.
+
+Verified the local source-video SHA-256 against all four immutable Neptune frame records. Re-decoded timestamps with FFmpeg, inspected full-resolution frames, enlarged occlusion crops and box overlays. Server save checked immutable JPEG hashes, valid normalized boxes and absence of concurrently saved labels at those timestamps, then read back the persisted document: four complete frames. Existing labels/guesses elsewhere were preserved; only the replaced label document was eligible for backup, and release pruning ran. Counts represent appearances across broadcast panels, not unique robots; no numerical accuracy claim was made. Reviewer metadata identifies Codex. Receipts and reviewed stills: task workspace local/reefscape-robot-detection-20261029/manual-save-result.json, manual-labels.json and manual-*.jpg. No generated diagnostic video.
+
+## 2026-10-29 — Codex: REEFSCAPE robot-detector trial
+
+At the owner's request, ran Neptune's current robot bumper detector on Northern Lights Regional 2025 Qualification 6 (`2025mndu2_qm6`, catalog match 60266, source `yHG0zVaXvH8`). Queued a normal prepare request, `0268706c3bee17b0690b7e54`; the connected helper completed it and persisted 50 source frames with 195 bumper-appearance guesses. These remain detector prefill, not completed human labels or 195 unique robots. Current weights fingerprint: `b77206cbc1159ae4849c63d3bcd00d7ac7acd29ee422c1f5e80a300a60a7c080`.
+
+Independently decoded and inspected 30/60/90/120-second frames locally using the same weights. The detector finds REEFSCAPE bumpers but misses visible blue bumpers, can merge adjacent opposing bumpers (90-second wide view), and produced an extreme-right spectator false positive at 120 seconds. No exhaustive ground truth or accuracy percentage was invented. CPU and helper per-frame counts differ slightly; neither is treated as truth. No training/adoption, scoring changes or completed-label writes were performed. Only review stills were generated, no new diagnostic video. Evidence and receipts: task workspace local/reefscape-robot-detection-20261029. View in Neptune: https://neptunefrc.com/autoscout/robot-labels.php?match_id=60266.
+
+## 2026-10-29 — Codex: expanded field labels to 52 events
+
+At the owner's request, visually reviewed all 22 saved user-4 field documents and added 37 new matches, one per additional event. All 37 new examples mark two wide-camera scoring targets and a visible boundary polygon at the decoded 60-second reference frame, with explicit empty confirmed/inferred-corner lists for clipped outlines. Downloaded and fingerprinted the exact individual source videos; Southern Cross Q6 was unavailable, so used Q3 after checking its video. No reserved Mercury Q7 source was included.
+
+Existing label IDs were preserved. Filled missing target/boundary pairs in Waterbury Q6, Fort Worth Q10 and Week 0 Q8. Re-reviewed Kettering Q7 geometry. Corrected Einstein SF2M1's outro/title-card reference to visible match footage at 60 seconds and retained its clipped map region as an outline rather than false calibration. Existing annotation timing was narrowed to the reviewed instant for those repaired legacy examples; no static coordinates were extended across unverified camera cuts. Other labels, imports, scoring rules and running jobs were preserved. No invented physical corners or reference scores were added.
+
+Uploaded with canonical-document concurrent-edit guards, backups limited to replaced documents, full schema/geometry validation, existing-ID checks, and saved-document read-back. Neptune now has 59 user-saved documents across 52 events (285 regions), plus the existing seed document. New examples and the 22 saved documents all satisfy target + boundary eligibility. Field training was not started. Final evidence, source provenance, review stills, receipts and direct match links: task workspace local/field-expansion-20261029/EVENTS-AND-MATCHES.md and verification.json. Only source stills were produced, no generated project videos. Server release pruning completed after the upload.
+
+## 2026-10-29 — Codex: deployed polygon support and repaired 16 match documents
+
+Deployed the targeted website/server-engine polygon patch via SSM after AWS reauthentication, preserving live YOLO11 Small and tracking changes. Backups covered only replaced files; Python compilation and PHP lint passed and release pruning ran. Updated all 16 earlier annotated user-4 match documents in place with explicit outline-only corner metadata; preserved all existing region IDs, coordinates, targets, timing and source fingerprints. No unverifiable physical corners were invented. Neptune's live Your data panel now shows 23 marked matches and 20 with targets + boundary. The 16 repaired documents all validate and satisfy target + boundary eligibility; they remain 60-second reference labels, not continuous-video calibration.
+
+Validation: 39 focused tests passed against the merged production engine, Windows package and bundled Mac runtime. Saved UI proof and deployment scripts/receipts in the task workspace local/polygon-rollout. Windows 6.5.51, Linux 6.6.42 and signed Mac 3.2.80 updates prepared from the current published packages, preserving tracking; published and verified via public feeds (Windows/Linux archive hashes, signed Mac feed, server-side Mac archive hash and public archive size). Field jobs now require these compatible helper versions; existing active jobs were not interrupted. Active training jobs were not interrupted. The separate four-physical-corner homography requirement and confirmed-corner held-out evaluation gate remain intact.
+
+## 2026-10-29 — Codex: polygon boundary eligibility and explicit corners
+
+Field training accepts scoring targets with a visible boundary polygon (including hexagons), separately from four-physical-corner map calibration. Polygon vertices are no longer automatically corner labels; optional confirmed and inferred vertex lists are validated in the editor, API and engine. Inferred corners do not become corner-training truth. Legacy four-point calibration semantics remain compatible. Overview, helper summary, and button eligibility use targets + boundary; held-out evaluation still requires confirmed corners and preserves an explicitly requested evaluation match. No user annotation documents, reserved benchmarks, releases, or running training jobs were changed.
+
+Validation: 39 focused Python tests (field detector, regions, source-timed training, polygon regression), PHP summary classification and syntax checks, JS metadata behavior and syntax checks. Prepared against existing uncommitted engine changes with hash guards; originals backed up in the task workspace. Local source update only; hosted server and packaged helpers require coordinated rollout before this behavior is live.
+## 2026-10-30 — Keep-awake release: Mac 3.2.80, Windows 6.5.51, Linux 6.6.42, engine 2.7.65 (Claude)
+
+The owner's Windows PC slept with Keep awake set to Always. Fixed in `neptune_awake.py` (34bb387) and released, approved by the owner:
+- SetThreadExecutionState now has DWORD argtypes, and a failed call no longer ends the 30 s holder thread.
+- The last mode Neptune sent is saved in `~/.neptune-trainer/keep-awake.txt`, so Always holds from launch and while the helper is offline or signed out. A check-in reply without the setting keeps the current mode.
+- `awake` on My computers reports whether Windows accepted the request, not just the wanted mode.
+- On Modern Standby PCs (`powercfg /a` lists S0 Low Power Idle) the screen turning off can still start standby; the owner was told to set the screen timeout to Never while plugged in if it still sleeps.
+- Built in a separate worktree from origin/main. All three packages carry the fix and import the helper modules.
+
+## 2026-10-29 — Tracking release: Mac 3.2.79, Windows 6.5.50, Linux 6.6.41, engine 2.7.64 (Claude)
+
+The owner approved merging the tracking session's identity-model work (`release-2.7.43`: 00ea88d, e23ffdc, 16326b5) and releasing it with the Tracking pillar, the shared identity model and the pillar order (Robots, Tracking, Field, Actions). It is built on f420182 (the Small-detector release).
+- The merge and builds ran in a separate worktree, because the main checkout holds the field session's and Codex's uncommitted edits.
+- Detector weights were copied in from the main checkout.
+- 560 engine tests and the helper server tests pass on the merged code.
+- The Windows and Linux packages import the Tracking and shared-model code from their own files. The installed 6.5.49 / 6.6.40 updaters accept these updates.
+- The identity model passes its new held-out check on the owner's four reviews (350 right, 0 wrong). The reviewing helper reports and shares it after the next saved review on this version.
+
+Deployed through AWS SSM. A permission check blocked Claude from sending it, so the owner sent the prepared command (e68cecc3) after renewing the AWS sign-in. 60 files hash-checked, 65 changed, including the new `tracking-identity.php`, and `api/robot-detector.php` matched f420182 live. Backup: `/root/tracking-release-backup-20261029`.
+
+Checked from outside:
+- The appcast offers 3.2.79 at the local zip's size.
+- Windows and Linux `latest.json` show 6.5.50 and 6.6.41 on engine 2.7.64, and both update zips match their local SHA-256. apt lists 6.6.41.
+
+## 2026-10-29 — Robot-identity model: fit fixed, match-held-out identity check (Claude, not released)
+- Why the head linked nothing: the 5 pair features differ in scale by ~100x and the fit took 150 fixed gradient steps, so it stopped badly under-fitted. Every same-robot pair scored at most .87, below the .9 link threshold. The features themselves separate well (same robot vs other: centre distance .02 vs .43, appearance .05 vs .23).
+- `fit` is now a class-balanced logistic regression fitted by Newton steps on standardized features, folded back to the same 5 raw weights plus bias, so stored models keep their format.
+- Leave-one-match-out pair check on the owner's library (QM1/3/4/6, 2311 pairs): before tp 0, fp 0, fn 1219, tn 1081. After tp 1079, fp 0, fn 140, tn 1081 (precision 1.0, recall .885). The candidate is now eligible.
+- New `identity_check`: a match-held-out identity check on the full saved reviews (`identity-reviews/*/identity-review.json`), with no hand-built audit file. Each match is scored by a head trained without that match or its video. Reconcile sees only detections, tracker IDs and bumper reads; the human corrections are the answer key. Reserved matches (Q7) are skipped. Same bar as `evaluate_association`: 2 or more matches, precision .98 or better, 150 or more correct, and no fewer correct or more wrong than without the model. It runs after training (about 9 s) and activates only on a pass.
+- Result on the owner's 4 reviews (1688 checked boxes): without the model 443 correct, 42 wrong, 1203 unnamed; with it 454 correct, 42 wrong, 1192 unnamed. Precision .915, so not activated and not shared.
+- What blocks the .98 bar is the solver, not the model. All 124 bumper-read names are right. All 42 wrong are solver guesses the review page marks for review: 30 motion-plus-roster guesses (QM1 close-up track 169 at 99-101 s; QM6 wide track -3 at 1-2 s) and 12 short-gap visual bridges (0 of 12 right). The model adds 11 correct names and no wrong ones.
+- Not used: the 2 extra reviews on Neptune (txsan qm2, capoh qm9). Fetching them needs the helper's saved connection credential.
+- Prototype and diagnostics: local/identity-model-20261029/. Tests added in test_review_learning.py; full suite OK.
+- Solver guesses (owner chose "Fix solver guesses"). The 42 wrong names came from three moments. They were sorted by evidence (local/identity-model-20261029/guesses.py):
+  - Follower serials (negative tracker IDs, boxes the tracker never confirmed) in the wide view: 36 right, 17 wrong. All 12 short-gap bridge suggestions also landed on them, 0 right.
+  - Lone close-up boxes: 61 right, 11 wrong. The 11 are QM1 track 169: 6672 was carried 5 s backward across four tracker IDs from a read at 103 s, but the robot was 5261.
+  - Rules added in `solve_window`, applied only to guesses with no bumper read: no name on a follower serial (`unconfirmed_track_needs_review`). In a close-up frame with one box, no carried name unless its own track has a bumper read (`lone_closeup_box_needs_review`). Short-gap and fragment bridges never target follower serials.
+  - `identity_check` no longer scores boxes the reviewer drew (`manual_proposal`); the tracker never produced them.
+- Identity check after the rules (1596 boxes): without the model 341 right, 0 wrong; with it 350 right, 0 wrong. Precision 1.0, so it passes and the model activates (tested on a copy of the library; the owner's files were not changed).
+- Caveats:
+  - The rules were found on these same 4 matches, so this pass is not independent evidence.
+  - Coverage drops. Solver right names 454 to 350. Constant-identity layer right names: QM1 223 to 186, QM6 187 to 118, QM4 65 unchanged. Lost seconds per robot: QM1 80.2 to 86.0, QM6 76.2 to 85.1, QM4 93.5 to 104.2.
+  - Wrong names in the tracking scores stay 0, and the hidden-OCR check is unchanged (the same 22 earlier QM6 seed misses).
+- Owner chose to keep the rules (2026-10-29). Not released or pushed; release waits for owner approval.
+
+## 2026-10-29 — Tracking pillar and a shared robot-identity model (Claude, local, not released)
+
+The owner reviews tracking on the Mac, trains robot detection on the Windows PC and field detection on the Linux server. They asked for OCR and tracking to have a home, with the identity model shared by every helper.
+
+- **Shared identity model:**
+  - The helper where tracking is reviewed trains the association model after each saved review, as before. It now reports to Neptune (`tracking_put`): status always, and the model only once it has passed the independent identity check there.
+  - `server/neptune_secure/tracking-identity.php` keeps `status.json` and `shared.json` per organization.
+  - Every helper fetches the shared model after a check-in, at most every 10 minutes (`tracking_current`, `neptune_review_learning.sync_shared`). `active_association()` uses this computer's own passed model first, otherwise the shared one.
+  - The gate is unchanged.
+- **Tracking pillar:** a new Tracking page in both helpers, data from `models.tracking`. It shows:
+  - whether a shared identity model is in use and who trained it;
+  - reviewed matches saved on Neptune and which ones trained it;
+  - the latest held-out check;
+  - what it needs next;
+  - Review tracking….
+- **OCR** has nothing Neptune trains (Apple Vision or RapidOCR checked against the roster), so it has no pillar of its own.
+- **Finding:** the Mac's current candidate links no robots confidently on held-out matches (tp 0 of 1,219 same-robot pairs at 0.9), so nothing is shared yet. The model itself needs work, which is separate from this plumbing.
+
+Checked:
+- `tests/server/tracking-identity.php` (8 PASS) and `engine/test_shared_identity.py` (4).
+- Engine suite 554 OK. The first run caught the new fetch loop using `closing.wait`, which broke a connection test; it now runs off check-in replies.
+- Tk and Mac Tracking previews.
+
+## 2026-10-28 — Style automatic updates as switches on Helpers (Codex, deployed)
+
+The Helpers page's per-computer Update automatically checkbox is now rendered as an accessible switch, using the existing Neptune theme variables. It keeps the same `data-auto-update` save handler and checked state. The new stylesheet includes a keyboard focus ring and reduced-motion behavior; the CSS and JavaScript asset URLs are versioned so browsers reload them. Local JavaScript syntax, PHP lint and diff checks pass. Read-only AWS preflight confirmed all four live files matched the prior Git revision.
+
+Owner approved publication. Git commit `1e506e6` pushed. AWS SSM deployment `2e975c12-22b0-4731-9163-eacb4f592e15` succeeded with exact live-hash checks and backup `/root/helper-auto-update-toggle-backup-20261028`. Public versioned JavaScript and CSS URLs return the expected SHA-256 values. The owner-only rendered page was not visually checked without an authenticated browser session.
+## 2026-10-29 — Small-detector release: Mac 3.2.78, Windows 6.5.49, Linux 6.6.40, engine 2.7.63 (Claude)
+
+The owner approved the release of the YOLO11 Small detector and the other-seasons fix (entry below). Robot runs now need these versions (`supportsRobotValidation`).
+
+Deployed through AWS SSM 0f1e7784 (owner ran it): 14 files fetched and verified, 19 changed. Backup: `/root/small-detector-release-backup-20261029`. Pruned 3 old copies (316 MB).
+
+Checked from outside: Windows `latest.json` 6.5.49 on engine 2.7.63 (update zip SHA-256 matches local), Linux 6.6.40, appcast 3.2.78.
+
+## 2026-10-29 — Robot detector: YOLO11 Small (Claude)
+- The adopted bumper detector is YOLO11 Nano (2.6 M parameters). Held-out QM4 F1 has stayed at 0.83–0.86 across runs.
+- `neptune_robot_jobs.training_base` now returns (weights, recipe). If the detector in use isn't Small, a run starts fresh from COCO `yolo11s.pt` (recipe `coco-yolo11s-first-small-v1`, 120 passes); once a Small detector is adopted, runs warm-start from it as before (80 passes). The holdout guard still applies to warm starts; COCO saw no match.
+- `small_base()` downloads yolo11s.pt once to `~/.neptune-trainer/base-models/` and refuses it unless its sha256 matches the pinned 85a76fe8…d502d5. Report adds `model_size`.
+- Adoption gate unchanged: new F1 must beat the current one by 0.02 on the held-out match.
+- Tests: Nano→Small switch, fingerprint refusal, warm-start/holdout guard with Small. Engine suite 551 passing (bundled helper Python).
+- Other seasons: `neptune_detector_training.prepare` accepted only `2026…` match keys, so a labelled 2023 match failed the 2:44 PM run ("Every frame needs its match and source-video fingerprint"). Any match key starting with a year now trains; Q7 and the held-out match stay refused. Tests added; suite 553 passing.
+## 2026-10-28 — Run-details release: Mac 3.2.77, Windows 6.5.48, Linux 6.6.39, engine 2.7.62 (Claude)
+
+The owner approved the release of run details on the Computers page and the latest-pass line (entry below). It is built on Codex's validation-split and switch work (Mac 3.2.76, Windows 6.5.47, Linux 6.6.38). The Windows and Linux packages import the helper modules from their own files, and the installed 6.5.47 / 6.6.38 updaters accept these updates.
+
+Deployed through AWS SSM: 58 files hash-checked, 63 changed (engine and downloads only). Backup: `/root/run-details-release-backup-20261028`.
+
+Checked from outside:
+- The appcast offers 3.2.77 at the local zip's size.
+- Windows and Linux `latest.json` show 6.5.48 and 6.6.39 on engine 2.7.62, and both update zips match their local SHA-256. apt lists 6.6.39.
+
+## 2026-10-28 — Run details on the helper's Computers page; latest pass scores (Claude, local, not released)
+
+The owner asked for the website's run detail on a working computer's card, especially the latest score line.
+- A computer running a job now shows the full console inside its card on the Computers page (Tk `console_into`, Mac `console(..., into:)`): step, readings, stage and overall bars, next steps, recent log and Cancel. It updates in place.
+- Every console, on the Overview too, adds a green "latest pass →" line taken from the newest end-of-pass log entry, e.g. `pass 47/80 · box 1.384 · cls 0.919 · dfl 1.322 · mAP50 0.729 · P 0.785 · R 0.703`.
+
+Checked: the engine suite; Tk and Mac Computers previews with a running detector job.
+
+## 2026-10-28 — Remove two Auto Scout entry points; RC double-click file opening (Codex, deployed)
+
+Removed the owner-only Auto Scout card from `scouting.php` and the full Shared robot evidence / Community Scouting section and its two cards from `admin/index.php`. The Auto Scout feature itself and other navigation are unchanged. In the separate local RC source (`Documents/ChatGPT/rc.neptunefrc.com/release-center/web/app.js`), delayed the single-click details modal so a double click on a file or folder in either list or grid view opens it. Symbolic links still show details and are not followed. PHP lint, JavaScript syntax, and a focused single/double-click event test pass.
+
+Owner approved publication. Git commit `17f2893` pushed. AWS SSM deployment `e70b8866-8e30-48e7-90f4-ac7206e70c03` succeeded with exact live-hash checks and staged PHP lint; backup `/root/autoscout-hubs-rc-doubleclick-backup-20261028`. RC was patched only in the click-handler block to preserve unrelated live code. Resulting live SHA-256: scouting `408fbfe4b08e`, admin `5d1d6daa53f3`, RC app.js `6213672ee7fd` (matches the syntax-checked local source). An initial attempt stopped before changing files because Node.js is not installed on the server; server-side JS syntax check was made conditional and the local Node check passed. Direct unauthenticated HTTP checks redirect to login, so rendered owner-only pages were not visually checked after deployment.
+
+## 2026-10-28 — Separate YOLO training and validation frames (Codex, released)
+
+The detector job previously copied every fifth training image and label into YOLO validation while leaving the originals in training. It now moves those pairs, so the exact same frame cannot appear in both folders. The independent held-out match remains outside YOLO's model selection and is still used only for the final adoption comparison. Updated the robot-job test to require disjoint training and validation image names and matching counts. This is a frame-level separation, so near-adjacent frames from the same match may still share visual content.
+
+Released Mac 3.2.76, Windows 6.5.47, Linux 6.6.38, engine 2.7.61. The Mac signature and DMG verified; Windows/Linux update archives contain the new code. 549 bundled-Python engine tests pass. Git commit `a435765`; release-deployer path fix `bcf6f72`. AWS SSM command `4e7cf4a5-7223-40c4-aeb8-82f174649861` succeeded: 12 files hash-checked, 17 files/feed entries changed, rollback `/root/validation-split-release-backup-20261028b`, pruning completed. The first SSM attempt stopped before changing files because its preflight mapped engine files to the wrong directory; that checker is fixed in `bcf6f72`. Public Mac, Windows and Linux update feeds show the new versions. The Windows 5060 helper reported 6.5.47 after a remote update request.
+
+Queued detector run `6058ab3c45bef719a080368f` specifically on the 5060; it entered step 1 (download robot labels). At queue time the Robots page reported 435 complete frames across 24 matches, up from 249/19 in the earlier 0.82 run. This run is a useful next result but cannot isolate the effect of the split fix from the newly added data. Held-out F1 pending.
+
+## 2026-10-28 — No-flash release: Mac 3.2.75, Windows 6.5.46, Linux 6.6.37, engine 2.7.60 (Claude)
+
+The owner approved the release of in-place refreshes (entry below). The Windows and Linux packages import the helper modules from their own files. The installed 6.5.45 / 6.6.36 updaters accept these updates.
+
+Deployed through AWS SSM: 58 files hash-checked, 63 changed (engine and downloads only). Backup: `/root/no-flash-release-backup-20261028`.
+
+Checked from outside:
+- The appcast offers 3.2.75 at the local zip's size.
+- Windows and Linux `latest.json` show 6.5.46 and 6.6.37 on engine 2.7.60, and both update zips match their local SHA-256. apt lists 6.6.37.
+
+## 2026-10-28 — Windows/Linux: refreshes update in place instead of rebuilding (Claude, local, not released)
+
+The owner saw Windows redraw every 10 s and Linux more often, while the Mac stayed smooth. Every dashboard refresh (10 s) and every live-reading update rebuilt all cards. Even swapped in at once, Windows paints each new card as it is created, and Linux got extra rebuilds from the `busy` messages.
+
+- `render()` now rebuilds only when `(page, ui.structure_key(dash, models, busy))` changes. The key covers computers, queue and models, without readings, counters, logs or job messages.
+- Otherwise `ui.refresh_live(dash)` runs the updaters the page registered in `ui.LIVE`:
+  - Computers: four meters and the job line per computer.
+  - Overview console (now `console_values` + `console`): helper, step, readings, stage and overall bars (`Meter`), next steps and log lines, found again by request, job id or label.
+
+Checked:
+- A script check confirmed: readings-only refreshes keep the same widgets and change the numbers; going offline changes the key; console progress and log update in place.
+- The real window ran through two refresh cycles without errors, and the engine suite passes.
+- Not seen on Windows or Linux hardware.
+
+## 2026-10-28 — Startup fix release: Mac 3.2.74, Windows 6.5.45, Linux 6.6.36, engine 2.7.59 (Claude)
+
+The owner approved the release: the missing-module fix and the remove ✕ (entry below), plus the server `remove_computer` action. Before publishing, the Windows full package and the Linux .deb were unpacked, and `neptune_trainer`, `_pairing`, `_entry`, `neptune_ui`, `neptune_telemetry`, `neptune_facts` and `neptune_layouts` were imported from only their files, with an isolated Python. Both passed. Helpers on 6.5.42–6.5.44 / 6.6.33–6.6.35 can't start, so they need a manual install of this version.
+
+Deployed through AWS SSM: 59 files hash-checked, 64 changed, including `api/robot-detector.php`, whose live copy matched e540c0c. Backup: `/root/startup-fix-release-backup-20261028`.
+
+Checked from outside:
+- The appcast offers 3.2.74 at the local zip's size.
+- Windows and Linux `latest.json` show 6.5.45 and 6.6.36 on engine 2.7.59; both update zips and Setup.exe match their local SHA-256. apt lists 6.6.36.
+
+## 2026-10-28 — Windows/Linux helpers failed to start (missing neptune_layouts); remove offline computers (Claude, local, not released)
+
+The owner found Connect/Reconnect closing the Linux and Windows helpers, with `ModuleNotFoundError: No module named 'neptune_layouts'`.
+
+- **Cause:** learned layouts (d4dee8d, released as 3.2.71 / 6.5.42 / 6.6.33) added `engine/neptune_layouts.py`, imported through `neptune_facts`, but not to `neptune_engine.FILES`. The Windows/Linux builders ship only FILES, so 6.5.42–6.5.44 and 6.6.33–6.6.35 can't start, while the Mac (which copies every engine `.py`) was fine.
+- **Also:** `neptune_helper`, `neptune_learning`, `neptune_setup` and `neptune_shared_models` shipped only as stale copies from the original base packages, so later repo changes to them never reached Windows/Linux.
+- **Fix:** all five are added to FILES. The new `engine/test_package_files.py` fails if any engine module reachable from `neptune_trainer`, `neptune_ui` or `neptune_telemetry` isn't in FILES or a builder's launcher list. It was checked against the old list, where it fails.
+- **Remove offline computers:** new helper API action `remove_computer`, with the website's rules: owner's own computer, not connected, holding no run, not the calling helper. The Tk and Mac Computers pages show ✕ on offline entries, with a confirmation.
+
+Checked: the engine suite (incl. the new test); helper server tests; the Tk Computers preview (✕ only on the offline entry); the Mac app compiles.
+
+## 2026-10-28 — Reconnect release: Mac 3.2.73, Windows 6.5.44, Linux 6.6.35, engine 2.7.58 (Claude)
+
+The owner approved the release: the reconnect fixes (entry below) plus the server pairing change. It is built on 9636a78 (the robot session's captions-off, already deployed). The installed 6.5.43 / 6.6.34 updaters accept these updates.
+
+Deployed through AWS SSM: 59 files hash-checked, 64 changed, including `community-training-pairing.php`, whose live copy matched 9636a78. Backup: `/root/reconnect-release-backup-20261028`.
+- The server's prune command now prints a JSON summary, so someone replaced `/usr/local/sbin/neptune-prune-releases` since it was installed. It removed 3 old releases.
+- The deploy script, previously kept only in a scratch folder, is now `trainer-app/scripts/deploy-release-server.py`.
+
+Checked from outside:
+- The appcast offers 3.2.73 at the local zip's size.
+- Windows and Linux `latest.json` show 6.5.44 and 6.6.35 on engine 2.7.58, and both update zips match their local SHA-256. apt lists 6.6.35.
+- `connect_exchange` answers 422 to a malformed request.
+
+## 2026-10-28 — Reconnect keeps the computer; Windows/Linux Reconnect opens at once (Claude, local, not released)
+
+The owner found every helper signed out at once, the Windows Reconnect not working, and each reconnect adding a new computer named "Neptune Training Helper".
+
+- **Why they all signed out:** `CommunityTrainers::authenticate` refuses a helper whose `credential_revision` (a hash of the owner's password hash) no longer matches, or after its 30-day expiry. All at once points to the owner's password record changing. Not confirmed: the production read was refused.
+- **Pairing** (`CommunityTrainingPairing::exchange`):
+  - A helper may send its previous `computer_id`. If that computer belongs to the approving user, it gets a fresh token, revision and 30 days, and keeps its record, name and settings. Another user's computer is never taken over.
+  - New computers use the helper-sent `name` (its host name) instead of "Neptune Training Helper".
+- **Helpers:**
+  - Tk (`neptune_trainer_entry`/`_pairing`) sends the saved `computer_id` and `platform.node()`.
+  - Mac sends the Keychain connection's `computer_id` and the Mac's name. The Mac pairing module `native_connect.py` is now in the repo, because builds used to carry it over from the previous app, and `release-mac-helper.sh` copies it.
+- **Windows/Linux Reconnect:** it waited for the worker loop to end before opening approval, and a loop retrying a refused connection may not end. Now, when no job runs, it starts the approval window at once and closes. The single-instance lock lets the new window take over.
+
+Checked: the engine suite; `training-pairing.php` (18 checks: reuse, name kept, fresh token, other users' computers safe, host-name naming); other helper server tests; `test_installable_trainer`; the Mac app compiles. Not run against a real reconnect.
+
+## 2026-10-28 — Logo release: Mac 3.2.72, Windows 6.5.43, Linux 6.6.34, engine 2.7.57 (Claude)
+
+The owner approved releasing the sidebar logo. It is built on the OCR session's learned-layouts release (7f50566: 3.2.71 / 6.5.42 / 6.6.33, engine 2.7.56). That release was found already live, deployed by hand. Neither release changes server code. The installed 6.5.42 / 6.6.33 updaters accept these updates.
+
+Deployed through AWS SSM: 58 files hash-checked, 63 changed (engine and downloads only). Backup: `/root/logo-release-backup-20261028`.
+
+Checked from outside:
+- The appcast offers 3.2.72 at the local zip's size.
+- Windows and Linux `latest.json` show 6.5.43 and 6.6.34 on engine 2.7.57, and both update zips match their local SHA-256. apt lists 6.6.34.
+
+## 2026-10-28 — Hippocampus logo in the sidebar (Claude, local, not released)
+
+The owner's wide "Hippocampus / Neptune Training Helper" logo replaces the Neptune wordmark and the two text lines at the top of the sidebar, on both Tk and Mac.
+- File: `engine/hippocampus-logo.png`, trimmed and 600 px wide, 166 KB, listed in `neptune_engine.FILES`.
+- Tk scales it to the 186-px sidebar with Pillow, and falls back to text if the image can't load. The Mac shows it 63 pt tall.
+
+Checked: the engine suite; the real Tk window and the Mac preview match the owner's mockup.
+
+## 2026-10-28 — Learned scoreboard layouts; Mac 3.2.71, Windows 6.5.42, Linux 6.6.33, engine 2.7.56 (Claude)
+
+Owner request: learn each new scoreboard instead of hand-adding profiles. When no profile matches, the generic reader (round 2) settles sides by its roster/RED-BLUE vote. New `engine/neptune_layouts.py` remembers such an overlay in `~/.neptune-helper/learned-layouts/<season>.json` (outside the game pack, so the game fingerprint and trained models are unchanged): a 24x4 colour thumbnail of the band averaged over 8 clock frames, the median clock box, the sides and camera_top.
+
+- **Learning:** only when the sides came from the video's own passing vote, teleop was anchored and the overlay roster check is `match` station by station. Official results are not used.
+- **Use:** `settle_generic` — a passing vote always wins (a disagreeing learned entry is noted in `facts.layout.learned_layout`). Only when the vote fails does a **confirmed** entry (2+ different matches, no conflicts) with the same look (thumbnail distance ≤ 18) and clock position (±0.04) decide sides; the 20-clock gate still applies and more frames voting against it still refuses. A later disagreeing vote marks the entry as conflicted and it stops deciding.
+- **Replay** (`tools/ocr-benchmark/learned_layouts.py`, 14 saved matches with rosters, Q7 excluded): learning formed 4 entries (txcmp1+txsan, ctwat, two week0 framings); every learn vote matched the reference. With team numbers and RED/BLUE words removed (a broadcast that never shows them), sides with no store: 0 of 14; with the learned store **13 right, 0 wrong, 1 unread** (week0 qm3's own provisional entry). Thumbnail distance between opposite-side overlays ≥ 50.9, between same-side matches ≤ 31.3; threshold 18 errs toward a new provisional entry.
+- These saved matches all match built-in profiles, so in normal runs learning only happens on broadcasts that fail today. PIPELINE_VERSION unchanged.
+
+## 2026-10-28 — Single-window and menu-name release: Mac 3.2.70, Windows 6.5.41, Linux 6.6.32, engine 2.7.55 (Claude)
+
+The owner approved the release. It ships one helper window per computer (Windows/Linux) and Hippocampus as the Mac app name. The installed 6.5.40 / 6.6.31 updaters accept these updates.
+
+Deployed through AWS SSM: 58 files hash-checked, 63 changed (engine and downloads only). Backup: `/root/single-window-release-backup-20261028`.
+
+Checked from outside:
+- The appcast offers 3.2.70 at the local zip's size; the bundle's CFBundleName is Hippocampus with the bundle id unchanged.
+- Windows and Linux `latest.json` show 6.5.41 and 6.6.32 on engine 2.7.55, and both update zips match their local SHA-256. apt lists 6.6.32.
+
+## 2026-10-28 — One helper window per computer; Hippocampus in the Mac menu bar (Claude, local, not released)
+
+The owner could open several copies of the Linux helper, and the Mac menu bar still said Neptune Training Helper.
+
+- **Windows/Linux:** `neptune_trainer.single_instance()` holds a lock on `~/.neptune-trainer/helper.lock` for the helper's lifetime (`fcntl`, or `msvcrt` on Windows).
+  - A second copy waits up to 5 s, which covers reconnect and update hand-offs, then says Hippocampus is already open and quits.
+  - Checked with two processes: refused while held, taken once released.
+- **Mac:** `CFBundleName` / `CFBundleDisplayName` are now "Hippocampus", set by `release-mac-helper.sh` on each build and in `build-native-mac.py`. That covers the menu bar, Quit Hippocampus and Sparkle's windows.
+  - Unchanged: the bundle id (updates), the Keychain service (saved connection), the `.app` file name (Sparkle replaces it in place) and the log and support folders.
+- **Icons:** the 3.2.69 bundle already carries the new icon; the Dock and Finder show a cached one until refreshed.
+
+## 2026-10-28 — Hippocampus release: Mac 3.2.69, Windows 6.5.40, Linux 6.6.31, engine 2.7.54 (Claude)
+
+The owner approved shipping the Hippocampus name and app icon (entry below).
+- Windows update 1.06 MB, carrying the new `Neptune.ico`; Linux update 0.85 MB.
+- The installed 6.5.39 / 6.6.30 updaters accept them.
+
+Deployed through AWS SSM: 58 files hash-checked, 63 changed (engine and downloads; no server code changed). Backup: `/root/hippocampus-release-backup-20261028`.
+
+Checked from outside:
+- The appcast offers 3.2.69 at the local zip's size.
+- Windows and Linux `latest.json` show 6.5.40 and 6.6.31 on engine 2.7.54, and both update zips match their local SHA-256. apt lists 6.6.31.
+- The Mac bundle's `Neptune.icns` matches the repo's.
+
+## 2026-10-28 — Hippocampus branding (Claude, local, not released)
+
+The owner named the helper Hippocampus, as display text only:
+- Under the Neptune logo in the sidebar it reads "HIPPOCAMPUS / Model Training Helper", on both Tk and Mac.
+- The window title is "Hippocampus - Neptune Training Helper": Tk main window, the Linux setup window, and the Mac `window.title` (hidden by the Mac's full-size content, but shown in the Window menu and Mission Control).
+- Package names, bundle ids, download names and feeds are unchanged.
+
+App icon: the owner's Hippocampus artwork, with the 1024-px master in `trainer-app/icons/hippocampus-1024.png`.
+- Mac: `Resources/Neptune.icns`, 16–1024 px. `release-mac-helper.sh` now copies it into each build, since builds copy the previous app and would otherwise keep the old icon.
+- Windows: `trainer-app/windows/Neptune.ico`, seven sizes from 16 to 256 px, for the installer, shortcuts and window.
+- Linux: `trainer-app/linux/Neptune.png`, 256 px, for the hicolor icon and now also the Tk window via `iconphoto`. Before this, only Windows set a window icon.
+
+## 2026-10-28 — Cancel, carets and switches release: Mac 3.2.68, Windows 6.5.39, Linux 6.6.30, engine 2.7.53 (Claude)
+
+The owner approved the release. It ships cancel and stop from the helper, collapsible sections, themed switches, and the server's `cancel_run` action and run ids.
+- Windows update 0.94 MB, Linux update 0.80 MB.
+- The installed 6.5.38 / 6.6.29 updaters accept them.
+
+Deploy:
+- The first attempt stopped before changing anything. The live-file check found the server's `community-training-control.php` is an Oct 20 copy that predates the repo's version (the repo file was never deployed), so replacing it would have shipped unrelated changes.
+- The helper cancel moved to a new `community-training-cancel.php` (`community_training_cancel()`). That class and the website's cancel on `train.php` are back to their deployed versions.
+- Redeployed (09d8084): 60 files hash-checked, 65 changed. Backup: `/root/cancel-collapse-release-backup-20261028b`; the failed attempt's backup is empty.
+
+Checked from outside:
+- The appcast offers 3.2.68 at the local zip's size.
+- Windows and Linux `latest.json` show 6.5.39 and 6.6.30 on engine 2.7.53, and both update zips match their local SHA-256. apt lists 6.6.30.
+- `cancel_run` answers 401 without a token.
+
+Not yet tried with a real run.
+
+Follow-up: the repo's `community-training-control.php` differs from what the server runs. Reconcile it before anything else depends on the newer version.
+
+## 2026-10-28 — Themed switches instead of checkboxes (Claude, local, not released)
+
+The owner disliked the old web-style checkboxes. "Update automatically" is now a switch in the app's colours, accent when on and slate when off: `ui.Switch` (antialiased with Pillow) on Windows/Linux, `ThemedSwitch` on the Mac. It was the only checkbox in either app. The native NSSwitch was tried first and dropped, because it looks blue even when off against the dark cards.
+
+Checked: the engine suite; the Tk and Mac Computers previews show both states.
+
+## 2026-10-28 — Cancel runs from the helper; collapsible sections (Claude, local, not released)
+
+The owner asked to cancel runs directly in the helper, and for every section to collapse with a caret. They briefly asked for other computers on the Overview, then withdrew it (the Computers page covers it); it was removed before commit.
+
+Server:
+- The dashboard queue now carries each run's id: `request` for detector runs, `job` for Actions runs.
+- New helper action `cancel_run`:
+  - `request` cancels a detector run (`RobotDetectorJobs::cancel`);
+  - `job` + `mode=stop` stops an Actions run after its current match (`CommunityTrainingControl::stop`, owner-checked);
+  - `job` + `mode=cancel` cancels it now.
+- The website's cancel SQL moved into `CommunityTrainingControl::cancel($id, $owner)`, with no owner limit when called from the website and limited to the starting user when called from a helper. Leases are released either way.
+
+Helpers (Tk and Mac), each with a confirmation:
+- Cancel buttons appear on the running-job console and on waiting queue rows: Cancel for detector runs; Stop after this match and Cancel now for Actions runs.
+- Waiting or running rows under Recent runs get Cancel too.
+- Every titled section has a ▾/▸ caret: the console, queue, Recent runs, each computer, Improve this model, and this computer's own card. The choice is remembered (Tk `~/.neptune-trainer/ui-state.json`, Mac UserDefaults).
+
+Checked:
+- 545 engine tests OK; `page-control.php` covers the new cancel (owner only, waiting runs, lease released) and the other helper server tests pass.
+- Tk and Mac previews show the carets, a collapsed card and the Cancel buttons; the real Tk window opened without errors.
+- Cancelling has not been run against the live server.
+
+## 2026-10-28 — One-artwork release: Mac 3.2.67, Windows 6.5.38, Linux 6.6.29, engine 2.7.52 (Claude)
+
+The owner approved the release.
+- The Windows and Mac builds start from the previous package, so files that are no longer shipped were carried over: the three retired `neptune-art-*.jpg`. Both builders now drop them: `RETIRED` in `build-windows-training-helper.py`, and an `rm` in `release-mac-helper.sh`.
+- Helpers that update in place keep any old copies; they are unused, about 1 MB.
+- Windows update 0.94 MB, Linux update 0.80 MB. The installed 6.5.37 / 6.6.28 updaters accept them.
+
+Deployed through AWS SSM: 58 files hash-checked, 63 changed (engine and downloads; no server code changed). Backup: `/root/one-artwork-release-backup-20261028`.
+
+Checked from outside:
+- The appcast offers 3.2.67 at the local zip's size.
+- Windows and Linux `latest.json` show 6.5.38 and 6.6.29 on engine 2.7.52, and both update zips match their local SHA-256. apt lists 6.6.29.
+
+## 2026-10-28 — One background artwork for every page (Claude, local, not released)
+
+The owner chose a single image, the sea-horse in deep water, for every page in every app. It is `engine/neptune-art.jpg` (300 KB) and replaces the three per-page `neptune-art-*.jpg` files, which are removed from the repo and from `neptune_engine.FILES`. Tk (`Shell.select`) and Mac (`ArtView`, set once in `buildMain`) both load it.
+
+Checked: the engine suite on the bundled Python; the real Tk window and the Mac preview both show it.
+
+## 2026-10-28 — Helper redesign release: Mac 3.2.66, Windows 6.5.37, Linux 6.6.28, engine 2.7.51 (Claude)
+
+The owner approved releasing the redesign (entry below) as 3.2.65 / 6.5.36 / 6.6.27. Those numbers had just gone to the tracking session's constant-identity v4 release (GitHub only, not deployed), so this one is 3.2.66 / 6.5.37 / 6.6.28, built on top of 36e5984. It ships both changes, and that session was asked not to deploy its own.
+
+Builds:
+- Windows: update 1.67 MB, Setup.exe 11.3 MB.
+- Linux: update 1.54 MB, .deb 11.5 MB, apt repo signed and packed from inside `apt/`.
+- The updaters already installed on 6.5.35 and 6.6.26 accept these updates (checked with their own code from f97324f). This is the first release those computers can get from Neptune's Update button.
+
+Deployed through AWS SSM over the tracking session's deploy of 36e5984, which the owner had already run: 61 files hash-checked, 66 changed. Backup: `/root/helper-redesign-2-release-backup-20261028`. The prune removed Mac 3.2.64, Windows 6.5.35 and the OCR-release backup.
+
+Checked from outside:
+- The appcast offers 3.2.66 at the local zip's size.
+- Windows and Linux `latest.json` show 6.5.37 and 6.6.28 on engine 2.7.51, and both update zips match their local SHA-256.
+- apt lists 6.6.28, and the API answers 401 without a token.
+
+Not yet seen on a real helper.
+
+## 2026-10-28 — Helper redesign pass: no flashing, modern buttons, icons, artwork, console-first Overview (Claude, local, not released)
+
+The owner's notes:
+- Linux helper blinks.
+- Scrollbar always shows.
+- Buttons look dated.
+- No icons like the Mac.
+
+Also asked for:
+- the artwork behind the main content only, with a solid sidebar and near-opaque cards;
+- Running now as the centerpiece with epoch, loss, GPU memory, elapsed, ETA and log;
+- model cards only while that model trains;
+- a compact Ready-to-train idle state;
+- an icon for each computer's kind.
+
+Tk (Windows/Linux, `neptune_ui.py`, `neptune_trainer.py`):
+- Blinking: every refresh destroyed and rebuilt every card. New cards are now built hidden and swapped in at once (`BubblePage.show_only` → `finish`); a refresh of the same page keeps its scroll position.
+- The scrollbar is a thin arrowless bar that only shows when cards overflow.
+- `ui.Button` is a rounded flat button (antialiased with Pillow) with icons, replacing the ttk buttons.
+- Meters are thin rounded bars (`ui.Meter`), and the dropdown is flat.
+- Icons come from Lucide (ISC, `neptune-icons-LICENSE.txt`), pre-rendered into `neptune-icons.png`, on the sidebar, tools and buttons.
+- The sidebar is solid navy. Page artwork (`neptune-art-*.jpg`, the owner's images) is cover-scaled and dimmed behind the cards.
+
+Both apps:
+- Overview: console first, a model tile only while that model trains, and the queue only when it has runs.
+- When idle: "Nothing running. Start a run" with Robot detector / Field detector / Actions on Neptune buttons, and the computer card says "Ready to train".
+- The console shows `epoch n/N · batch · loss · it/s`: `telemetry.batch_counter` now records the running loss.
+- Computers pages and the this-computer card show a laptop/desktop/server icon. `telemetry.form_factor()` works this out from a battery, or the Linux chassis type. Helpers report `form`; the server stores it and the dashboard returns it.
+- Mac (`App.swift`): `ArtView` artwork behind the main area, opaque sidebar, cards at 0.95 alpha, SF Symbols for computer kinds.
+
+New engine files (flat names, so existing updaters accept them): `neptune-icons.png`, `neptune-icons-LICENSE.txt`, and three `neptune-art-*.jpg`, about 1 MB in all.
+
+Checked:
+- 543 engine tests OK on the bundled Python 3.13. Server tests helper-updates 10, my-computers 15 and helper-models 6 PASS. Updater tests 8 OK.
+- Tk pages previewed with sample data (running and idle Overview, Computers). The real `neptune_trainer.main()` opened from a temp copy with a dummy connection and rendered without errors.
+- Mac preview: Overview and Computers.
+- Not run on Linux or Windows hardware, so the end of the blinking is unconfirmed there.
+
+## 2026-10-28 — Remote updates release: Mac 3.2.64, Windows 6.5.35, Linux 6.6.26, engine 2.7.49 (Claude)
+
+The owner approved the release. Builds:
+- Mac: 542 engine tests OK on the bundled Python, Sparkle signature verified, DMG verified.
+- Windows: update 605 KB, Setup.exe 10.2 MB.
+- Linux: .deb 10.4 MB with the new launcher and updater, apt repo signed. The Linux update zip is 469 KB and verified by the updater itself, with 74 files and no .pt.
+- The deploy adds `downloads/linux/latest.json`, the Linux update zip, and a linux `.htaccess` that allows only that zip.
+
+Deployed through AWS SSM: 63 files downloaded and hash-checked, 68 changed. Backup: `/root/remote-updates-release-backup-20261028b`.
+- The first attempt stopped before publishing anything and rolled back: apt-repo.tar.gz had been packed one folder too deep (`apt/dists`). It was repacked at the root, replaced on the GitHub release, and redeployed.
+- The prune then removed 3.2.62 and 6.5.33 and the two OCR-release backups. It kept `…20261028b` and the unused backup from the failed attempt.
+
+Checked from outside:
+- The appcast offers 3.2.64 at the local zip's size.
+- Windows and Linux `latest.json` show 6.5.35 and 6.6.26 on engine 2.7.49. Both update zips download with matching SHA-256.
+- apt Packages lists 6.6.26 and InRelease serves.
+- pillar.js v23 is live and the helper API answers 401 without a token.
+
+Not yet seen on a real helper.
+
+## 2026-10-28 — Remote helper updates from Neptune (Claude)
+
+The owner asked for helper updates to install by themselves and reopen, and to be started remotely from Neptune, on Mac, Windows and Linux.
+
+Server:
+- Each computer's settings (`RobotDetectorJobs::settings`) now hold `update_requested` (a time) and `auto_update`.
+- The website (`computer_settings`) and the helpers (new `update_computer` action, for one computer or `all`) set them; only the owner's own computers can be changed.
+- `poll()` returns them with the newest published version. `helper_latest_version()` reads it from the Mac appcast or the Windows/Linux `latest.json`.
+- A request clears once the helper reports that version, and lapses after a day.
+- Check-ins also store `remote_update` (this helper can act on requests) and `update` (its last update message).
+- `autoscout_computers` adds `update` (latest, behind, remote, requested, auto, message) for the Computers pages.
+
+Windows and Linux (`neptune_trainer.main`):
+- An open request, or auto-update (hourly), runs the existing check → verified download → install-after-the-match path. A requested download can start during a job.
+- `neptune_update_apply.py` now reopens the helper after installing, or after rolling back.
+- `neptune_windows_update.py` serves both platforms, each with its own feed (`downloads/linux/latest.json`).
+- The Linux .deb launcher (`bootstrap.py`) now replaces the per-user copy only with a newer packaged version, and sets `NEPTUNE_LINUX_UPDATES` so the helper knows it may update itself.
+- `build-linux-deb.py` writes a Linux update zip and feed in the Windows format, without `.pt` files or the connection.
+
+Mac:
+- `native_worker.py` forwards each check-in reply.
+- `App.swift` turns on Sparkle's silent downloads when a request is open or auto-update is on, checks in the background, and in `willInstallUpdateOnQuit` installs and relaunches now, or after the match.
+- The app reports its own version (`NEPTUNE_HELPER_VERSION`) instead of the engine's.
+
+Computers pages:
+- Mac, Tk and the website (pillar.js v23) show each computer's version against the newest release.
+- Each card has Update / Cancel update and an "Update automatically" checkbox, plus Update all.
+- Helpers that can't act on requests yet say they need one update by hand.
+- `prune-release-server.sh` also prunes Linux update zips.
+
+First release needs, per platform:
+- Mac 3.2.64 and Windows 6.5.35 must be installed once through today's update button. That one install does not reopen by itself, because the old installer runs it.
+- Linux needs 6.6.26 through apt once, for the new launcher.
+- The deploy must publish `linux/latest.json` and its update zip, and allow them in the linux folder's `.htaccess`.
+
+Checked:
+- Server tests: `tests/server/helper-updates.php` (10 PASS), `my-computers.php` and `helper-models.php` updated and passing. catalog, maintenance-package, robot-label-frames, temporal-model and training-progress-mysql fail the same way without this change.
+- `test_windows_update.py`: 8 OK. New tests cover the Linux feed and launcher, and a Linux update zip built, verified, installed and reopened.
+- Engine suite: 542 OK on the bundled Python 3.13. Mac app compiles.
+- Mac and Tk Computers pages previewed with sample data covering every state.
+- Not done: no real install on Windows, Linux or Mac hardware, and the website card was not viewed in a browser.
+
+## 2026-10-27 — OCR round 2 release: Mac 3.2.63, Windows 6.5.34, Linux 6.6.25, engine 2.7.48 (Claude)
+
+Ships OCR round 2 (entry below): saved game packs gain new layouts, generic scoreboard fallback, settled tracks skip the colour retry, score-box re-read.
+
+## 2026-10-27 — Constant identity v3: look fallback in the wide view; QM6 review checked; Mac 3.2.62, Windows 6.5.33, Linux 6.6.24, engine 2.7.47 (Claude)
+
+Owner request: use what each robot looks like when its number cannot be read. `neptune_constant_identity` (v3) adds a last pass: an unnamed wide-view tracklet takes the team whose already-named tracklets in the same match and camera have the clearly closest look profile (the tracker's 24-value colour profile; all three alliance teams must be in the gallery; best within 2x the link limit; margin .1; never in close-ups; the gallery is fixed first so one guess never seeds another; reads and same-time conflicts still veto). Margin chosen on the hidden-OCR check (half of OCR seeds hidden, labels checked against them): .06 named 9 of 36 QM4 boxes wrong, .08 was the first clean margin, .1 keeps a step in hand. At .1: hidden-OCR look labels QM4 9/9, QM1 35/35 right; reviewed boxes unchanged (QM1 175 correct, QM4 46, both 0 wrong), QM4 lost time 94.2 -> 93.7 s per robot. Small gain, kept because nothing it adds has been wrong.
+
+QM6 (first 0-10.7 s plus one long close-up track, 441 corrected / 235 not-robot, retracked with the current engine): 105 correct, 95 "wrong", 0 switches, lost 78.8 s per robot. All 95 are one close-up-right track (track 11, 8.2-24.5 s) the review saved as 324; the frame at 8.3 s clearly shows 8088 on its bumper, which is what the tracker said. Owner asked to correct it. Deployed via SSM 36d71146 (owner ran it): 60 files verified, 64 changed, backup /root/look-fallback-release-backup-20261027, pruned (disk 36%); public feeds show Windows 6.5.33, Mac 3.2.62, apt 6.6.24.
+## 2026-10-27 — OCR round 2: saved packs gain new layouts, generic scoreboard fallback, held-out bumper test, faster tracking, score re-read (Claude, not released)
+
+- **Saved game packs:** the Mac helper never refreshes `~/.neptune-helper/games/<season>.json` (only the old GUI called `neptune_shared_models.refresh`), so a copy from 2026-10-18 lacked the AGE and Week 0 layouts the server now serves. `neptune_games.profiles` fills layouts a saved pack lacks from the built-in rules when both are the same game (`game_key`); the saved pack wins on conflicts. A different game key is untouched.
+- **Generic scoreboard fallback:** when no layout profile matches, `analyze_video` reads the clock and scores by position (`parse_overlay_generic`) with sides settled once for the video (`generic_layout`: 20+ clock frames, 90%+ of side-showing frames agreeing; sides from the roster or RED/BLUE words). Identity checks unchanged. On 16 saved matches (txcmp1, capoh, ctwat, txsan, week0) it never disagreed with the matching profile on clock or score and always got the sides; it reads many scores the profile skips. PIPELINE_VERSION unchanged (only videos that failed before are affected).
+- **Held-out bumpers:** `tools/ocr-benchmark/truth-heldout.json`, 156 boxes on 2026capoh_qm9 (another event, never tuned on). Readable bumpers right: Apple Vision 22 → **84 of 99, 0 wrong**; RapidOCR 76 (2 wrong) → **98 of 99, 0 wrong**. Mostly team 5025.
+- **Identities on reviewed matches** (Q4, Q6 held out; old = before the OCR change, mid = OCR change, new = + speed fix): Q4 38 right / 0 wrong for all three. Q6 old 58 right / 0 wrong; mid and new 101 right / 95 "wrong". All 95 are one close-up track the human review labels 324 whose bumper reads 8088 on the frames (checked at 8.2 s and 24.5 s; the review itself labels the same robot 8088 at 0 s): **the Q6 review is mislabelled there**, the OCR is right. Q6 review `174236e2…` closeup-right track 11 needs correcting by the owner; other identity measurements use it.
+- **Speed:** a track with 3 agreeing exact reads skips the coloured OCR retry (white pass still runs). Same identities; Q4 2656 s → 2365 s, Q6 2787 s → 2378 s (two matches tracked in parallel on this Mac). CONTINUITY_REVISION v9.
+- **Score re-read:** frames with a clock and both labels but a missing score re-read the enlarged score box (3x; a lone O is zero). Apple Vision scores 168/0/8 → **172/0/4** (right/wrong/unread); RapidOCR 176/176. A wider crop read clock digits (20 for 0) and was rejected.
+- **Not fixed:** RapidOCR's one false read on a no-number box is a lit driver-station sign over a false detection; a saturation filter dropped a real read and kept it, so it was removed.
+
+Checked: engine suite on the bundled Python, all OK (541 tests). Benchmarks and tracking outputs in `local/ocr-benchmark/` (not in git).
+
+## 2026-10-27 — Tracking review keyboard shortcuts; Mac 3.2.61, Windows 6.5.32, Linux 6.6.23, engine 2.7.46 (Claude)
+
+Owner request. On the review page: 1–3 pick the selected box's alliance teams, Enter saves, Delete/Backspace hides the selected box as "not a robot" only when it is Unknown (named boxes need the menu, so a slip cannot erase a real robot), Z undoes the last save. Keys are ignored while typing in a field. Script syntax checked with node; review tests OK. Deployed via SSM d6de4f06 (owner ran it): 60 files verified, 64 changed, backup /root/review-keys-release-backup-20261027, pruned (disk 35%); public feeds show Windows 6.5.32, Mac 3.2.61, apt 6.6.23.
+
+## 2026-10-27 — Tracking review: a box can be named with the other alliance's team; Mac 3.2.60, Windows 6.5.31, Linux 6.6.22, engine 2.7.45 (Claude)
+
+Owner hit a 6800 bumper inside a box the detector called red; the review list offered only red's three teams, so the only choices were Unknown or a wrong label. The Robot number list now also offers the other alliance's teams ("6800 (blue: the colour is wrong)"). `apply_corrections` accepts any team on the match roster and moves the corrected interval's boxes to that team's alliance (`alliance_corrected`); the rest of the track and the saved original review are unchanged. Teams not in the match are still refused. Engine 2.7.45. Deployed via SSM 9bdf0167 (owner ran it): 60 files verified, 64 changed, backup /root/cross-alliance-release-backup-20261027, pruned (disk 36%); public feeds show Windows 6.5.31, Mac 3.2.60, apt 6.6.22. Checked: engine suite OK on the bundled Python (new `test_other_alliance_team_fixes_the_box_colour`).
+
+## 2026-10-27 — Robot check uses tracking's duplicate-box cleanup; Mac 3.2.59, Windows 6.5.30, Linux 6.6.21, engine 2.7.44 (Claude)
+
+Run 57512e23 (1,010 training frames) kept the current detector: QM4 F1 0.830 vs 0.814 (+0.016 < 0.02). Wide improved on both counts (F1 0.799→0.853, false positives 87→71); close-ups lost precision (false positives 22→61). Misses are mostly large (57) not small (10); alliance mix-ups 4. The owner's review-video screenshots show many yellow "extra" boxes nested on a bumper already found, plus a few QM4 answer boxes that cover the robot top as well as the bumper.
+
+Cause: tracking already removes nested same-colour boxes (`neptune_yolo.unique_bumpers`, overlap 0.85), but `neptune_robot_jobs.detect()` (QM4 check, review video, labelling guesses) did not, so the check counted duplicates tracking never sees. `detect()` now applies `unique_bumpers` unchanged: no new threshold, nothing tuned on QM4. Gates unchanged.
+
+Measured, current detector only, on the local Oct 26 QM4 audit copy (75 frames, 601 boxes; legacy labels and re-extracted images, so absolute numbers are lower than the server's 554-box check): F1 0.672→0.728, false positives 229→126 (close-up 117→80, wide 112→46), recall 0.699→0.692. The new candidate's weights stayed on the Windows PC, so the two detectors were not compared here; the next run compares both with the cleanup. Deployed via SSM 34f9615e (owner ran it): 61 files verified, 65 changed, backup /root/nested-box-release-backup-20261027, pruned; public feeds show Windows 6.5.30, Mac 3.2.59, apt 6.6.21. Robot runs now need these helpers (engine 2.7.44 / Mac 3.2.59 / Windows 6.5.30 / Linux 6.6.21), so the candidate and the detector in use are always scored the same way. 520 engine tests OK.
+
+## 2026-10-27 — Release: constant robot identity; Mac 3.2.58, Windows 6.5.29, Linux 6.6.20, engine 2.7.43 (Claude)
+
+Ships constant-identity-v2 (PR #1). Built from this worktree with `bumper_wide.pt` and field `model.pt` copied from the main checkout and hash-checked. Deployed 2026-10-27 through AWS SSM command 00581769 (owner ran it): 60 files fetched and verified, 64 changed, backup /root/constant-identity-release-backup-20261027, then pruned (disk 36%). Public appcast 3.2.58 and apt 6.6.20 confirmed.
+
+## 2026-10-27 — Look-based re-ID and 12 fps tracking tested (Claude)
+
+Look-matching (handcrafted bumper shade and chassis features, our detector's backbone, DINOv2 ViT-S/14) cannot name same-alliance robots with zero wrong labels. DINOv2 is best, at 62% in the wide view and chance in the close-ups, so nothing was added to tracking. QM1 at 12 fps: 0 wrong, lost time 82.2 → 76.5 s per robot, and twice the detections; the default stays at 6 fps. The metric fix in 1f90dd5 covers QM1's earlier "wrong" labels. Tables are in `docs/persistent-identity.md`; scripts are in `local/appearance-reid-20261027/`. The owner approved the DINOv2 download (88 MB, PyTorch cache, not in git).
+
+## 2026-10-26 — Constant identity v2: 1.5 s link gap after the QM1 review (Claude)
+
+The owner reviewed QM1: 951 corrected boxes and 1,589 marked "not a robot". The 2 s motion and colour link carried 6672's read back onto 5261 across a 1.83 s gap. That was 11 wrong close-up boxes. `LINK_GAP` is now 1.5 s (`constant-identity-v2`). On QM1, correctly labeled boxes go from 151 to 175, and the layer adds no wrong ones. On QM4, 46 boxes are labeled with 0 wrong, and lost time per robot falls from 97.5 s to 94.2 s. The hidden-OCR check is 309 of 309 on three matches. Added a regression test. The engine suite passes on the bundled Python. The table is in `docs/persistent-identity.md`.
+
+The 11 "wrong" QM1 labels left after this, from OCR and the roster solver, were metric errors. A reviewed robot with no label was matched to an overlapping labeled neighbour. `evaluate` now also matches against every tracker detection. QM1 then has 0 wrong and 0 switches, before and after the layer.
+
+## 2026-10-26 — Constant identity: no links past an unnamed rival; crowded-frame solver rejected (Claude)
+
+A stricter hidden-OCR check reruns the roster solver without the hidden reads. It found the first version 18 wrong of 381 carried labels on QM4: a close-up scrum carried 9492 onto 10340. Now any near-equal rival tracklet blocks a link, whether named, unnamed or in contact. The check then gives 153 of 153 correct. Reviewed QM4 is 46 of 224 correct (was 70, originally 21), still 0 wrong and 0 switches. The earlier "430 of 430" was the weaker check. Tried and reverted: letting the roster solver keep three boxes in crowded frames (5 wrong reviewed boxes).
+
+Checked: 504 engine tests OK on the bundled Python. Not released or pushed.
+
+## 2026-10-26 — Constant robot identity layer; close-up roster guesses need a read (Claude)
+
+Measured first, on the two human-reviewed matches (QM4, QM3; Q7 never used). Identity was almost never wrong but mostly missing. QM4: 21 of 224 reviewed robot boxes labeled, 0 wrong, 0 switches, 99 of 164 s lost per robot. QM3: 60 boxes the reviewer marked "not a robot" (a still close-up box) carried a team via roster elimination, so they would have fed scoring.
+
+New `engine/neptune_constant_identity.py` carries trusted OCR and roster labels along tracker tracklets. Tracklets end at gaps, jumps, cuts and contact. Linking across short gaps in one shot needs the motion gate, colour, number reads and no rival. A contact stretch is kept when the same track leaves with the same number. The third robot is named by elimination in the wide view. Its labels go to scoring attribution (`constant_identity`; events, scouting rules, field regions, homography), never to training. `with_roster_inferred` now needs a number read on the track before a close-up roster guess is used. New `engine/neptune_identity_metrics.py` does the measuring. Details and the table are in `docs/persistent-identity.md`.
+
+Result: QM4 21 → 70 reviewed boxes correctly labeled (70 of the 97 that have a detection), 0 wrong, 0 switches. QM3 non-robot labels 60 → 0. Lost seconds per robot: QM4 99.2 → 94.4, QM3 113.2 → 112.7. The rest is detection and OCR coverage. Hidden-OCR check: 430 of 430 carried labels match hidden OCR.
+
+Checked: 502 engine tests OK on the bundled Python (13 new). Not released, pushed or deployed; no fresh video run.
+## 2026-10-27 — Robots page: black-and-white picture toggle (Claude)
+
+Owner request: red boxes on red bumpers are hard to see. `autoscout/robot-labels.php` gets a "Black & white" button next to the clock (and the **G** key) that greys only the frame picture (video or source still); the boxes stay coloured because they are drawn on the canvas above it. The choice is remembered per browser (localStorage, wrapped in try/catch). Checked in a local copy of the frame stage on a QM1 still: grayscale on the picture only, toggles back with G. One-file server deploy, no helper release.
+
+## 2026-10-27 — Helper Recent runs showed the oldest runs (Claude)
+
+The owner saw Oct 23–24 runs under Recent runs on the helper's Robots and Field pages. `autoscout_helper_models()` reversed `RobotDetectorJobs::requests()`, which is already newest first, before taking eight, so it showed the eight oldest of the last 50. It now takes the first eight. The test fixture made the same oldest-first assumption, so it passed; it now lists runs newest first, as `requests()` does. The fix is server-side only, so no helper release is needed.
+
+Checked: `tests/server/helper-models.php` 6 PASS.
+## 2026-10-27 — Hard-frame picker: tracking reviews choose frames to box on the Robots page; Mac 3.2.57, Windows 6.5.28, Linux 6.6.19, engine 2.7.42 (Claude)
+
+Audit first: saved tracking reviews cannot train the bumper detector. Their boxes are `crop_box`-widened chassis crops; "corrected" fixes the team number, not the box, so every box is one the detector already found; a missed robot leaves no trace, so only 1 QM1 wide frame (0 in QM3) is provably complete. Of the 1,589 QM1 "not a robot" boxes, 1,563 are in the close-up insets and 685 are one track.
+
+So instead `engine/neptune_hard_frames.py` picks timestamps from a review: first/middle/last of each "not a robot" track, and the middle of any gap of 1 s or more in a reviewed robot's track within one camera view. Picks are a second apart, capped at 40, and refused for Q7 (reserved) and the held-out match. A prepare request may carry `times_ms` (at most 60). The helper adds them to the 4 s grid (`frame_times`), so the owner boxes every visible bumper there under the normal rules. The server holds such requests for helpers at engine 2.7.42 / Mac 3.2.57 / Windows 6.5.28 / Linux 6.6.19 or later, which must be the release that ships this. A queued prepare for the same video is still reused as before, so its picks are not added.
+
+Released 2026-10-27: Mac 3.2.57, Windows 6.5.28, Linux 6.6.19, engine 2.7.42, all on GitHub. The first Windows/Linux/Mac builds from this worktree had no `bumper_wide.pt` or field `model.pt` (both git-ignored, only in the main checkout). They were caught before publishing; the weights were copied, their hashes checked against the manifests, and everything rebuilt. Build releases from a checkout that has the weights. Deployed through AWS SSM command 74eedfab (owner ran it) with the previous release's manifest-driven deploy script: 60 files fetched and verified, 64 changed, backup /root/hard-frames-release-backup-20261027, then pruned. The public Windows latest.json, Mac appcast and apt Packages show 6.5.28 / 3.2.57 / 6.6.19. Queuing QM1 (T1K71dqCJA4) and QM3 (ZlnweItn8ww) with their picks: `local/deploy-hard-frames/queue-ssm.json` (owner runs it).
+
+Current picks: QM1 38 frames (37 false positive, 1 lost robot), QM3 4; QM4 refused. List: side-session notes `hard-frames-qm1-qm3.jsonl`. Checked: 519 engine tests and tests/server/my-computers.php OK on the bundled Python. Not released or queued.
+
+
+## 2026-10-27 — Storage cleanup on AWS and this Mac; deploys now prune (Claude)
+
+The owner reported the Mac using a lot of storage and AWS at 93%. The server disk was at 94%: 27 of 29 GB used, 2 GB free. Each release left a ~313 MB Mac zip in `community/downloads/mac` and a ~480 MB backup in `/root`.
+
+AWS, as the owner asked:
+- Removed Mac zips 3.2.33–3.2.54; 3.2.55 and 3.2.56 are kept. The appcast points only at 3.2.56, and every version is still on GitHub Releases.
+- Trimmed the journal to 100 MB (freed 231 MB).
+- Removed every `/root/*backup-2026*` folder except `fort-worth-layout-release-backup-20261026`. That pattern also matched about 60 older code-deploy backups from Sept 17–Oct 25 (autoscout-section, neptune-*, rc-*, windows-*), not just the 13 release backups listed to the owner. They were copies of replaced files, and the live site does not use them.
+- Kept the SQL dump `/root/scouting_before_utc_20261016-124944.sql` and the backup folders without a date in their name.
+- Result: 62% used, 11 GB free. Mac appcast, 3.2.56 zip, DMG and Windows latest.json all return 200.
+
+Mac:
+- Removed the pip, Sublime Text, Homebrew, Movavi and Raspberry Pi caches.
+- Removed Windows 6.5.11–6.5.26 and Linux 6.6.4–6.6.17 build folders. Kept Windows 6.5.27 and 6.4.2, Linux 6.6.18, and the Linux 6.5 base.
+- Free space went from 27 to 38 GB.
+
+Deploys now prune: `trainer-app/scripts/prune-release-server.sh`, installed on the server as `/usr/local/sbin/neptune-prune-releases`, with the AGENTS.md rule 10 addition.
+- Keeps the two newest Mac zips and Windows update zips, plus anything a feed points at, and the two newest dated `/root` backups.
+- Vacuums the journal and never touches `.sql` dumps.
+- The dry run listed only Windows update zips 6.3–6.5.25 to remove (2 MB each); the real run is not done yet, pending the owner's OK.
 
 ## 2026-10-26 — Fort Worth layout release: Mac 3.2.56, Windows 6.5.27, Linux 6.6.18, engine 2.7.41 (Claude)
 
@@ -684,3 +1393,15 @@ Created an 18-frame local review queue at `/Users/brianlarkin/Documents/ChatGPT/
   changes), because `helper/` there is untracked and this was the only copy.
 - Checked: `scripts/sync-to-neptune.sh … --check` reports no differences against the main repo.
 - Open: see "Known problems" in `SYSTEM_MAP.md`; the review is in `reviews/`.
+
+## 2026-10-28 — Scorer: hidden duplicates are not non-robots
+- `neptune_identity_metrics.evaluate`: a hidden (excluded) box named with the team the reviewer gave another box in the same camera frame now counts as `hidden_duplicates_named`, not `labeled_non_robots`. Test added.
+- QM6 rescore: 490 reviewed, 177 correct, 0 wrong, 0 switches, 6 named non-robots (was 62; 56 were hidden duplicates on wide 8088 at 6–12 s), 78.8 lost s/robot. QM1/QM3/QM4 unchanged.
+
+## 2026-10-28 — Unnamed robots: causes and contact carry (constant-identity-v4); Mac 3.2.65, Windows 6.5.36, Linux 6.6.27, engine 2.7.50 (Claude)
+- Sorted the unnamed reviewed robot boxes (QM1/3/4/6, 1290). Biggest groups: wide tracklets chained only to other unnamed tracklets, with no bumper read anywhere on the chain (469); optical-flow boxes (267, nearly all inside unnamed tracks); no tracker box at all (205, detector); wrong alliance colour (50, QM6 close-up).
+- Fix: a contact stretch keeps the number of the same tracker track from one named side; the two sides naming different teams still leaves it unnamed. Hidden-OCR check: contact carries 28 → 210, all correct; the 22 seeded misses in QM6 were there before.
+- Tried and dropped: naming optical-flow boxes from their track. Few gains on its own; with the contact change it raised QM6 not-a-robot names from 6 to 18.
+- Scores (correct / lost s per robot), before → after; wrong 0 and switches 0 everywhere, not-a-robot unchanged: QM1 175 / 82.2 → 223 / 80.2; QM4 46 / 93.7 → 65 / 93.5; QM6 177 / 78.8 → 187 / 76.2; QM3 0 → 0.
+- Diagnostics: local/identity-constancy-20261026/unnamed.py, unnamed2.py.
+- Deployed via SSM 938f4c30 (owner ran it): 62 files fetched and verified, 67 changed, backup /root/contact-carry-release-backup-20261028, pruned (disk 36%). Live feeds: Windows 6.5.36, Linux 6.6.27 (latest.json and apt), Mac 3.2.65.

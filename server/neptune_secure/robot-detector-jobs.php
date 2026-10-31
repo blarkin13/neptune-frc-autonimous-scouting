@@ -34,14 +34,35 @@ final class RobotDetectorJobs {
 
  /** Queue a request from the website. Re-queuing the same open request returns the existing one. */
  public function queue(string $kind,array $p,int $user):array{
-  if(!in_array($kind,['prepare','train','train_field'],true))throw new InvalidArgumentException('Unknown request');
+  if(!in_array($kind,['prepare','train','train_field','test_robot'],true))throw new InvalidArgumentException('Unknown request');
   $body=['kind'=>$kind];if($kind==='train_field')$body['game_key']=self::game((string)($p['game_key']??''));
   if(in_array($kind,['train','train_field'],true)&&preg_match('/^[A-Za-z0-9_-]{1,100}$/D',(string)($p['holdout']??'')))$body['holdout']=$p['holdout'];   // chosen by autoscout_holdout()
+  if($kind==='train'&&!empty($p['match_only']))$body['match_video_only']=true;   // owner test: no workshop or folder photos
   if(preg_match('/^[a-f0-9]{32}$/D',(string)($p['computer']??'')))$body['target']=$p['computer'];   // only this helper may claim it
-  if($kind==='prepare'){$body['source_stills']=true;$body['video_id']=self::video((string)($p['video_id']??''));$body['match_key']=(string)($p['match_key']??'');if(!preg_match('/^\d{4}[A-Za-z0-9_-]{1,95}$/D',$body['match_key']))throw new InvalidArgumentException('Invalid match');}
-  foreach($this->requests() as $r)if(in_array($r['state'],['queued','claimed'],true)&&$r['kind']===$kind&&($r['video_id']??null)===($body['video_id']??null)&&($r['game_key']??null)===($body['game_key']??null))return $r;
+  if($kind==='prepare'){$body['source_stills']=true;$body['video_id']=self::video((string)($p['video_id']??''));$body['match_key']=(string)($p['match_key']??'');if(!preg_match('/^\d{4}[A-Za-z0-9_-]{1,95}$/D',$body['match_key']))throw new InvalidArgumentException('Invalid match');
+   $times=$p['times_ms']??[];   // hard frames picked from tracking reviews
+   if(!is_array($times)||count($times)>60)throw new InvalidArgumentException('Invalid frame times');
+   foreach($times as $t)if(!is_int($t)||$t<0||$t>1800000)throw new InvalidArgumentException('Invalid frame times');
+   if($times){$times=array_values(array_unique($times));sort($times);$body['times_ms']=$times;}}
+  if($kind==='test_robot'){$body['video_id']=self::video((string)($p['video_id']??''));$body['match_key']=(string)($p['match_key']??'');if(!preg_match('/^\d{4}[A-Za-z0-9_-]{1,95}$/D',$body['match_key']))throw new InvalidArgumentException('Invalid match');
+   if(!empty($p['match_id']))$body['match_id']=(int)$p['match_id'];
+   $body['title']=mb_substr(trim((string)($p['title']??$body['match_key']))?:$body['match_key'],0,200);
+   if(is_array($p['roster']??null))$body['roster']=$p['roster'];}
+  foreach($this->requests() as $r)if(in_array($r['state'],['queued','claimed'],true)&&$r['kind']===$kind&&($r['video_id']??null)===($body['video_id']??null)&&($r['game_key']??null)===($body['game_key']??null)){
+   if($r['state']==='queued'&&($r['target']??null)!==($body['target']??null)){
+    if(empty($body['target']))unset($r['target']);else $r['target']=$body['target'];
+    $r['message']=empty($body['target'])?'Waiting for a connected helper':'Waiting for the chosen computer';
+    self::write($this->dir('requests').'/'.$r['id'].'.json',$r);
+   }
+   return $r;
+  }
   $r=$body+['id'=>bin2hex(random_bytes(12)),'state'=>'queued','created_at'=>time(),'created_by'=>$user,'message'=>empty($body['target'])?'Waiting for a connected helper':'Waiting for the chosen computer'];
   self::write($this->dir('requests').'/'.$r['id'].'.json',$r);return $r;
+ }
+ /** A match-video-only run this helper is doing gets no workshop or folder photos. */
+ public function matchVideoOnly(array $computer):bool{
+  foreach($this->requests() as $r)if($r['state']==='claimed'&&$r['kind']==='train'&&($r['computer_id']??null)===$computer['id']&&!empty($r['match_video_only']))return true;
+  return false;
  }
  public function requests():array{
   $out=[];foreach(glob($this->root.'/requests/*.json')?:[] as $f){$r=json_decode((string)file_get_contents($f),true);if(is_array($r))$out[]=$r;}
@@ -58,7 +79,9 @@ final class RobotDetectorJobs {
    if(!empty($r['source_stills'])&&!$this->supportsSourceStills((string)$computer['id']))continue;
    if($r['kind']==='train'&&is_file(dirname($this->root,2).'/external-bumper-training/'.basename($this->root).'/6962-workshop-v1.json')&&!$this->supportsWorkshop((string)$computer['id']))continue;
    if($r['kind']==='train_field'&&!$this->supportsFieldReference((string)$computer['id']))continue;
-   if($r['kind']==='train'&&!$this->supportsRobotValidation((string)$computer['id']))continue;
+   if(($r['kind']??'')==='test_robot'&&!$this->supportsRobotTest((string)$computer['id']))continue;
+   if(in_array($r['kind'],['train','test_robot'],true)&&!$this->supportsRobotValidation((string)$computer['id']))continue;
+   if(!empty($r['times_ms'])&&!$this->supportsHardFrames((string)$computer['id']))continue;
    if(!empty($r['target'])&&$r['target']!==$computer['id'])continue;   // sent to another computer
    $r=array_replace($r,['state'=>'claimed','claimed_at'=>time(),'heartbeat_at'=>time(),'computer_id'=>$computer['id'],'lease'=>bin2hex(random_bytes(16)),'message'=>($r['state']==='claimed'?'Restarted on the helper':'Started on a helper')]);
    self::write($this->dir('requests').'/'.$r['id'].'.json',$r);return $r;
@@ -92,13 +115,25 @@ final class RobotDetectorJobs {
   if(preg_match('/^6\.6\./',$v))return version_compare($v,'6.6.13','>=');
   return false;
  }
+ public function supportsRobotTest(string $computer):bool{return in_array('test_robot_v1',$this->status($computer)['capabilities']??[],true);}
  private function supportsRobotValidation(string $computer):bool{
   $v=(string)($this->status($computer)['version']??'');
-  // Robot runs need helpers that keep the held-out match out of YOLO's validation set.
-  if(preg_match('/^engine (\d+\.\d+\.\d+)/D',$v,$m))return version_compare($m[1],'2.7.37','>=');
-  if(preg_match('/^3\./',$v))return version_compare($v,'3.2.52','>=');
-  if(preg_match('/^6\.5\./',$v))return version_compare($v,'6.5.23','>=');
-  if(preg_match('/^6\.6\./',$v))return version_compare($v,'6.6.14','>=');
+  // Robot runs need helpers that keep the held-out match out of YOLO's validation set and score it after
+  // the same nested-box cleanup tracking uses, so every candidate and the detector in use are checked alike,
+  // and that train the YOLO11 Small detector (an older helper would keep fine-tuning Nano).
+  if(preg_match('/^engine (\d+\.\d+\.\d+)/D',$v,$m))return version_compare($m[1],'2.7.63','>=');
+  if(preg_match('/^3\./',$v))return version_compare($v,'3.2.78','>=');
+  if(preg_match('/^6\.5\./',$v))return version_compare($v,'6.5.49','>=');
+  if(preg_match('/^6\.6\./',$v))return version_compare($v,'6.6.40','>=');
+  return false;
+ }
+ private function supportsHardFrames(string $computer):bool{
+  $v=(string)($this->status($computer)['version']??'');
+  // Older helpers would prepare only the regular grid and drop the picked hard frames. Set to the release that ships them.
+  if(preg_match('/^engine (\d+\.\d+\.\d+)/D',$v,$m))return version_compare($m[1],'2.7.42','>=');
+  if(preg_match('/^3\./',$v))return version_compare($v,'3.2.57','>=');
+  if(preg_match('/^6\.5\./',$v))return version_compare($v,'6.5.28','>=');
+  if(preg_match('/^6\.6\./',$v))return version_compare($v,'6.6.19','>=');
   return false;
  }
  private function owned(array $computer,array $p):array{
@@ -163,19 +198,98 @@ final class RobotDetectorJobs {
   $r['review']=$review;self::write($this->root.'/requests/'.$r['id'].'.json',$r);
   return ['review'=>$review];
  }
+ /** A robot-detection match test video (1 · Robots page): saved locally on Neptune first so the owner can watch it
+  *  and edit the pre-filled title/description before optionally uploading to YouTube. */
+ public function putRobotTestChunk(array $computer,array $p):array{
+  $r=$this->owned($computer,$p);
+  if(($r['kind']??'')!=='test_robot'||$r['state']==='cancelled')throw new InvalidArgumentException('This test cannot receive video');
+  $offset=$p['offset']??null;$raw=base64_decode((string)($p['data_b64']??''),true);
+  if(!is_int($offset)||$offset<0||$raw===false||strlen($raw)<1||strlen($raw)>1048576||$offset+strlen($raw)>512*1024*1024)throw new InvalidArgumentException('Invalid video chunk');
+  $file=$this->dir('robot-tests').'/'.$r['id'].'.upload';$fh=fopen($file,'c+b');if(!$fh)throw new RuntimeException('Video storage unavailable');
+  try{flock($fh,LOCK_EX);$size=fstat($fh)['size'];
+   if($offset<$size){fseek($fh,$offset);if(fread($fh,strlen($raw))!==$raw)throw new InvalidArgumentException('Video chunk differs from saved bytes');}
+   elseif($offset===$size){fseek($fh,$offset);if(fwrite($fh,$raw)!==strlen($raw))throw new RuntimeException('Could not save video chunk');fflush($fh);}
+   else throw new InvalidArgumentException('Video chunk is out of order');
+   $next=fstat($fh)['size'];chmod($file,0600);
+  }finally{fclose($fh);}
+  return ['next_offset'=>$next];
+ }
+ public function putRobotTest(array $computer,array $p):array{
+  $r=$this->owned($computer,$p);if($r['state']==='cancelled')throw new InvalidArgumentException('This run was cancelled');
+  if(($r['kind']??'')!=='test_robot')throw new InvalidArgumentException('Only a robot match test can save a robot test video');
+  $dir=$this->dir('robot-tests');$file=$dir.'/'.$r['id'].'.mp4';
+  if(!empty($p['chunked'])){
+   $staged=$dir.'/'.$r['id'].'.upload';$sha=(string)($p['sha256']??'');$size=$p['size']??null;
+   if(!preg_match('/^[a-f0-9]{64}$/D',$sha)||!is_int($size)||$size<1000||$size>512*1024*1024||!is_file($staged)||filesize($staged)!==$size||hash_file('sha256',$staged)!==$sha)throw new InvalidArgumentException('Test video transfer verification failed');
+   if(!rename($staged,$file))throw new RuntimeException('Could not commit test video');
+  }else{
+   $raw=base64_decode((string)($p['video_b64']??''),true);if($raw===false||strlen($raw)<1000||strlen($raw)>48*1024*1024)throw new InvalidArgumentException('Invalid robot test video');
+   if(file_put_contents($file,$raw,LOCK_EX)!==strlen($raw))throw new RuntimeException('Could not save test video');
+  }
+  chmod($file,0600);
+  $old=glob($dir.'/*.mp4')?:[];usort($old,fn($a,$b)=>filemtime($b)<=>filemtime($a));foreach(array_slice($old,10) as $f)unlink($f);
+  $title=mb_substr(trim((string)($p['title']??('Robot detection test - '.($r['match_key']??'')))),0,100);
+  $desc=mb_substr((string)($p['description']??''),0,4900);
+  $rec=['id'=>$r['id'],'video_id'=>$r['video_id']??null,'match_key'=>$r['match_key']??null,'match_id'=>$r['match_id']??null,
+   'match_title'=>$r['title']??($r['match_key']??''),'title'=>$title,'description'=>$desc,
+   'summary'=>is_array($p['summary']??null)?$p['summary']:[],'status'=>'saved','saved_at'=>time(),'computer_id'=>$computer['id']];
+  self::write($dir.'/'.$r['id'].'.json',$rec);
+  $r['review']=$rec;self::write($this->root.'/requests/'.$r['id'].'.json',$r);
+  return ['test'=>$rec];
+ }
+ public function robotTests():array{
+  $out=[];foreach(glob($this->root.'/robot-tests/*.json')?:[] as $f){
+   $d=json_decode((string)file_get_contents($f),true);
+   if(is_array($d)&&!empty($d['id'])){$d['has_video']=is_file($this->root.'/robot-tests/'.$d['id'].'.mp4');$out[]=$d;}
+  }
+  usort($out,fn($a,$b)=>($b['saved_at']??0)<=>($a['saved_at']??0));return array_slice($out,0,10);
+ }
+ public function robotTest(string $id):?array{
+  if(!preg_match('/^[a-f0-9]{24}$/D',$id))throw new InvalidArgumentException('Invalid test');
+  $f=$this->root.'/robot-tests/'.$id.'.json';if(!is_file($f))return null;
+  $d=json_decode((string)file_get_contents($f),true);if(!is_array($d))return null;
+  $d['has_video']=is_file($this->root.'/robot-tests/'.$id.'.mp4');return $d;
+ }
+ public function robotTestVideoPath(string $id):?string{
+  if(!preg_match('/^[a-f0-9]{24}$/D',$id))throw new InvalidArgumentException('Invalid test');
+  $f=$this->root.'/robot-tests/'.$id.'.mp4';return is_file($f)?$f:null;
+ }
+ public function uploadRobotTestToYouTube(string $id,string $title,string $desc,YouTubeUploader $youtube):array{
+  $rec=$this->robotTest($id);if(!$rec)throw new InvalidArgumentException('Robot test not found.');
+  $mp4=$this->robotTestVideoPath($id);if(!$mp4)throw new InvalidArgumentException('The video file for this test is no longer on the server.');
+  $title=mb_substr(trim($title)?:($rec['title']??'Robot detection test'),0,100);
+  $desc=mb_substr($desc,0,4900);
+  $rec['title']=$title;$rec['description']=$desc;
+  if(!$youtube->status()['connected'])throw new InvalidArgumentException('Connect YouTube first on /autoscout/youtube.php.');
+  set_time_limit(900);
+  $up=$youtube->upload($mp4,$title,$desc);
+  $rec=array_replace($rec,$up,['status'=>'uploaded','uploaded_at'=>time(),'error'=>null]);
+  self::write($this->dir('robot-tests').'/'.$id.'.json',$rec);
+  $reqFile=$this->root.'/requests/'.$id.'.json';
+  if(is_file($reqFile)){$r=json_decode((string)file_get_contents($reqFile),true);if(is_array($r)){$r['review']=$rec;self::write($reqFile,$r);}}
+  return $rec;
+ }
  /** Per-computer settings set on Neptune (My computers): keep awake 'jobs' (default), 'always' or 'off'. */
  private static function cid(string $id):string{if(!preg_match('/^[a-f0-9]{32}$/D',$id))throw new InvalidArgumentException('Invalid computer');return $id;}
- public function settings(string $computer):array{$f=$this->root.'/computers/'.self::cid($computer).'.json';$d=is_file($f)?json_decode((string)file_get_contents($f),true):[];return ['keep_awake'=>in_array($d['keep_awake']??'',['jobs','always','off'],true)?$d['keep_awake']:'jobs'];}
+ public function settings(string $computer):array{$f=$this->root.'/computers/'.self::cid($computer).'.json';$d=is_file($f)?json_decode((string)file_get_contents($f),true):[];
+  return ['keep_awake'=>in_array($d['keep_awake']??'',['jobs','always','off'],true)?$d['keep_awake']:'jobs','auto_update'=>!empty($d['auto_update']),'update_requested'=>(int)($d['update_requested']??0)?:null];}
+ /** Owner choices for one computer: keep_awake, auto_update (install new helper versions when idle), update ('request' or 'cancel' a one-time update). */
  public function setSettings(string $computer,array $p):array{
   $s=$this->settings($computer);if(isset($p['keep_awake'])){if(!in_array($p['keep_awake'],['jobs','always','off'],true))throw new InvalidArgumentException('Choose when to keep this computer awake.');$s['keep_awake']=$p['keep_awake'];}
+  if(array_key_exists('auto_update',$p))$s['auto_update']=(bool)$p['auto_update'];
+  if(isset($p['update'])){if(!in_array($p['update'],['request','cancel'],true))throw new InvalidArgumentException('Choose request or cancel.');$s['update_requested']=$p['update']==='request'?time():null;}
   self::write($this->dir('computers').'/'.self::cid($computer).'.json',$s+['updated_at'=>time()]);return $s;
  }
  /** A helper checks in every ~30 s while idle and with each job update: its status line and whether it is keeping the computer awake. */
  public function poll(array $computer,array $p):array{
-  self::write($this->dir('computers').'/'.self::cid((string)$computer['id']).'.status.json',['at'=>time(),'busy'=>!empty($p['busy']),'awake'=>!empty($p['awake']),'message'=>mb_substr((string)($p['message']??''),0,600),'version'=>mb_substr((string)($p['version']??''),0,40),'platform'=>mb_substr((string)($p['platform']??''),0,80),
-   'stats'=>self::numbers($p['stats']??null,2),'counters'=>self::numbers($p['counters']??null,1),
+  $cid=(string)$computer['id'];$version=mb_substr((string)($p['version']??''),0,40);$platform=mb_substr((string)($p['platform']??''),0,80);
+  self::write($this->dir('computers').'/'.self::cid($cid).'.status.json',['at'=>time(),'busy'=>!empty($p['busy']),'awake'=>!empty($p['awake']),'message'=>mb_substr((string)($p['message']??''),0,600),'version'=>$version,'platform'=>$platform,'capabilities'=>array_values(array_intersect(['test_robot_v1'],is_array($p['capabilities']??null)?$p['capabilities']:[])),
+   'stats'=>self::numbers($p['stats']??null,2),'counters'=>self::numbers($p['counters']??null,1),'remote_update'=>!empty($p['remote_update']),'form'=>in_array($p['form']??null,['laptop','desktop','server'],true)?$p['form']:null,'update'=>mb_substr((string)($p['update']??''),0,200),
    'log'=>array_values(array_map(fn($l)=>[(int)($l[0]??0),mb_substr((string)($l[1]??''),0,220)],array_slice(is_array($p['log']??null)?array_filter($p['log'],'is_array'):[],-14)))]);
-  return ['settings'=>$this->settings((string)$computer['id'])];
+  // A requested update is done once this computer reports the newest published version for its platform; a day-old request lapses.
+  $s=$this->settings($cid);$latest=helper_latest_version($platform);
+  if($s['update_requested']&&(($latest!==null&&$version!==''&&version_compare($version,$latest,'>='))||time()-$s['update_requested']>86400))$s=$this->setSettings($cid,['update'=>'cancel']);
+  return ['settings'=>$s+['latest'=>$latest]];
  }
  /** A removed computer's settings and last check-in. */
  public function forget(string $computer):void{foreach(['.json','.status.json'] as $x){$f=$this->root.'/computers/'.self::cid($computer).$x;if(is_file($f))unlink($f);}$f=$this->root.'/selfchecks/'.self::cid($computer).'.json';if(is_file($f))unlink($f);}
@@ -268,3 +382,13 @@ final class RobotDetectorJobs {
   return ['ok'=>true,'sha256'=>$sha];
  }
 }
+
+/** Newest published helper version for a check-in's platform ("Mac · …", "Windows · …", "Linux · …"), read from the public update feeds. */
+function helper_latest_version(string $platform):?string{
+ static $cache=[];$os=strtok($platform,' ');if(!in_array($os,['Mac','Windows','Linux'],true))return null;
+ $d=($GLOBALS['neptune_downloads_dir']??dirname(__DIR__).'/public_html/Neptune/community/downloads').'/';if(array_key_exists($d.$os,$cache))return $cache[$d.$os];$v=null;
+ if($os==='Mac'){$x=@file_get_contents($d.'mac/appcast.xml');if($x&&preg_match('/<sparkle:shortVersionString>([0-9.]{1,20})</',$x,$m))$v=$m[1];}
+ else{$j=json_decode((string)@file_get_contents($d.strtolower($os).'/latest.json'),true);if(is_array($j)&&is_string($j['version']??null)&&preg_match('/^\d+(\.\d+){1,2}$/D',$j['version']))$v=$j['version'];}
+ return $cache[$d.$os]=$v;
+}
+

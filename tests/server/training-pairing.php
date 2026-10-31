@@ -37,3 +37,13 @@ for($i=0;$i<20;$i++)$p->start(['challenge'=>$challenge,'state'=>$state,'port'=>4
 rejected(fn()=> $p->start(['challenge'=>$challenge,'state'=>$state,'port'=>49123],'198.51.100.2'),429,'connection starts throttled per IP without a global helper cap');
 rejected(fn()=> $p->start(['challenge'=>$challenge,'state'=>$state,'port'=>80],'203.0.113.2'),422,'invalid callback port rejected');
 echo "Verified $n browser-connection checks.\n";
+// Reconnect keeps the computer: same id and name with a fresh connection; another user's id is never taken over; new ones use their own name.
+$db->exec("UPDATE users SET password_hash='password-one' WHERE id=1");
+$pair=function(array $extra)use($p,$new,$verifier):array{$r=$new();$url=$p->authorize($r['request_id'],1,hash('sha256','password-one'),true);parse_str(parse_url($url,PHP_URL_QUERY),$q);return $p->exchange(['request_id'=>$r['request_id'],'code'=>$q['code'],'verifier'=>$verifier]+$extra);};
+$first=$pair(['name'=>'Lab PC']);check($db->query("SELECT name FROM community_training_computers WHERE id='".$first['computer_id']."'")->fetchColumn()==='Lab PC','a new computer is named after itself');
+$db->exec("UPDATE community_training_computers SET name='Renamed rig',expires_at=1 WHERE id='".$first['computer_id']."'");$before=(int)$db->query('SELECT COUNT(*) FROM community_training_computers')->fetchColumn();
+$again=$pair(['computer_id'=>$first['computer_id'],'name'=>'Lab PC']);
+check($again['computer_id']===$first['computer_id']&&(int)$db->query('SELECT COUNT(*) FROM community_training_computers')->fetchColumn()===$before,'reconnecting reuses the same computer instead of adding one');
+check($db->query("SELECT name FROM community_training_computers WHERE id='".$first['computer_id']."'")->fetchColumn()==='Renamed rig'&&$db->query("SELECT token_hash FROM community_training_computers WHERE id='".$first['computer_id']."'")->fetchColumn()===hash('sha256',$again['access_token'])&&(int)$db->query("SELECT expires_at FROM community_training_computers WHERE id='".$first['computer_id']."'")->fetchColumn()>time(),'it keeps its name and gets a fresh connection');
+$db->exec("INSERT INTO community_training_computers(id,user_id,token_hash,credential_revision,expires_at,created_at,name) VALUES('".str_repeat('e',32)."',2,'x','y',1,1,'Someone else')");
+$other=$pair(['computer_id'=>str_repeat('e',32)]);check($other['computer_id']!==str_repeat('e',32)&&$db->query("SELECT token_hash FROM community_training_computers WHERE id='".str_repeat('e',32)."'")->fetchColumn()==='x','another user\'s computer is never taken over');

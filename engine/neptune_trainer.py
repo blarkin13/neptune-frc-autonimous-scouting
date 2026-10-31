@@ -62,7 +62,8 @@ def engine_version():
     except Exception:return ''
 
 def helper_version():
-    """The installed helper's version (Windows and Linux builds ship build-version.json next to this file)."""
+    """The installed helper's version (Windows and Linux builds ship build-version.json next to this file; the Mac app passes its own)."""
+    if os.environ.get('NEPTUNE_HELPER_VERSION'):return os.environ['NEPTUNE_HELPER_VERSION'][:40]
     try:return json.loads(Path(__file__).with_name('build-version.json').read_text())['version']
     except (OSError,ValueError,KeyError):return ''
 
@@ -202,9 +203,21 @@ def watch_jobs(config,hardware,execute,progress,closing,pause,busy=lambda value:
         telemetry.note(str(message).split('\n')[-1] if 'Now:' not in str(message) else next((l[4:].strip() for l in str(message).split('\n') if l.startswith('Now:')),str(message)))
     # Check in for My computers and the Running now console every 5 s while working (15 s idle), from its own thread.
     import neptune_robot_jobs as robot_jobs
+    form=telemetry.form_factor()
     if not getattr(telemetry,'reporter',None):telemetry.reporter=telemetry.Reporter(lambda payload:robot_jobs.api(config,'computer_poll',payload,timeout=20),
-                       lambda:{'busy':awake.busy,'awake':awake.active,'message':last_message[0][:600],'version':helper_version() or engine_version(),'platform':'%s · %s'%(platform.system().replace('Darwin','Mac'),hardware.get('name','CPU'))},
-                       lambda reply:awake.set_mode((reply.get('settings') or {}).get('keep_awake','jobs')),closing).start()
+                       lambda:{'busy':awake.busy,'awake':awake.active,'message':last_message[0][:600],'version':helper_version() or engine_version(),'platform':'%s · %s'%(platform.system().replace('Darwin','Mac'),hardware.get('name','CPU')),'form':form},
+                       lambda reply:(awake.set_mode((reply.get('settings') or {}).get('keep_awake') or awake.mode),telemetry.replied(reply),identity_tick()),closing).start()
+    identity_due=[0.]
+    def identity_tick():
+        # Every helper uses the organization's shared robot-identity model, trained where tracking is reviewed:
+        # fetch it after a successful check-in, at most every ten minutes.
+        if time.monotonic()<identity_due[0]:return
+        identity_due[0]=time.monotonic()+600
+        def fetch():
+            from neptune_review_learning import sync_shared
+            try:sync_shared(config)
+            except Exception:pass
+        threading.Thread(target=fetch,daemon=True).start()
     def housekeeping(force=False):
         # Startup, after every job, and hourly while idle: remove only re-downloadable media.
         nonlocal last_cleanup
@@ -277,6 +290,23 @@ def result_message(state):
     }.get(state, 'Finished — your report is saved on Neptune.')
 
 
+def single_instance(path,wait=5):
+    """Hold a lock for this helper's lifetime so only one copy runs per user; None if another copy still holds it after
+    `wait` seconds (a reconnect or an update relaunch hands over well within that). The lock ends with the process."""
+    handle=open(path,'a+')
+    deadline=time.monotonic()+wait
+    while True:
+        try:
+            if sys.platform=='win32':
+                import msvcrt;handle.seek(0);msvcrt.locking(handle.fileno(),msvcrt.LK_NBLCK,1)
+            else:
+                import fcntl;fcntl.flock(handle,fcntl.LOCK_EX|fcntl.LOCK_NB)
+            return handle
+        except OSError:
+            if time.monotonic()>deadline:handle.close();return None
+            time.sleep(.25)
+
+
 def start_reconnect_process(source, executable=None):
     """Hand a stopped helper to the installed owner-approval entry point."""
     source=Path(source)
@@ -297,18 +327,27 @@ def main():
     source=Path(__file__).with_name('trainer-connection.json')
     if not source.is_file():raise ValueError('Download the connected training helper from Neptune.')
     config=json.loads(source.read_text());HOME.mkdir(mode=0o700,exist_ok=True)
-    root=tk.Tk();root.title('Neptune Training Helper '+helper_version());root.geometry('1000x760');root.minsize(640,460)
+    lock=single_instance(HOME/'helper.lock')
+    if lock is None:
+        # Another Hippocampus window is already open for this user: say so instead of starting a second worker.
+        notice=tk.Tk();notice.withdraw();messagebox.showinfo('Hippocampus is already open','Hippocampus is already running on this computer. Use the window that is already open.');notice.destroy();return
+    root=tk.Tk();root.title('Hippocampus - Neptune Training Helper');root.geometry('1000x760');root.minsize(640,460)
     ui.apply(root)
     if sys.platform == 'win32':
         try:root.iconbitmap(str(source.with_name('Neptune.ico')))
         except tk.TclError:pass
+    else:
+        try:root.iconphoto(True,tk.PhotoImage(file=str(source.with_name('Neptune.png'))))   # taskbar and title-bar icon on Linux
+        except tk.TclError:pass
     # One window: a sidebar of pages (overview, the three models, computers, activity) beside a page of cards.
     emblem=Path(__file__).with_name('neptune-logo-square.png')
     view={'page':'overview','dash':{},'models':{}}
-    shell=ui.Shell(root,logo=Path(__file__).with_name('neptune-logo-wide.png'),on_page=lambda key:show_page(key));top_status=shell.status
+    ui.load_state(HOME/'ui-state.json')
+    shell=ui.Shell(root,logo=Path(__file__).with_name('hippocampus-logo.png'),on_page=lambda key:show_page(key));top_status=shell.status
     page=frame=shell.page
     from neptune_engine import VERSION as engine_version
-    computer_card=ui.ComputerCard(page,name=platform.node() or 'Training computer',logo=emblem);computer_card.pack_forget()
+    import neptune_telemetry
+    computer_card=ui.ComputerCard(page,name=platform.node() or 'Training computer',logo=emblem,form=neptune_telemetry.form_factor());computer_card.pack_forget()
     status=tk.StringVar(value='Connecting to Neptune…');job_title=tk.StringVar(value='THIS COMPUTER');next_value=tk.StringVar(value='')
     job_outer=tk.Frame(page,bg=ui.LINE,padx=1,pady=1,height=62);job_outer.pack_propagate(False)
     job=tk.Frame(job_outer,bg=ui.PANEL,padx=12,pady=10);job.pack(fill='both',expand=True)
@@ -332,7 +371,7 @@ def main():
         if text.startswith('Ready.') or text.startswith('Connected — ready.'):return 'No assigned job'
         return next((x for x in lines if x.startswith('Now:')),text)
     train_page=config['site'].rstrip('/')+'/autoscout/train.php'
-    ttk.Button(shell.right,text='Open Neptune',style='Neptune.TButton',command=lambda:webbrowser.open(train_page+'?connect=1')).pack(side='right')
+    ui.Button(shell.right,'Open Neptune',lambda:webbrowser.open(train_page+'?connect=1'),kind='primary',icon_name='open').pack(side='right')
     # This computer's controls live on its own card.
     choice=tk.StringVar(value='Automatic');settings=tk.Frame(computer_card.inner,bg=ui.PANEL);settings.pack(fill='x',pady=(6,0))
     ttk.Label(settings,text='Training device',style='CardMuted.TLabel').pack(side='left',padx=(0,12))
@@ -354,14 +393,32 @@ def main():
         reconnect_requested['value']=True
         reconnect_button.config(state='disabled')
         pause.set();closing.set();review_closing.set()
-        status.set('Finishing this match, then opening browser approval…' if busy['value'] else 'Opening browser approval…')
-    reconnect_button=ttk.Button(shell.footer,text='Reconnect',style='Subtle.TButton',command=reconnect)
+        if not busy['value']:
+            # Nothing to finish: open browser approval now instead of waiting for the worker, which may be stuck
+            # retrying a connection Neptune no longer accepts.
+            try:start_reconnect_process(source)
+            except Exception as error:
+                reconnect_requested['value']=False;reconnect_button.config(state='normal');messagebox.showerror('Reconnect could not start',str(error));return
+            unsubscribe_meters();root.destroy();return
+        status.set('Finishing this match, then opening browser approval…')
+    reconnect_button=ui.Button(shell.footer,'Reconnect',reconnect,icon_name='refresh',small=True)
     reconnect_button.pack(anchor='w',pady=(6,0))
-    update={'release':None,'stage':None,'checking':False}
+    update={'release':None,'stage':None,'checking':False,'remote':False,'tried':-1e9}
     update_status=tk.StringVar(value='')
+    # Windows always updates itself; Linux once its .deb launcher keeps a newer per-user copy (it sets NEPTUNE_LINUX_UPDATES).
+    updatable=sys.platform=='win32' or (sys.platform=='linux' and os.environ.get('NEPTUNE_LINUX_UPDATES')=='1')
+    if updatable:telemetry.EXTRA['remote_update']=True
+    def update_note(text):update_status.set(text);telemetry.EXTRA['update']=text[:200]
+    def remote_settings(settings):
+        # The owner asked Neptune to update this computer, or turned on automatic updates: check, download, install when idle, reopen.
+        wait=600 if settings.get('update_requested') else 3600
+        if not updatable or not (settings.get('update_requested') or settings.get('auto_update')):return
+        if update['checking'] or update['stage'] or update['remote'] or time.monotonic()-update['tried']<wait:return
+        update['remote']=True;update['tried']=time.monotonic();check_updates()
+    unsubscribe_replies=telemetry.on_reply(lambda reply:messages.put(('remote_settings',reply.get('settings') or {})))
     def check_updates():
-        if sys.platform!='win32' or update['checking']:return
-        update['checking']=True;update_button.config(state='disabled');update_status.set('Checking for updates…')
+        if not updatable or update['checking']:return
+        update['checking']=True;update_button.config(state='disabled');update_note('Checking for updates…')
         def work():
             try:
                 from neptune_windows_update import check
@@ -369,28 +426,28 @@ def main():
             except Exception as error:messages.put(('update_error',str(error)))
         threading.Thread(target=work,daemon=True).start()
     def install_update():
-        if busy['value'] or not update['release']:return
-        update_button.config(state='disabled');update_status.set('Downloading and verifying update…')
+        if (busy['value'] and not update['remote']) or not update['release']:return   # a requested update downloads now and installs after the match
+        update_button.config(state='disabled');update_note('Downloading and verifying '+update['release']['version']+'…')
         def work():
             try:
                 from neptune_windows_update import prepare
                 messages.put(('update_ready',prepare(source.parent,update['release'])))
             except Exception as error:messages.put(('update_error',str(error)))
         threading.Thread(target=work,daemon=True).start()
-    update_button=ttk.Button(actions,text='Check for updates',style='Subtle.TButton',command=lambda:install_update() if update['release'] else check_updates())
-    if sys.platform=='win32':
+    update_button=ui.Button(actions,'Check for updates',lambda:install_update() if update['release'] else check_updates(),icon_name='download',small=True)
+    if updatable:
         update_button.pack(anchor='w')
         tk.Label(actions,textvariable=update_status,wraplength=170,justify='left',font=('Arial',9),fg=ui.MUTED,bg=ui.PANEL,anchor='w').pack(fill='x',pady=(4,0))
         root.after(1500,check_updates)
     else:
-        tk.Label(actions,text='Updates come from your package manager.',wraplength=170,justify='left',font=('Arial',9),fg=ui.MUTED,bg=ui.PANEL,anchor='w').pack(fill='x')
+        tk.Label(actions,text='Updates come from your package manager.' if sys.platform=='linux' else 'Updates are not available here.',wraplength=170,justify='left',font=('Arial',9),fg=ui.MUTED,bg=ui.PANEL,anchor='w').pack(fill='x')
     def progress(text):messages.put(('progress',str(text)))
     def stop_current():pause.set();progress('Finishing this match, then pausing. Progress stays saved on Neptune.')
-    stop_button=ttk.Button(settings,text='Stop after this match',style='Subtle.TButton',command=stop_current,state='disabled');stop_button.pack(side='left',padx=(12,0))
+    stop_button=ui.Button(settings,'Stop after this match',stop_current,small=True,state='disabled');stop_button.pack(side='left',padx=(12,0))
     def review_tracking():
         if busy['value']:messagebox.showinfo('Training is running','Finish or pause training before opening a tracking review.');return
         if reviewing.is_set():review_closing.set();return
-        reviewing.set();review_closing.clear();review_button.config(text='Close tracking review')
+        reviewing.set();review_closing.clear();review_button.config(text='  Close tracking review')
         def review_worker():
             try:
                 from neptune_identity_review import choose
@@ -398,7 +455,7 @@ def main():
             except Exception as error:progress('Tracking review: '+str(error))
             finally:reviewing.clear();messages.put(('review_closed',None))
         threading.Thread(target=review_worker,daemon=True).start()
-    review_button=ui.tool_button(shell,'Review tracking…',review_tracking)
+    review_button=ui.tool_button(shell,'Review tracking…',review_tracking,'review')
     selfchecked=[]
     def worker():
         hardware=None;selected=None
@@ -451,14 +508,20 @@ def main():
     self_id=config.get('computer_id')
     def open_page(key):show_page(key)
     def render():
-        page.show_only(pinned)
-        key=view['page']
+        # Rebuild only when the page or its layout changed; otherwise update readings, progress and logs in place
+        # (rebuilding every card on each refresh made Windows and Linux flash).
+        key=view['page'];signature=(key,ui.structure_key(view['dash'],view['models'],busy['value']))
+        if view.get('signature')==signature:ui.refresh_live(view['dash']);return
+        view['signature']=signature;ui.LIVE.clear()
+        # A rebuild of the same page keeps its scroll position; a new page starts at the top.
+        page.show_only(pinned,top=view.get('shown')!=key);view['shown']=key
         if key=='overview':
             page.add(computer_card)
-            ui.render_overview(page,view['dash'],view['models'],self_id=self_id,busy=busy['value'],open_page=open_page)
-        elif key in ('robots','field'):ui.render_model(page,'robot' if key=='robots' else 'field',view['models'].get('robot' if key=='robots' else 'field'),open_url=webbrowser.open)
+            ui.render_overview(page,view['dash'],view['models'],self_id=self_id,busy=busy['value'],open_page=open_page,open_url=webbrowser.open,on_cancel=cancel_run)
+        elif key in ('robots','field'):ui.render_model(page,'robot' if key=='robots' else 'field',view['models'].get('robot' if key=='robots' else 'field'),open_url=webbrowser.open,on_cancel=cancel_run)
         elif key=='actions':ui.render_actions(page,view['models'].get('actions'))
-        elif key=='computers':ui.render_computers(page,view['dash'],self_id=self_id)
+        elif key=='tracking':ui.render_tracking(page,view['models'].get('tracking'),on_review=review_tracking)
+        elif key=='computers':ui.render_computers(page,view['dash'],self_id=self_id,on_update=change_update,on_remove=remove_computer,on_cancel=cancel_run)
         else:page.add(activity_box)
     target=tk.StringVar(value='Any free helper')
     def targets():
@@ -473,17 +536,43 @@ def main():
             try:neptune_robot_jobs.api(config,'queue_training',{'kind':kind,**({'computer':chosen} if chosen else {})},timeout=30);messages.put(('queued',None))
             except Exception as error:messages.put(('queued',str(error)))
         threading.Thread(target=work,daemon=True).start()
+    def cancel_run(run):
+        # Cancel or stop a run from the helper; Neptune refuses the helper doing it at its next update, at a safe point.
+        question=('Stop this run after the current match? Progress is saved and it can be continued from Neptune.' if run.get('mode')=='stop'
+                  else 'Cancel this run now? Saved video work and human labels are kept.')
+        if not messagebox.askyesno('Stop the run?' if run.get('mode')=='stop' else 'Cancel the run?',question):return
+        def work():
+            import neptune_robot_jobs
+            try:neptune_robot_jobs.api(config,'cancel_run',run,timeout=30);messages.put(('run_cancelled',None))
+            except Exception as error:messages.put(('run_cancelled',str(error)))
+        threading.Thread(target=work,daemon=True).start()
+    def remove_computer(computer,name):
+        if not messagebox.askyesno('Remove %s?'%name,'Remove %s from your computers? It would have to connect again to come back.'%name):return
+        def work():
+            import neptune_robot_jobs
+            try:neptune_robot_jobs.api(config,'remove_computer',{'computer':computer},timeout=30);messages.put(('removed',None))
+            except Exception as error:messages.put(('removed',str(error)))
+        threading.Thread(target=work,daemon=True).start()
+    def change_update(computer,change):
+        # Owner's choice from the Computers page: Neptune passes it to that computer's helper at its next check-in.
+        if computer=='all' and not messagebox.askyesno('Update every computer?','Each helper downloads the newest version, installs it once it has no job running, then reopens. Computers that are off update the next time the helper opens.'):return
+        def work():
+            import neptune_robot_jobs
+            try:neptune_robot_jobs.api(config,'update_computer',{'computer':computer,**change},timeout=30);messages.put(('update_sent',None))
+            except Exception as error:messages.put(('update_sent',str(error)))
+        threading.Thread(target=work,daemon=True).start()
     def show_page(key):
         view['page']=key;shell.select(key)
         if key in ('robots','field'):
             names,_=targets()
             if target.get() not in names:target.set('Any free helper')
             ttk.Combobox(shell.actions,textvariable=target,values=names,state='readonly',width=24,style='Neptune.TCombobox').pack(side='left',padx=(0,8))
-            ttk.Button(shell.actions,text='Train %s detector'%('robot' if key=='robots' else 'field'),style='Neptune.TButton',command=lambda:train('train' if key=='robots' else 'train_field')).pack(side='left')
-        elif key=='actions':ttk.Button(shell.actions,text='Train on Neptune',style='Neptune.TButton',command=lambda:webbrowser.open(train_page)).pack(side='left')
+            ui.Button(shell.actions,'Train %s detector'%('robot' if key=='robots' else 'field'),lambda:train('train' if key=='robots' else 'train_field'),kind='primary',icon_name='play').pack(side='left')
+        elif key=='actions':ui.Button(shell.actions,'Train on Neptune',lambda:webbrowser.open(train_page),kind='primary',icon_name='open').pack(side='left')
+        elif key=='computers':ui.Button(shell.actions,'Update all',lambda:change_update('all',{'update':'request'}),icon_name='download').pack(side='left')
         elif key=='activity':
             def copy():root.clipboard_clear();root.clipboard_append(log.get('1.0','end-1c'))
-            ttk.Button(shell.actions,text='Copy log',style='Subtle.TButton',command=copy).pack(side='left')
+            ui.Button(shell.actions,'Copy log',copy).pack(side='left')
         render()
     show_page('overview')
     choice_value={'value':choice.get()}
@@ -517,26 +606,34 @@ def main():
                 root.destroy();return
             if kind=='models':
                 if isinstance(message,dict):view['models']=message
-                if view['page'] in ('overview','robots','field','actions'):render()
+                if view['page'] in ('overview','robots','field','actions','tracking'):render()
                 continue
             if kind=='queued':top_status.set('Run queued' if message is None else 'Couldn’t start the run: '+message);continue
-            if kind=='review_closed':review_button.config(text='Review robot tracking…');continue
+            if kind=='run_cancelled':top_status.set('Run stopped or cancelled · updating…' if message is None else 'Couldn’t cancel the run: '+message);continue
+            if kind=='removed':top_status.set('Computer removed · updating…' if message is None else 'Couldn’t remove the computer: '+message);continue
+            if kind=='update_sent':top_status.set('Update request sent' if message is None else 'Couldn’t send the update request: '+message);continue
+            if kind=='review_closed':review_button.config(text='  Review tracking…');continue
+            if kind=='remote_settings':remote_settings(message);continue
             if kind=='update_check':
                 update['checking']=False;update['release']=message
                 update_button.config(text=('Install update '+message['version']) if message else 'Check for updates',state='normal' if not busy['value'] else 'disabled')
-                update_status.set(('Version '+message['version']+' is ready to install.') if message else 'You’re up to date.');continue
+                update_note(('Version '+message['version']+' is ready to install.') if message else 'You’re up to date.')
+                if message and update['remote']:install_update()
+                else:update['remote']=False
+                continue
             if kind=='update_error':
-                update['checking']=False;update_button.config(state='normal' if not busy['value'] else 'disabled')
-                update_status.set('Update check: '+message);continue
+                update['checking']=False;update['remote']=False;update_button.config(state='normal' if not busy['value'] else 'disabled')
+                update_note('Update check: '+message);continue
             if kind=='update_ready':
                 update['stage']=message
                 if busy['value']:
-                    update_status.set('Update downloaded. It will install when this match finishes.');continue
+                    update_note('Update downloaded. It will install when this match finishes.');continue
                 try:
                     from neptune_windows_update import launch_apply
-                    launch_apply(source.parent,message);closing.set();review_closing.set();root.destroy();return
+                    update_note('Installing; the helper reopens in a moment.')
+                    launch_apply(source.parent,message);unsubscribe_replies();closing.set();review_closing.set();root.destroy();return
                 except Exception as error:
-                    update_status.set('Update install: '+str(error));update_button.config(state='normal');continue
+                    update['remote']=False;update_note('Update install: '+str(error));update_button.config(state='normal');continue
             if kind=='busy':
                 computer_card.set_working(message);job_outer.configure(height=154 if message else 62);status_label.configure(height=2 if message else 1)
                 if message:
@@ -547,7 +644,7 @@ def main():
                 busy['value']=message
                 if view['page']=='overview':render()
                 review_button.config(state='disabled' if message else 'normal');stop_button.config(state='normal' if message else 'disabled');device.config(state='disabled' if message else 'readonly')
-                if sys.platform=='win32':update_button.config(state='disabled' if message else 'normal')
+                if updatable:update_button.config(state='disabled' if message else 'normal')
                 if not message and update['stage']:
                     stage=update['stage'];update['stage']=None;messages.put(('update_ready',stage))
                 continue

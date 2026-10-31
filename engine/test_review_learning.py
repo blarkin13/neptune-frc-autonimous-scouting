@@ -62,6 +62,39 @@ class Learning(unittest.TestCase):
         r=approve(review([point(1)]));r['match_key']=next(iter(HELD_OUT_MATCHES));learning.publish(r);doc=learning.load(SHA);self.assertTrue(doc['evaluation_only']);self.assertEqual(learning.pairs(doc),[])
     def test_missing_examples_keeps_generalized_candidate_inactive(self):
         report=learning.train_association();self.assertFalse(report['active']);self.assertEqual(report['status'],'needs_reviewed_matches')
+    def test_fit_reaches_the_link_threshold_on_separable_pairs(self):
+        # The old fixed-step fit kept every same-robot pair below .9, so nothing ever linked.
+        same=[{'x':[.02+.01*(k%3),.05,.3+.1*(k%5),0.,.04+.01*(k%4)],'y':1} for k in range(60)]
+        other=[{'x':[.5+.1*(k%4),.6,.3+.1*(k%5),1.,.2+.02*(k%3)],'y':0} for k in range(60)]
+        head=learning.fit(same+other)
+        self.assertGreater(min(learning.probability(head,r['x']) for r in same),.95)
+        self.assertLess(max(learning.probability(head,r['x']) for r in other),.05)
+    def test_identity_check_holds_out_each_match_and_never_scores_reserved_ones(self):
+        from neptune_training import HELD_OUT_MATCHES
+        folder=self.root/'full'
+        for match,sha in (('2026test_qm1','b'*64),('2026test_qm2','c'*64),(next(iter(HELD_OUT_MATCHES)),'d'*64)):
+            r=approve(dict(reconcile([point(k/4,team=1 if k==0 else None) for k in range(8)],R,sha),match_key=match))
+            (folder/match).mkdir(parents=True);(folder/match/'identity-review.json').write_text(json.dumps(r))
+        learning.atomic(self.root/'association-candidate.json',{'model':None,'eligible_for_identity_benchmark':False})
+        with self.assertRaises(ValueError):learning.identity_check(self.root,folder)
+        learning.atomic(self.root/'association-candidate.json',{'model':{'weights':[0.]*5,'bias':0.},'eligible_for_identity_benchmark':True})
+        same=[{'x':[.02,.05,.3,0.,.04],'y':1,'match_key':'2026test_qm9','source':'e'*64}]*20;other=[{'x':[.6,.7,.3,1.,.25],'y':0,'match_key':'2026test_qm9','source':'e'*64}]*20
+        with patch.object(learning,'pairs',return_value=same+other):
+            (self.root/'reviews').mkdir(exist_ok=True);learning.atomic(self.root/'reviews'/'x.json',{'version':learning.VERSION})
+            result=learning.identity_check(self.root,folder,activate=True)
+        self.assertEqual(result['matches'],['2026test_qm1','2026test_qm2'])
+        # Eight boxes per match is far below 150 correct names, so nothing activates.
+        self.assertFalse(result['passed']);self.assertFalse((self.root/'association-active.json').exists())
+    def test_solver_does_not_guess_on_unconfirmed_or_lone_closeup_boxes(self):
+        # Wide view: a confirmed track carries its read; a follower serial (negative ID) does not.
+        wide=reconcile([point(k/4,team=1 if k==0 else None) for k in range(4)]+[point(1+k/4,track=-5) for k in range(4)],R,SHA)['points']
+        self.assertEqual({p['team'] for p in wide if p['track_id']==1},{1})
+        self.assertEqual({(p['team'],p['reason']) for p in wide if p['track_id']==-5},{(None,'unconfirmed_track_needs_review')})
+        # Close-up with one box: a read on another tracker ID is not carried onto it.
+        close=lambda t,track,team=None:dict(point(t,track,team),camera='closeup-left',scene='closeup-left:0')
+        rows=reconcile([close(k/4,7,team=1 if k==0 else None) for k in range(4)]+[close(1+k/4,8) for k in range(4)],R,SHA)['points']
+        self.assertEqual({p['team'] for p in rows if p['track_id']==7},{1})
+        self.assertEqual({(p['team'],p['reason']) for p in rows if p['track_id']==8},{(None,'lone_closeup_box_needs_review')})
     def test_action_example_provenance_survives_actual_label_pipeline(self):
         from neptune_training import labeled_examples
         r=approve(review([point(k/4) for k in range(17)]));info=learning.publish(r);f=learning.apply_to_facts(facts());row={'id':1,'video_id':'v','match_key':'2026test_qm1','team_number':2,'tag_key':'feed','polarity':'present','label_scope':'moment','start_ms':2000,'end_ms':2000,'evidence_type':'human_video_label'}

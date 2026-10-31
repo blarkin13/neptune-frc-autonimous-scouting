@@ -22,6 +22,8 @@ def main():
         for line in sys.stdin:
             try: command=json.loads(line)
             except ValueError:continue
+            if command.get('command')=='update_note':    # the app's Sparkle update status, shown on Neptune's Computers page
+                import neptune_telemetry;neptune_telemetry.EXTRA['update']=str(command.get('text',''))[:200];continue
             if command.get('command') in ('stop','quit'):pause.set()
             if command.get('command')=='quit':closing.set()
             commands.put(command)
@@ -30,7 +32,7 @@ def main():
     command=commands.get();config=command.get('connection');device=command.get('device','Automatic')
     if command.get('command')=='connect':
         from native_connect import connect
-        result=connect(command.get('site','https://neptunefrc.com'),lambda s:emit('status',message=s),closing)
+        result=connect(command.get('site','https://neptunefrc.com'),lambda s:emit('status',message=s),closing,computer_id=command.get('computer_id'),name=command.get('name'))
         emit('credential',connection=result);return
     if command.get('command')=='review':
         from neptune_identity_review import choose
@@ -104,6 +106,9 @@ def main():
     os.environ['NEPTUNE_TRAIN_DEVICE']=hardware['device']   # clip features in match tests too, not only in training
     import neptune_telemetry
     neptune_telemetry.subscribe(lambda payload:emit('telemetry',payload=payload))
+    # The owner's update request or auto-update setting reaches the app, which installs through Sparkle.
+    neptune_telemetry.EXTRA['remote_update']=True
+    neptune_telemetry.on_reply(lambda reply:emit('settings',settings=reply.get('settings') or {}))
     trainer.watch_jobs(config,hardware,execute,progress,closing,pause,
         busy=lambda value:emit('busy',value=value),
         connection=lambda value:emit('connection',connected=value),

@@ -14,7 +14,8 @@ import sys
 
 VERSION = 'yolo-botsort-1'
 # Bump whenever Identities/recover_segments change: cached tracking is reused only on an exact match.
-CONTINUITY_REVISION = 'bumper-window-roster-reads-v8'
+CONTINUITY_REVISION = 'bumper-window-roster-reads-v9'
+SETTLED_READS = 3   # agreeing exact reads after which a track's coloured OCR retry is skipped
 ULTRALYTICS_VERSION = '8.4.63'
 
 
@@ -401,6 +402,7 @@ def _track_camera(video, facts, profile, backend, work, fps=6., width=960, read_
     tile_counts={'frames':0,'candidates':0,'added':0}
     people = []; ocr_folder = work/'yolo-ocr'; ocr_folder.mkdir(exist_ok=True)
     ocr_failures=[0,0]  # failed text-reader calls, all calls
+    exact_reads={}  # track -> teams read exactly, in order; a settled track skips the coloured retry
     try:
         for t, w, h, y, u, v in decode(video, *band, start, end, fps, width, left=left, right=right):
             frame_count += 1
@@ -461,8 +463,10 @@ def _track_camera(video, facts, profile, backend, work, fps=6., width=960, read_
                     reads.append({'track': hits[0]['id'], 'team': r['team'], 'kind': 'exact'})
             if sample:
                 # Tight bumper window enlarged to a fixed strip height; the white-digit map first, the coloured
-                # crop only for bumpers without an exact read (see tools/ocr-benchmark for the measurements).
+                # crop only for bumpers without an exact read (see tools/ocr-benchmark for the measurements). A track
+                # with SETTLED_READS agreeing exact reads skips the coloured retry; its white pass still runs.
                 paths = []
+                settled = {k for k, v in exact_reads.items() if len(v) >= SETTLED_READS and len(set(v)) == 1}
                 for d in dets:
                     if d.get('box_source')=='optical_flow':continue
                     a,b,c,e=scaled_ocr_box(d['box'],(w,h),(ocr_image.shape[1],ocr_image.shape[0]))
@@ -470,12 +474,13 @@ def _track_camera(video, facts, profile, backend, work, fps=6., width=960, read_
                     path = ocr_folder/('bumper-%d.png' % d['id'])
                     crop, inner = bumper_crop(ocr_image, (a, b, c-a, e-b), white=True)
                     cv2.imwrite(str(path), crop)
-                    cv2.imwrite(str(path.with_name('bumper-%d-colour.png' % d['id'])), bumper_crop(ocr_image, (a, b, c-a, e-b))[0])
+                    if d['id'] not in settled:
+                        cv2.imwrite(str(path.with_name('bumper-%d-colour.png' % d['id'])), bumper_crop(ocr_image, (a, b, c-a, e-b))[0])
                     paths.append((d, path, inner))
                 try:
                     texts = backend.recognize([p for d, p, _ in paths]) if paths else {}
                     found = {str(p): read_team(texts.get(str(p), []), roster, d['alliance'], inner) for d, p, inner in paths}
-                    retry = [p.with_name(p.stem + '-colour.png') for d, p, _ in paths if not found[str(p)] or found[str(p)]['kind'] != 'exact']
+                    retry = [p.with_name(p.stem + '-colour.png') for d, p, _ in paths if d['id'] not in settled and (not found[str(p)] or found[str(p)]['kind'] != 'exact')]
                     second = backend.recognize(retry) if retry else {}
                 except OcrUnavailable:
                     # One failed text-reader call skips this frame's reads instead of losing the match.
@@ -489,6 +494,8 @@ def _track_camera(video, facts, profile, backend, work, fps=6., width=960, read_
                     if (not r or r['kind'] != 'exact') and col in second:
                         items = items + second[col]
                         r = read_team(items, roster, d['alliance'], inner)
+                    if r and r['kind'] == 'exact':
+                        exact_reads.setdefault(d['id'], []).append(r['team'])
                     if r and r['kind'] in ('exact', 'corrected'):
                         reads.append({'track': d['id'], 'team': r['team'], 'kind': r['kind']})
                     elif r is None:

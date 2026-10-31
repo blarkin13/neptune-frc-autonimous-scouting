@@ -14,8 +14,10 @@ import time
 
 LOG = collections.deque(maxlen=14)            # (unix time, line)
 STATE = {}                                    # pass, passes, batch, batches, it_s, step: set by the running job
+EXTRA = {}                                    # merged into every check-in: remote_update (can update on request) and update (its last update message)
 _lock = threading.Lock()
 _listeners = []
+_reply_listeners = []
 
 
 def subscribe(callback):
@@ -26,6 +28,24 @@ def subscribe(callback):
         with _lock:
             if callback in _listeners: _listeners.remove(callback)
     return remove
+
+
+def on_reply(callback):
+    """Deliver each check-in reply (the owner's settings for this computer) to a desktop view."""
+    with _lock:
+        _reply_listeners.append(callback)
+    def remove():
+        with _lock:
+            if callback in _reply_listeners: _reply_listeners.remove(callback)
+    return remove
+
+
+def replied(reply):
+    with _lock:
+        listeners = list(_reply_listeners)
+    for callback in listeners:
+        try: callback(reply)
+        except Exception: pass
 
 
 def notify(payload):
@@ -57,6 +77,31 @@ def clear():
         STATE.clear()
 
 
+def form_factor():
+    """'laptop', 'desktop' or 'server' for the Computers page icon: a battery means a laptop; Linux reads the chassis type."""
+    try:
+        if sys.platform == 'win32':
+            import ctypes
+            class Power(ctypes.Structure):
+                _fields_ = [('ac', ctypes.c_byte), ('flag', ctypes.c_byte), ('percent', ctypes.c_byte), ('saver', ctypes.c_byte),
+                            ('life', ctypes.c_ulong), ('full', ctypes.c_ulong)]
+            power = Power()
+            if ctypes.windll.kernel32.GetSystemPowerStatus(ctypes.byref(power)):
+                return 'desktop' if power.flag & 128 or (power.flag & 0xff) == 255 else 'laptop'
+            return 'desktop'
+        if sys.platform == 'darwin':
+            out = subprocess.run(['pmset', '-g', 'batt'], capture_output=True, text=True, timeout=5).stdout
+            return 'laptop' if 'InternalBattery' in out else 'desktop'
+        from pathlib import Path
+        chassis = Path('/sys/class/dmi/id/chassis_type')
+        kind = int(chassis.read_text().strip()) if chassis.is_file() else 0
+        if kind in (17, 23, 25, 28, 29): return 'server'
+        if kind in (8, 9, 10, 14, 30, 31, 32) or any(Path('/sys/class/power_supply').glob('BAT*')): return 'laptop'
+        return 'desktop'
+    except Exception:
+        return None
+
+
 def snapshot():
     with _lock:
         return dict(STATE), [list(x) for x in LOG]
@@ -71,7 +116,9 @@ def batch_counter(label, passes):
         seen['batch'] += 1
         took = time.monotonic()-seen['start']
         batches = len(trainer.train_loader) if getattr(trainer, 'train_loader', None) is not None else None
-        update(step=label, passes=passes, batches=batches, it_s=round(seen['batch']/took, 2) if took > 0 else None,
+        try: loss = round(float(sum(trainer.tloss)), 4) if getattr(trainer, 'tloss', None) is not None else None    # running mean this pass
+        except Exception: loss = None
+        update(step=label, passes=passes, batches=batches, it_s=round(seen['batch']/took, 2) if took > 0 else None, loss=loss,
                **{'pass': trainer.epoch+1, 'batch': seen['batch']})
     return on_batch
 
@@ -170,7 +217,7 @@ class Reporter(threading.Thread):
         while not self.closing.is_set():
             base = self.payload()
             state, log = snapshot()
-            payload = dict(base, stats=system(), counters=state, log=log)
+            payload = dict(base, **EXTRA, stats=system(), counters=state, log=log)
             notify(payload)
             try:
                 self.on_reply(self.send(payload))

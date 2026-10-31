@@ -16,6 +16,10 @@ BUILD=$(( $(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$OLD/Contents/I
 rm -rf "${B:?}"; mkdir -p "$B/build" "$O"
 /bin/cp -cR "$OLD" "$A"
 find "${E:?}" -maxdepth 1 -type f \( -name 'neptune_*.py' -o -name 'requirements*.json' -o -name 'requirements-*.txt' -o -name 'season_rules.json' \) -delete
+# Files earlier releases shipped that this one no longer does.
+rm -f "$E/neptune-art-poseidon.jpg" "$E/neptune-art-seahorse.jpg" "$E/neptune-art-circuit.jpg"
+# The app icon (Dock, Finder, DMG) comes from the repo, not the previous build.
+cp -p "$R/trainer-app/macos/NeptuneTrainingHelper/Resources/Neptune.icns" "$A/Contents/Resources/Neptune.icns"
 for s in "$R"/engine/*; do n=$(basename "$s")
   if [ -f "$s" ] && { { [ "${n##*.}" = py ] && [ "${n#test_}" = "$n" ]; } || [ "$n" = requirements.json ] || [ "$n" = requirements-yolo.txt ] || [ "$n" = requirements-videomae.txt ] || [ "$n" = season_rules.json ]; }; then cp -p "$s" "$E/$n"; fi
 done
@@ -23,6 +27,7 @@ done
 for n in $(cd "$R/engine" && python3 -c "import neptune_engine as e;print(' '.join(e.FILES))"); do cp -p "$R/engine/$n" "$E/$n"; done
 # The Mac app's worker (starts the engine, runs the self-check) lives with the app source.
 cp -p "$R/trainer-app/macos/NeptuneTrainingHelper/native_worker.py" "$E/native_worker.py"
+cp -p "$R/trainer-app/macos/NeptuneTrainingHelper/native_connect.py" "$E/native_connect.py"
 # Shipped detectors and region data live in folders next to the engine files.
 for d in field-regions field-detector robot-detector; do rm -rf "${E:?}/$d"; cp -R "$R/engine/$d" "$E/$d"; done
 rm -f "${E:?}/server_run.py"; find "$A" -name __pycache__ -prune -exec rm -rf {} +
@@ -31,6 +36,8 @@ MC=$(mktemp -d); /usr/bin/swiftc -module-cache-path "$MC" -O -parse-as-library -
   -framework Sparkle -framework AppKit -framework Security -Xlinker -rpath -Xlinker @executable_path/../Frameworks \
   "$R/trainer-app/macos/NeptuneTrainingHelper/App.swift" -o "$A/Contents/MacOS/NeptuneTrainingHelper"; rm -rf "${MC:?}"
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $NEW" -c "Set :CFBundleVersion $BUILD" "$A/Contents/Info.plist"
+# The name in the menu bar, Quit menu and update windows. The bundle id, Keychain item and app file name stay the same.
+/usr/libexec/PlistBuddy -c "Set :CFBundleName Hippocampus" -c "Set :CFBundleDisplayName Hippocampus" "$A/Contents/Info.plist"
 (cd "$R/engine" && python3 -c "import json,neptune_engine;print(json.dumps(neptune_engine.identity()))") > "$A/Contents/Resources/engine-identity.json"
 find "$R/engine" -name __pycache__ -prune -exec rm -rf {} +
 codesign --force --sign - "$A" 2>/dev/null; codesign --verify --deep --strict "$A"
@@ -51,7 +58,7 @@ import base64,re,subprocess,sys,tempfile
 o,new,pub=sys.argv[1:]
 sig=re.search(r'sparkle:edSignature="([^"]+)"',open(o+'/appcast.xml').read()).group(1)
 f=tempfile.NamedTemporaryFile(delete=False);f.write(base64.b64decode(sig));f.close()
-r=subprocess.run(['openssl','pkeyutl','-verify','-pubin','-inkey',pub,'-rawin','-in',f'{o}/Neptune-Training-Helper-{new}.zip','-sigfile',f.name],capture_output=True,text=True)
+r=subprocess.run(['/opt/homebrew/opt/openssl@3/bin/openssl','pkeyutl','-verify','-pubin','-inkey',pub,'-rawin','-in',f'{o}/Neptune-Training-Helper-{new}.zip','-sigfile',f.name],capture_output=True,text=True)
 print(r.stdout.strip() or r.stderr.strip());sys.exit(r.returncode)
 EOF
 hdiutil verify "$O/Neptune-Training-Helper.dmg" >/dev/null 2>&1

@@ -19,6 +19,11 @@ VENV = USER_ROOT / 'python-environment'
 TOOLS = USER_ROOT / 'tools/bin'
 
 
+def newer(candidate, installed):
+    try: return tuple(int(x) for x in candidate.split('.')) > tuple(int(x) for x in installed.split('.'))
+    except (AttributeError, ValueError): return True
+
+
 def prepare(progress):
     if sys.version_info < (3, 11):
         raise ValueError('Neptune Training Helper needs Python 3.11 or newer.')
@@ -31,7 +36,8 @@ def prepare(progress):
     old_version = None
     try: old_version = json.loads((APP / 'build-version.json').read_text())['version']
     except (OSError, ValueError, KeyError): pass
-    if version != old_version:
+    # The helper can update its own per-user copy from Neptune; replace it only with a newer packaged version.
+    if old_version is None or newer(version, old_version):
         progress('Installing Neptune Training Helper ' + version + '…')
         staged = USER_ROOT / 'app-next'
         previous = USER_ROOT / 'app-before-update'
@@ -79,6 +85,7 @@ def prepare(progress):
         (TOOLS / 'deno').chmod(0o755)
         pending.unlink(missing_ok=True)
     os.environ['PATH'] = str(TOOLS) + os.pathsep + os.environ.get('PATH', '')
+    os.environ['NEPTUNE_LINUX_UPDATES'] = '1'    # this launcher keeps updates the helper installs itself
     progress('Opening Neptune Training Helper…')
     return python, APP / 'neptune_trainer_entry.py'
 
@@ -88,7 +95,7 @@ def main():
     from tkinter import ttk
     import neptune_ui as ui
     root = tk.Tk()
-    root.title('Neptune Training Helper setup')
+    root.title('Hippocampus - Neptune Training Helper setup')
     root.geometry('560x320')
     root.resizable(False, False)
     ui.apply(root)
