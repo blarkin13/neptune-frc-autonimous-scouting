@@ -47,16 +47,21 @@ def main():
     for i,(vid,match) in enumerate(sorted(docs.items(),key=lambda x:x[1]),1):
         try:
             info=cache._api(config,'video_cache_info',{'video_id':vid})
+            staged=None
             if not info.get('available'):
                 video=labels.local_video(vid) or local_sources.get(vid)
                 if video is None:
-                    video=labels.VIDEOS/(vid+'.mp4');video.parent.mkdir(parents=True,exist_ok=True)
+                    stage=a.receipt.parent/'video-transfer';stage.mkdir(parents=True,exist_ok=True)
+                    video=stage/(vid+'.mp4');staged=video
                     time.sleep(8)
                     labels.youtube_download(vid,video)
                 # Refuse a partial file or a full-event stream before storing it.
                 duration=float(subprocess.check_output(['ffprobe','-v','error','-show_entries','format=duration','-of','default=nw=1:nk=1',str(video)]))
                 if not 20<duration<=600:raise ValueError('Not an individual match source')
                 info=cache.upload(config,vid,video,lambda message:None)
+                if staged is not None:
+                    staged.unlink(missing_ok=True)
+                    staged.with_suffix(staged.suffix+'.part').unlink(missing_ok=True)
             receipt['completed'][vid]=dict(info['video'],match_key=match)
             receipt['failed'].pop(vid,None)
             print(f'{i}/{len(docs)} {match}: source cached and verified',flush=True)
