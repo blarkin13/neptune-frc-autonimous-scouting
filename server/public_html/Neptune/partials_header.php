@@ -487,11 +487,56 @@ if ($neptuneMissionPage):
 .topbar-clean .neptune-header-identity .neptune-breadcrumbs .crumb-current{color:var(--text,var(--fg,#e5eef7));overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 .topbar-clean .neptune-header-identity .neptune-breadcrumbs .crumb-sep{font-size:9px;flex-shrink:0}
 @media(max-width:600px){.topbar-clean .neptune-header-identity .neptune-breadcrumbs{font-size:11px;gap:4px;max-width:calc(100vw - 105px)}}
+body:has(>.underwater-backdrop){background:transparent!important}
+.underwater-backdrop {
+  position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+  background: linear-gradient(180deg, #031838 0%, #010d20 50%, #00040a 100%);
+  z-index: -5; pointer-events: none; animation: ambientOscillation 16s ease-in-out infinite alternate;
+}
+@keyframes ambientOscillation { 0% { filter: hue-rotate(0deg); } 50% { filter: hue-rotate(-10deg); } 100% { filter: hue-rotate(5deg); } }
+.underwater-lens {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: -3;
+  background: radial-gradient(circle at 50% -20%, rgba(0, 212, 255, 0.16) 0%, transparent 60%);
+  mix-blend-mode: screen; animation: causticFlicker 8s ease-in-out infinite alternate;
+}
+@keyframes causticFlicker { 0%, 100% { opacity: 0.7; } 45% { opacity: 0.95; } 50% { opacity: 0.6; } 75% { opacity: 0.85; } }
+.parallax-beams {
+  position: fixed; top: -20%; left: -10%; width: 120%; height: 140%; pointer-events: none;
+  background: radial-gradient(ellipse at 30% 0%, rgba(0, 212, 255, 0.15) 0%, transparent 50%),
+    repeating-linear-gradient(60deg, rgba(0, 212, 255, 0.03) 0px, transparent 100px, rgba(0, 212, 255, 0.03) 200px);
+  z-index: -4; filter: blur(3px); animation: waveCaustic 20s ease-in-out infinite alternate;
+}
+@keyframes waveCaustic { 0% { transform: scale(1) skewX(0deg); } 100% { transform: scale(1.08) skewX(4deg); } }
+.app-container { position: relative; z-index: 10; max-width: 820px; margin: 0 auto; }
+.top-header-bar { display: flex; justify-content: space-between; align-items: flex-end; width: 100%; margin-bottom: 20px; flex-wrap: wrap; gap: 16px; }
+.parallax-particles {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: -2;
+  background-image:
+    radial-gradient(circle at 20% 30%, rgba(0, 212, 255, 0.08) 1.5px, transparent 1.5px),
+    radial-gradient(circle at 80% 40%, rgba(0, 212, 255, 0.09) 2px, transparent 2px),
+    radial-gradient(circle at 40% 70%, rgba(0, 150, 255, 0.06) 2.5px, transparent 2.5px);
+  background-size: 160px 160px, 240px 240px, 300px 300px;
+  animation: particleDrift 28s linear infinite;
+}
+@keyframes particleDrift {
+  0% { background-position: 0px 800px; }
+  100% { background-position: 0px 0px; }
+}
 </style>
 </head>
 
 <body class="<?=e($bodyClass)?>" data-module="<?=e($moduleName)?>">
 <?php if(!$hideChrome):?>
+  <div class="underwater-backdrop"></div>
+  <div class="underwater-lens"></div>
+  <div class="parallax-beams"></div>
+  <div class="parallax-particles"></div>
 <header class="topbar topbar-clean">
     <div class="neptune-header-identity">
     <a class="brand" href="<?=e(base_url($u ? 'dashboard/index.php' : 'index.php'))?>" aria-label="Neptune home">
