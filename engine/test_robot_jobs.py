@@ -128,6 +128,24 @@ class RobotJobs(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'never enter'):
             rj.dataset_audit({'frames': rows}, '2026held_qm2')
 
+    def test_every_held_out_match_stays_out_of_training(self):
+        rows = self.rows()+[{'match_key': '2026mnwi_qm5', 'split': 'val', 'source_sha256': 'a'*64,
+                             'image_sha256': '3', 'video_time_ms': 3000, 'boxes': []}]
+        audit = rj.dataset_audit({'frames': rows}, {'2026held_qm2', '2026mnwi_qm5'})
+        self.assertEqual(audit['trained_on'], ['2026few_qm1'])
+        rows[2]['split'] = 'train'
+        with self.assertRaisesRegex(ValueError, 'never enter'):
+            rj.dataset_audit({'frames': rows}, {'2026held_qm2', '2026mnwi_qm5'})
+
+    def test_starting_weights_must_not_have_seen_any_holdout(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder); weights = root/'current.pt'; weights.write_bytes(b'weights')
+            (root/'manifest.json').write_text(json.dumps({'trained_on': ['2026mnwi_qm5']}))
+            with patch.object(rj, 'SHARED', root), patch.object(rj, 'current_wide_weights', return_value=weights), \
+                 patch.object(rj, 'model_scale', return_value='n'):
+                with self.assertRaisesRegex(ValueError, 'starting detector trained'):
+                    rj.training_base({'2026held_qm2', '2026mnwi_qm5'})
+
     def test_full_training_job_uses_warm_start_and_reports_all_matches(self):
         import neptune_robot_labels as labels
         import neptune_detector_training as dataset

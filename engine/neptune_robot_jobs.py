@@ -25,6 +25,7 @@ SMALL_BUMPER_H = .025             # bumpers shorter than this (of frame height) 
 WIDE_BAND = (.24, .6506)          # 2026 broadcast wide-camera band (normalized y)
 ADOPT_MARGIN = .02                # new detector must beat the current one's held-out F1 by this much
 MIN_FRAMES_PER_MATCH = 8
+EXTRA_HOLDOUTS = ('2026mnwi_qm5', '2026brba_qm5')   # other events, also never trained on; checked together with Neptune's pick
 MODEL_SIZE = 'n'                  # YOLO11 Nano, warm-started from the detector in use ('s' trains a fresh Small run instead)
 SMALL_BASE = {'file': 'yolo11s.pt', 'sha256': '85a76fe86dd8afe384648546b56a7a78580c7cb7b404fc595f97969322d502d5',
               'url': 'https://github.com/ultralytics/assets/releases/download/v8.3.0/yolo11s.pt'}
@@ -142,7 +143,7 @@ def adopted_trained_on(manifest):
     report = doc.get('report') or {}
     if doc.get('trained_on') or report.get('trained_on'):
         return list(doc.get('trained_on') or report['trained_on'])
-    return [m for m in report.get('matches') or [] if m != report.get('holdout_match')]
+    return [m for m in report.get('matches') or [] if m != report.get('holdout_match') and m not in (report.get('holdout_matches') or ())]
 
 
 def current_wide_weights():
@@ -174,7 +175,7 @@ def small_base():
     return path
 
 
-def training_base(holdout):
+def training_base(held):
     """(starting weights, recipe). Continue the proven bumper detector when it is MODEL_SIZE;
     otherwise (MODEL_SIZE 's' with Nano in use) start a fresh Small run from COCO, which never saw any match.
 
@@ -187,20 +188,22 @@ def training_base(holdout):
         raise ValueError('Install the current wide bumper detector before fine-tuning; its training provenance is required.')
     if model_scale(current) != MODEL_SIZE:
         return small_base(), SMALL_RECIPE
-    if holdout in adopted_trained_on(manifest):
+    held = {held} if isinstance(held, str) else set(held)
+    if held & set(adopted_trained_on(manifest)):
         raise ValueError('The starting detector trained on the evaluation match; choose an independent holdout.')
     return current, WARM_RECIPE
 
 
-def dataset_audit(manifest, holdout):
+def dataset_audit(manifest, held):
     """Report the actual built dataset, including matches with fewer than eight frames."""
+    held = {held} if isinstance(held, str) else set(held)
     rows = manifest['frames']
     counts = {}
     for row in rows:
         key = row['match_key']
-        if key == holdout and row['split'] != 'val':
+        if key in held and row['split'] != 'val':
             raise ValueError('Evaluation frames must never enter detector training.')
-        if key != holdout and row['split'] != 'train':
+        if key not in held and row['split'] != 'train':
             raise ValueError('Unexpected validation match in detector dataset.')
         counts[key] = counts.get(key, 0)+1
     validation = [{k: row[k] for k in ('match_key', 'source_sha256', 'image_sha256', 'video_time_ms', 'boxes')}
@@ -393,20 +396,23 @@ def train(config, req, progress):
         raise ValueError('Label at least %d frames in two different matches first.' % MIN_FRAMES_PER_MATCH)
     in_use = SHARED/'manifest.json' if (SHARED/'manifest.json').is_file() else Path(__file__).with_name('robot-detector')/'manifest.json'
     holdout = req.get('holdout') if req.get('holdout') in usable else pick_holdout(usable, adopted_holdout(SHARED/'manifest.json'), adopted_trained_on(in_use))
+    held = {holdout}|{k for k in EXTRA_HOLDOUTS if k in usable}
+    if not set(usable)-held:
+        raise ValueError('Label at least %d frames in a match besides the held-out ones first.' % MIN_FRAMES_PER_MATCH)
     work = HOME/'robot-detector-work'/req['id']; shutil.rmtree(work, ignore_errors=True); work.mkdir(parents=True)   # a restarted run starts clean
     def snapshot_download(video_id,t,sha,path):
         reply=api(config,'label_frame_get',{'video_id':video_id,'t_ms':t,'sha256':sha})
         raw=base64.b64decode(reply['image_b64'],validate=True)
         if hashlib.sha256(raw).hexdigest()!=sha:raise ValueError('Training frame failed its saved-image checksum')
         path.write_bytes(raw)
-    built = labels.build(docs, work/'frames', holdout={holdout}, download=labels.youtube_download, progress=progress,snapshot_download=snapshot_download)
+    built = labels.build(docs, work/'frames', holdout=held, download=labels.youtube_download, progress=progress,snapshot_download=snapshot_download)
     config_yaml = prepare_dataset(Path(built['manifest']), work/'dataset')
     yolo_validation_from_training(config_yaml.parent)   # before workshop images join training
     from neptune_external_bumpers import append_workshop
     supplemental = append_workshop(external_training_datasets(config), work/'dataset')
     if supplemental['frames']:
         progress('Including %d reviewed workshop images (%d bumper boxes) in training only' % (supplemental['frames'], supplemental['boxes']))
-    base, recipe = training_base(holdout)
+    base, recipe = training_base(held)
     base_sha256 = hashlib.sha256(base.read_bytes()).hexdigest()
     model = YOLO(str(base))
     if recipe == WARM_RECIPE:
@@ -427,14 +433,14 @@ def train(config, req, progress):
                          translate=.2, scale=.5, fliplr=.5, mosaic=1.0, close_mosaic=10)
     best = Path(result.save_dir)/'weights'/'best.pt'
     manifest = json.loads(Path(built['manifest']).read_text())
-    audit = dataset_audit(manifest, holdout)
+    audit = dataset_audit(manifest, held)
     check = [(work/'frames'/f['image'], [[b['xywh'][0]-b['xywh'][2]/2, b['xywh'][1]-b['xywh'][3]/2, b['xywh'][0]+b['xywh'][2]/2, b['xywh'][1]+b['xywh'][3]/2,
                'red' if b['class_id'] == 0 else 'blue'] for b in f['boxes']]) for f in manifest['frames'] if f['split'] == 'val']
-    progress('Comparing new and current detector on %s' % holdout)
+    progress('Comparing new and current detector on %s' % ', '.join(sorted(held)))
     new = evaluate(best, check)
     current = current_wide_weights(); old = evaluate(current, check) if current else None
     adopt = old is None or new['f1'] >= old['f1']+ADOPT_MARGIN
-    report = {'engine': VERSION, 'holdout_match': holdout, 'trained_on': audit['trained_on'], 'external_training': supplemental, 'frames': built['frames']+supplemental['frames'], 'train_frames': built['train']+supplemental['frames'], 'check_frames': built['val'],
+    report = {'engine': VERSION, 'holdout_match': holdout, 'holdout_matches': sorted(held), 'trained_on': audit['trained_on'], 'external_training': supplemental, 'frames': built['frames']+supplemental['frames'], 'train_frames': built['train']+supplemental['frames'], 'check_frames': built['val'],
               'bumpers': built['boxes']+supplemental['boxes'], 'matches': audit['matches'], 'frames_per_match': audit['frames_per_match'],
               'evaluation_sha256': audit['evaluation_sha256'], 'starting_weights_sha256': base_sha256,
               'training_recipe': recipe, 'model_size': MODEL_SIZE, 'new': new, 'current': old, 'adopted': adopt, 'margin': ADOPT_MARGIN, 'skipped': built['skipped']}
