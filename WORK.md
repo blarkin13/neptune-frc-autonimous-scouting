@@ -1,3 +1,11 @@
+## 2026-10-31 — Nano detector release: Mac 3.2.84, Windows 6.5.55, Linux 6.6.46, engine 2.7.69 (Claude, deployed)
+
+Owner asked to go back to Nano after Small runs scored 0.84/0.86/0.79/0.78 against Nano's 0.86. `MODEL_SIZE='n'`: runs warm-start the Nano detector in use; `'s'` still trains a fresh Small run. Robot runs need these helpers (an older 3.2.78+ helper would train Small).
+- GitHub releases helper-3.2.84, helper-windows-6.5.55, helper-linux-6.6.46. Mac release passed 597 tests on the third try; the first two stopped on `test_same_file_names_in_one_batch_do_not_collide` (Apple Vision "vision failed" under full-suite load; passes alone).
+- SSM 159868cb: 13 files verified, 18 changed; backup `/root/nano-detector-release-backup-20261031`; pruned 316 MB. Feeds: appcast 3.2.84, Windows and Linux latest.json hashes match the update zips.
+- Also live (server only, 26ba414): "Match video only" training checkbox. Owner's match-only run scored 0.78, so the workshop/folder photos stay in.
+- Label notes for the owner: 2026txcmp1_qm3 boxes are about half the size of the other matches (median area 8.5 vs 15-20); the 25-frame `_qm5` matches were labelled by Codex; 2026sccha_qm5 unmarked (no video).
+
 ## 2026-10-31 — Codex: respect selected theme backgrounds
 
 Replaced the fixed navy underwater gradient in both shared-header and community CSS with the selected theme's `--bg`/`--bg2`. Decorative lens, beams and particles now use `--accent`/`--text`; removed hue rotation that changed the chosen background colors and removed the separate light-only palette override. Bumped the community stylesheet URL. Verified two custom palettes in both light and dark modes, repeated the existing component contrast checks, and linted both PHP files. Deployed only these three files with guarded hashes, a 135,952-byte rollback backup, stage cleanup and release pruning; verified public CSS bytes and rendered shared-header rules. Receipts: `/Users/brianlarkin/Documents/ChatGPT/autonomous_scouting/local/theme-background-fix/`.
