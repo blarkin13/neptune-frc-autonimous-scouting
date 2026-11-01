@@ -2,7 +2,7 @@
 declare(strict_types=1);
 /** Private original match sources; one upload at a time, bounded across organizations. */
 final class MatchVideoCache {
- const CAP=10*1024*1024*1024, RESERVE=10*1024*1024*1024, MAX=512*1024*1024, CHUNK=8*1024*1024;
+ const CAP=12*1024*1024*1024, RESERVE=10*1024*1024*1024, MAX=512*1024*1024, CHUNK=8*1024*1024;
  private string $root; private int $org;
  public function __construct(string $secure,int $org){$this->root=$secure.'/match-video-cache';$this->org=$org;}
  private static function video(string $v):void{if(!preg_match('/^[A-Za-z0-9_-]{11}$/D',$v))throw new InvalidArgumentException('Invalid match video');}
@@ -30,7 +30,7 @@ final class MatchVideoCache {
    if($d&&($d['touched']??0)>time()-1800){if($d['org']===$this->org&&$d['owner']===$owner&&$d['video_id']===$video&&$d['sha256']===$sha&&$d['bytes']===$bytes)return ['available'=>false,'upload_id'=>$d['upload_id'],'offset'=>is_file($part)?filesize($part):0,'chunk_size'=>self::CHUNK];throw new InvalidArgumentException('Another match video is uploading; retry later');}
    if(is_file($part))unlink($part);if(is_file($lease))unlink($lease);
    $used=0;foreach(glob($this->root.'/*/*.mp4')?:[] as $p)$used+=filesize($p);
-   if($used+$bytes>self::CAP)throw new InvalidArgumentException('Shared video cache reached its 10 GiB limit; original videos were preserved');
+   if($used+$bytes>self::CAP)throw new InvalidArgumentException('Shared video cache reached its 12 GiB limit; original videos were preserved');
    if(disk_free_space($this->root)-$bytes<self::RESERVE)throw new InvalidArgumentException('Video cache paused to keep 10 GiB free');
    $d=['upload_id'=>bin2hex(random_bytes(16)),'org'=>$this->org,'owner'=>$owner,'video_id'=>$video,'sha256'=>$sha,'bytes'=>$bytes,'touched'=>time()];
    if(file_put_contents($part,'')===false)throw new RuntimeException('Cannot stage match source');chmod($part,0600);$this->write($lease,$d);

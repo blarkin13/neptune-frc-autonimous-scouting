@@ -79,7 +79,7 @@ def main():
             elif isinstance(e,(ValueError,RuntimeError)):reason=str(e)[:300]
             receipt['failed'][vid]={'match_key':match,'reason':reason}
             print(f'{i}/{len(docs)} {match}: {reason}',flush=True)
-            if labels.youtube_blocked(e) or 'bot check' in reason.lower() or '10 GiB' in reason or isinstance(e,urllib.error.HTTPError) and e.code in (401,403):
+            if labels.youtube_blocked(e) or 'bot check' in reason.lower() or '10 GiB' in reason or 'cache reached' in reason.lower() or isinstance(e,urllib.error.HTTPError) and e.code in (401,403):
                 receipt['state']='paused';save();break
         save()
     else:receipt['state']='complete_with_missing' if receipt['failed'] else 'complete';save()

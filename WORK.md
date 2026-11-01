@@ -1,3 +1,7 @@
+## 2026-10-31 — Codex: fit all robot and field training sources within the existing disk
+
+The initial audit covered 72 bumper-labeled videos; adding the 53 field-only training sources brings the unique total to 125. The first 22 newly fetched originals average 99.5 MiB, projecting roughly 11 GiB for the collection. Increased only the server cache ceiling to 12 GiB so the full set can fit without degrading bumper OCR; the independent 10 GiB free-disk guard remains unchanged. No new AWS storage was purchased. Updated the bulk CLI to recognize capacity pauses independently of the numeric ceiling.
+
 ## 2026-10-31 — Codex: repair the Mac updater while rolling out video caching
 
 The installed Mac helper's Sparkle log exposed an inherited configuration error: sandbox-only downloader and installer XPC services were enabled for this non-sandboxed app. Disabled both flags in the native build and release scripts, per Sparkle's customization/sandboxing documentation. Mac repair release is 3.2.87 (same engine 2.7.71); Windows 6.5.57 and Linux 6.6.48 are unchanged. The public 3.2.86 archive downloaded in full with the correct SHA-256, confirming that the updater service failure was separate from the server's package delivery. Linux updated and checked in successfully. No active Windows training job was interrupted.
