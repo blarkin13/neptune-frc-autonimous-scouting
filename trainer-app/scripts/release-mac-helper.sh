@@ -36,6 +36,8 @@ MC=$(mktemp -d); /usr/bin/swiftc -module-cache-path "$MC" -O -parse-as-library -
   -framework Sparkle -framework AppKit -framework Security -Xlinker -rpath -Xlinker @executable_path/../Frameworks \
   "$R/trainer-app/macos/NeptuneTrainingHelper/App.swift" -o "$A/Contents/MacOS/NeptuneTrainingHelper"; rm -rf "${MC:?}"
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $NEW" -c "Set :CFBundleVersion $BUILD" "$A/Contents/Info.plist"
+# This app is not sandboxed. Sparkle uses its in-process downloader and installer.
+/usr/libexec/PlistBuddy -c "Set :SUEnableInstallerLauncherService false" -c "Set :SUEnableDownloaderService false" "$A/Contents/Info.plist"
 # The name in the menu bar, Quit menu and update windows. The bundle id, Keychain item and app file name stay the same.
 /usr/libexec/PlistBuddy -c "Set :CFBundleName Hippocampus" -c "Set :CFBundleDisplayName Hippocampus" "$A/Contents/Info.plist"
 (cd "$R/engine" && python3 -c "import json,neptune_engine;print(json.dumps(neptune_engine.identity()))") > "$A/Contents/Resources/engine-identity.json"

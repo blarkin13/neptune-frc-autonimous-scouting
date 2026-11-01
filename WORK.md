@@ -1,3 +1,7 @@
+## 2026-10-31 — Codex: repair the Mac updater while rolling out video caching
+
+The installed Mac helper's Sparkle log exposed an inherited configuration error: sandbox-only downloader and installer XPC services were enabled for this non-sandboxed app. Disabled both flags in the native build and release scripts, per Sparkle's customization/sandboxing documentation. Mac repair release is 3.2.87 (same engine 2.7.71); Windows 6.5.57 and Linux 6.6.48 are unchanged. The public 3.2.86 archive downloaded in full with the correct SHA-256, confirming that the updater service failure was separate from the server's package delivery. Linux updated and checked in successfully. No active Windows training job was interrupted.
+
 ## 2026-10-31 — Codex: shared original match-video cache
 
 Implemented an authenticated organization-private cache for original MP4 match sources, with one resumable upload at a time, SHA-256 verification before publication, a global 10 GiB cap, and a 10 GiB free-disk reserve. Robot prepare/train/test and field training now use local → shared cache → YouTube. Added sequential robot/field source-cache CLI; it pauses on bot checks or disk limits and never starts training. No transcoding or changes to saved labels, source stills, provenance gates or held-out matches.
