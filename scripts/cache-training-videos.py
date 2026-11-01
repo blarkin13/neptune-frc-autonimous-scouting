@@ -19,6 +19,7 @@ def main():
     auth.add_argument('--connection',type=Path)
     auth.add_argument('--mac-keychain',action='store_true',help='Use the existing Mac helper connection without exporting its credential')
     p.add_argument('--receipt',type=Path,required=True)
+    p.add_argument('--local-only',action='store_true',help='Cache available files without requesting YouTube')
     p.add_argument('--local-directory',type=Path,action='append',default=[],help='Also reuse original sources from this directory')
     a=p.parse_args()
     config=json.loads(subprocess.check_output(['security','find-generic-password','-a','owner','-s','com.neptunefrc.traininghelper.connection','-w'])) if a.mac_keychain else json.loads(a.connection.read_text())
@@ -51,6 +52,9 @@ def main():
             if not info.get('available'):
                 video=labels.local_video(vid) or local_sources.get(vid)
                 if video is None:
+                    if a.local_only:
+                        receipt['failed'].setdefault(vid,{'match_key':match,'reason':'Original source not available locally; YouTube download deferred'})
+                        save();continue
                     stage=a.receipt.parent/'video-transfer';stage.mkdir(parents=True,exist_ok=True)
                     video=stage/(vid+'.mp4');staged=video
                     time.sleep(8)
