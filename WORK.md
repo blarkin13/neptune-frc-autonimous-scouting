@@ -1,3 +1,9 @@
+## 2026-10-31 — Codex: Nano loader and Helpers dashboard release
+
+Built on the current main branch, which already ships YOLO11 Nano, three independent held-out matches, and shared video caching. The robot trainer now syncs Neptune’s adopted detector before choosing starting and comparison weights. CUDA uses two data-loader workers and batch eight; CPU retains workers zero and batch four. Windows entry enables multiprocessing worker startup. The next run will measure the speed change; a 2–4× gain has not been claimed.
+
+Helpers & settings scopes Running now logs to the active request/start time and clears old entries; adds a full-screen control. My computers embeds each helper’s hardware self-check, replaces the large Rename control with click-to-edit name and a conditional Save button, uses icon training actions, and removes its duplicate run console. Linux install commands open in a modal only after clicking Linux, with no download. Versioned assets are updated. Focused 19 robot-job tests and the bundled-Python 604-test suite pass; JavaScript and PHP lint and diff whitespace checks pass. Release artifacts and production deployment receipts will be added after publication.
+
 ## 2026-10-31 — Codex: purge obsolete AWS releases and verify completed video cache
 
 Completed and server-hash-verified all 125 robot/field training source videos (9.91 GiB); no missing sources, unreadable videos, or completed label timestamps beyond source duration. Original bytes and exact saved training images are preserved. Mac 3.2.87 and Linux 6.6.48 checked in updated; Windows 6.5.57 is downloaded and deferred until its active training run completes.

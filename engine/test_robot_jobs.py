@@ -43,7 +43,9 @@ class RobotJobs(unittest.TestCase):
 
     def test_detector_trains_and_checks_at_one_picture_size(self):
         source = Path(rj.__file__).read_text()
-        self.assertIn('imgsz=1280, batch=4', source); self.assertIn("predict(image, imgsz=1280", source)
+        self.assertIn('imgsz=1280, device=device, **loading', source); self.assertIn("predict(image, imgsz=1280", source)
+        self.assertEqual(rj.loader_settings(0), {'workers': 2, 'batch': 8})
+        self.assertEqual(rj.loader_settings('cpu'), {'workers': 0, 'batch': 4})
 
     def test_check_drops_a_box_nested_in_a_stronger_one_like_tracking(self):
         import numpy as np

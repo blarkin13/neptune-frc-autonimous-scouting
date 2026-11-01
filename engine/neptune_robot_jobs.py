@@ -81,6 +81,11 @@ def train_device():
         return 'cpu'
 
 
+def loader_settings(device):
+    """Feed CUDA without exhausting Windows worker processes or GPU memory."""
+    return {'workers': 2, 'batch': 8} if device != 'cpu' else {'workers': 0, 'batch': 4}
+
+
 def all_cores():
     """Train on every CPU core. Tracking pins torch to one thread for the rest of the helper's session, which made
     detector training run on 1 of N cores; restore that setting afterwards."""
@@ -382,6 +387,8 @@ def train(config, req, progress):
     import neptune_robot_labels as labels
     from neptune_detector_training import prepare as prepare_dataset
     progress('Downloading robot labels')
+    # Refresh the adopted weights before choosing the warm start and comparison model.
+    sync_detector(config)
     docs = labels.sync(config)
     counts = {d.get('match_key'): sum(1 for f in d.get('frames', {}).values() if f.get('complete')) for d in docs}
     usable = sorted(k for k, n in counts.items() if k and n >= MIN_FRAMES_PER_MATCH)
@@ -424,8 +431,11 @@ def train(config, req, progress):
     model.add_callback('on_fit_epoch_end', epoch_end)
     batch_progress(model, 'Training robot detector', epochs, progress)
     # NVIDIA GPU or CPU (train_device): Apple GPU training hangs with this PyTorch build.
+    device = train_device()
+    loading = loader_settings(device)
+    progress('Training input: %d images per batch, %d loader workers on %s' % (loading['batch'], loading['workers'], device))
     with all_cores():
-        result = model.train(data=str(config_yaml), epochs=epochs, imgsz=1280, batch=4, device=train_device(), workers=0, patience=20, seed=2026,
+        result = model.train(data=str(config_yaml), epochs=epochs, imgsz=1280, device=device, **loading, patience=20, seed=2026,
                          deterministic=True, plots=False, project=str(work/'runs'), name='bumper', exist_ok=True, verbose=False,
                          translate=.2, scale=.5, fliplr=.5, mosaic=1.0, close_mosaic=10)
     best = Path(result.save_dir)/'weights'/'best.pt'

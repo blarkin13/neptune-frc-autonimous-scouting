@@ -193,4 +193,8 @@ def main():
 
 
 if __name__ == '__main__':
+    # PyInstaller worker processes must enter multiprocessing's worker path,
+    # rather than opening a second Hippocampus window for each YOLO loader.
+    import multiprocessing
+    multiprocessing.freeze_support()
     raise SystemExit(main())
