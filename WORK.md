@@ -1,3 +1,10 @@
+## 2026-11-02 — Wake release: Mac 3.2.93, Windows 6.5.63, Linux 6.6.54, engine 2.7.77 (Claude, deployed)
+
+Wake on My computers. Helpers send `network` {mac, ip} with each check-in (`neptune_wake.local_network`); the server stores it plus a hash of the public address. Wake sets `wake_requested`; another helper of the organization checking in from the same public address, while the target has been silent 75 s+, gets `wake` targets and broadcasts a magic packet (255.255.255.255 and the /24 broadcast, ports 9 and 7). The request clears when the target checks in, or lapses after 15 minutes. The Windows network card must allow wake by magic packet.
+- The live My computers redesign (helper-cards-20261102 in train.php, pillar.js and training-control.css) had been edited on the server only; it is now in git, with the Wake button added.
+- GitHub releases helper-3.2.93, helper-windows-6.5.63, helper-linux-6.6.54; 610 tests pass (Mac on a retry, flaky Apple Vision OCR test).
+- SSM b9c3036a: 18 files verified, 23 changed; backup `/root/wake-release-backup-20261102`; pruned 830 MB.
+
 ## 2026-11-02 — Awake after update release: Mac 3.2.92, Windows 6.5.62, Linux 6.6.53, engine 2.7.76 (Claude, deployed)
 
 The Windows PC slept the moment the helper closed to update: the keep-awake hold had outlasted the idle timeout, so clearing it let Windows sleep at once. Releasing the hold (job end, helper close) now also sends one plain ES_SYSTEM_REQUIRED, restarting the idle timer; `close()` releases synchronously because the daemon thread may not run before exit. The detached updater (`neptune_update_apply.py`) holds the PC awake from launch until the helper reopens. The updater is copied from the installed version, so the update to 6.5.62 itself still uses the old one.
