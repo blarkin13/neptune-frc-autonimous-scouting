@@ -64,12 +64,14 @@ try:
     install(files['windows','Neptune-Training-Helper-Setup.exe'],win/'Neptune-Training-Helper-Setup.exe')
     install(files['linux','Neptune-Training-Helper_all.deb'],lin/'Neptune-Training-Helper_all.deb',owner=(0,33))
     install(files['linux',linz],lin/linz);allow(lin,linz)
-    new=web/'apt.new';shutil.rmtree(new,ignore_errors=True);new.mkdir()
-    with tarfile.open(files['linux','apt-repo.tar.gz']) as t:t.extractall(new,filter='data')
-    if (web/'apt/.htaccess').is_file():shutil.copy2(web/'apt/.htaccess',new/'.htaccess')
-    subprocess.run(['chown','-R','www-data:www-data',str(new)],check=True);assert (new/'dists').is_dir() and (new/'neptune.gpg').is_file()
-    if (web/'apt.old').exists():shutil.move(str(web/'apt.old'),str(backup/'apt.old-leftover'))
-    shutil.copytree(web/'apt',backup/'apt');os.rename(web/'apt',web/'apt.old');os.rename(new,web/'apt');apt_swapped=True;shutil.rmtree(web/'apt.old')
+    # A release built without the apt signing key leaves the signed apt repository as it is.
+    if ('linux','apt-repo.tar.gz') in files:
+        new=web/'apt.new';shutil.rmtree(new,ignore_errors=True);new.mkdir()
+        with tarfile.open(files['linux','apt-repo.tar.gz']) as t:t.extractall(new,filter='data')
+        if (web/'apt/.htaccess').is_file():shutil.copy2(web/'apt/.htaccess',new/'.htaccess')
+        subprocess.run(['chown','-R','www-data:www-data',str(new)],check=True);assert (new/'dists').is_dir() and (new/'neptune.gpg').is_file()
+        if (web/'apt.old').exists():shutil.move(str(web/'apt.old'),str(backup/'apt.old-leftover'))
+        shutil.copytree(web/'apt',backup/'apt');os.rename(web/'apt',web/'apt.old');os.rename(new,web/'apt');apt_swapped=True;shutil.rmtree(web/'apt.old')
     # Update feeds last, after every file they point to is in place.
     install(files['windows','latest.json'],win/'latest.json');install(files['linux','latest.json'],lin/'latest.json');install(files['mac','appcast.xml'],mac/'appcast.xml')
     sums(lin,'SHA256SUMS.txt',['Neptune-Training-Helper_all.deb',linz,'latest.json'])
