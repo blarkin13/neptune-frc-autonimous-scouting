@@ -272,11 +272,12 @@ final class RobotDetectorJobs {
  /** Per-computer settings set on Neptune (My computers): keep awake 'jobs' (default), 'always' or 'off'. */
  private static function cid(string $id):string{if(!preg_match('/^[a-f0-9]{32}$/D',$id))throw new InvalidArgumentException('Invalid computer');return $id;}
  public function settings(string $computer):array{$f=$this->root.'/computers/'.self::cid($computer).'.json';$d=is_file($f)?json_decode((string)file_get_contents($f),true):[];
-  return ['keep_awake'=>in_array($d['keep_awake']??'',['jobs','always','off'],true)?$d['keep_awake']:'jobs','auto_update'=>!empty($d['auto_update']),'update_requested'=>(int)($d['update_requested']??0)?:null];}
+  return ['keep_awake'=>in_array($d['keep_awake']??'',['jobs','always','off'],true)?$d['keep_awake']:'jobs','auto_update'=>!empty($d['auto_update']),'update_requested'=>(int)($d['update_requested']??0)?:null,'wake_requested'=>(int)($d['wake_requested']??0)?:null];}
  /** Owner choices for one computer: keep_awake, auto_update (install new helper versions when idle), update ('request' or 'cancel' a one-time update). */
  public function setSettings(string $computer,array $p):array{
   $s=$this->settings($computer);if(isset($p['keep_awake'])){if(!in_array($p['keep_awake'],['jobs','always','off'],true))throw new InvalidArgumentException('Choose when to keep this computer awake.');$s['keep_awake']=$p['keep_awake'];}
   if(array_key_exists('auto_update',$p))$s['auto_update']=(bool)$p['auto_update'];
+  if(isset($p['wake'])){if(!in_array($p['wake'],['request','cancel'],true))throw new InvalidArgumentException('Choose request or cancel.');$s['wake_requested']=$p['wake']==='request'?time():null;}
   if(isset($p['update'])){if(!in_array($p['update'],['request','cancel'],true))throw new InvalidArgumentException('Choose request or cancel.');$s['update_requested']=$p['update']==='request'?time():null;}
   self::write($this->dir('computers').'/'.self::cid($computer).'.json',$s+['updated_at'=>time()]);return $s;
  }
@@ -284,12 +285,29 @@ final class RobotDetectorJobs {
  public function poll(array $computer,array $p):array{
   $cid=(string)$computer['id'];$version=mb_substr((string)($p['version']??''),0,40);$platform=mb_substr((string)($p['platform']??''),0,80);
   self::write($this->dir('computers').'/'.self::cid($cid).'.status.json',['at'=>time(),'busy'=>!empty($p['busy']),'awake'=>!empty($p['awake']),'message'=>mb_substr((string)($p['message']??''),0,600),'version'=>$version,'platform'=>$platform,'capabilities'=>array_values(array_intersect(['test_robot_v1'],is_array($p['capabilities']??null)?$p['capabilities']:[])),
-   'stats'=>self::numbers($p['stats']??null,2),'counters'=>self::numbers($p['counters']??null,1),'remote_update'=>!empty($p['remote_update']),'form'=>in_array($p['form']??null,['laptop','desktop','server'],true)?$p['form']:null,'update'=>mb_substr((string)($p['update']??''),0,200),
+   'stats'=>self::numbers($p['stats']??null,2),'counters'=>self::numbers($p['counters']??null,1),'remote_update'=>!empty($p['remote_update']),'form'=>in_array($p['form']??null,['laptop','desktop','server'],true)?$p['form']:null,'update'=>mb_substr((string)($p['update']??''),0,200),'network'=>self::network($p['network']??null),'home'=>hash('sha256',(string)($_SERVER['REMOTE_ADDR']??'')),
    'log'=>array_values(array_map(fn($l)=>[(int)($l[0]??0),mb_substr((string)($l[1]??''),0,220)],array_slice(is_array($p['log']??null)?array_filter($p['log'],'is_array'):[],-14)))]);
   // A requested update is done once this computer reports the newest published version for its platform; a day-old request lapses.
   $s=$this->settings($cid);$latest=helper_latest_version($platform);
   if($s['update_requested']&&(($latest!==null&&$version!==''&&version_compare($version,$latest,'>='))||time()-$s['update_requested']>86400))$s=$this->setSettings($cid,['update'=>'cancel']);
-  return ['settings'=>$s+['latest'=>$latest]];
+  if($s['wake_requested'])$s=$this->setSettings($cid,['wake'=>'cancel']);   // it is awake
+  return ['settings'=>$s+['latest'=>$latest],'wake'=>$this->wakeTargets($cid)];
+ }
+ /** A helper's network card address and local IP, for Wake on My computers. */
+ private static function network(mixed $n):?array{
+  if(!is_array($n)||!preg_match('/^[0-9a-f]{2}(:[0-9a-f]{2}){5}$/D',(string)($n['mac']??''))||!filter_var((string)($n['ip']??''),FILTER_VALIDATE_IP,FILTER_FLAG_IPV4))return null;
+  return ['mac'=>(string)$n['mac'],'ip'=>(string)$n['ip']];
+ }
+ /** Sleeping computers with a fresh Wake request on the same home network (same public address) as $cid. */
+ private function wakeTargets(string $cid):array{
+  $me=$this->status($cid);if(!$me||empty($me['home']))return [];$out=[];
+  foreach(glob($this->root.'/computers/*.status.json')?:[] as $f){
+   $other=basename($f,'.status.json');if($other===$cid||!preg_match('/^[a-f0-9]{32}$/D',$other))continue;
+   $st=json_decode((string)file_get_contents($f),true);$w=$this->settings($other)['wake_requested'];
+   if(!is_array($st)||!$w||time()-$w>900||empty($st['network'])||($st['home']??'')!==$me['home']||time()-(int)($st['at']??0)<75)continue;
+   $out[]=$st['network'];
+  }
+  return array_slice($out,0,6);
  }
  /** A removed computer's settings and last check-in. */
  public function forget(string $computer):void{foreach(['.json','.status.json'] as $x){$f=$this->root.'/computers/'.self::cid($computer).$x;if(is_file($f))unlink($f);}$f=$this->root.'/selfchecks/'.self::cid($computer).'.json';if(is_file($f))unlink($f);}
