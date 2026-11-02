@@ -1,3 +1,9 @@
+## 2026-11-02 — Gentle fine-tune release: Mac 3.2.90, Windows 6.5.60, Linux 6.6.51, engine 2.7.74 (Claude, deployed)
+
+Four repeat runs gave the same F1 0.85 vs 0.84 (training is seeded and deterministic, so the same labels and start give the same result). Warm starts now use SGD lr0 0.002 (a fifth of YOLO's default), a one-pass warm-up and cosine decay (`fine_tune_settings`); fresh COCO runs keep YOLO defaults. CUDA loaders also cache decoded frames on disk (`cache='disk'`). Gate unchanged (three held-out matches, 0.02 margin).
+- GitHub releases helper-3.2.90, helper-windows-6.5.60, helper-linux-6.6.51; Mac passed 605 tests first try.
+- SSM f1286c02: 12 files verified, 17 changed; backup `/root/gentle-fine-tune-release-backup-20261102`; pruned 797 MB. Feeds: appcast 3.2.90, Windows 6.5.60, Linux 6.6.51.
+
 # 2026-11-01 — YOLO11 Small robot trainer published and deployed
 
 Owner approved Git and AWS publication. Pushed implementation commit `36abffa`; published Mac 3.2.89, Windows 6.5.59 and Linux 6.6.50 with engine 2.7.73. AWS SSM `446e2c4f-f2aa-4a4a-b9ef-982ff5b99fa8` verified 12 source/assets and installed 17 files; rollback `/root/small-release-backup-1793593698`. Release pruning removed four old copies (317 MB). Deployment manifest and receipts: workspace `local/small-release-20261101/`. No training was started by this release.
