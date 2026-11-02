@@ -1,3 +1,7 @@
+# 2026-11-01 — YOLO11 Small robot trainer prepared (local only)
+
+Selected YOLO11 Small for the next robot-detector training run. If the detector in use is Nano, training starts from the pinned COCO-pretrained Small weights; if Small is already in use and its provenance is safe for every held-out match, training warm-starts it. CUDA training uses two loader workers and a batch of four to limit memory use. The existing three-match held-out check and 0.02 F1 adoption margin remain in place, so the current detector stays in use unless Small clearly wins. Updated helper engine and package versions; publication to Git and AWS awaits the owner's approval. The 19 robot job tests and 603 of 603 other runnable engine tests pass. One Apple Vision OCR test fails with `vision failed` even in isolation on this Mac; the full 604-test run therefore reports one error.
+
 ## 2026-10-31 — Codex: Nano loader and Helpers dashboard release
 
 Built on the current main branch, which already ships YOLO11 Nano, three independent held-out matches, and shared video caching. The robot trainer now syncs Neptune’s adopted detector before choosing starting and comparison weights. CUDA uses two data-loader workers and batch eight; CPU retains workers zero and batch four. Windows entry enables multiprocessing worker startup. The next run will measure the speed change; a 2–4× gain has not been claimed.

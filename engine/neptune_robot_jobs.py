@@ -26,7 +26,7 @@ WIDE_BAND = (.24, .6506)          # 2026 broadcast wide-camera band (normalized 
 ADOPT_MARGIN = .02                # new detector must beat the current one's held-out F1 by this much
 MIN_FRAMES_PER_MATCH = 8
 EXTRA_HOLDOUTS = ('2026mnwi_qm5', '2026brba_qm5')   # other events, also never trained on; checked together with Neptune's pick
-MODEL_SIZE = 'n'                  # YOLO11 Nano, warm-started from the detector in use ('s' trains a fresh Small run instead)
+MODEL_SIZE = 's'                  # YOLO11 Small; start from COCO when the detector in use is Nano
 SMALL_BASE = {'file': 'yolo11s.pt', 'sha256': '85a76fe86dd8afe384648546b56a7a78580c7cb7b404fc595f97969322d502d5',
               'url': 'https://github.com/ultralytics/assets/releases/download/v8.3.0/yolo11s.pt'}
 WARM_RECIPE = 'adopted-bumper-warm-start-v2-train-validation'
@@ -82,8 +82,8 @@ def train_device():
 
 
 def loader_settings(device):
-    """Feed CUDA without exhausting Windows worker processes or GPU memory."""
-    return {'workers': 2, 'batch': 8} if device != 'cpu' else {'workers': 0, 'batch': 4}
+    """Feed CUDA while keeping the larger Small model within 16 GB of VRAM."""
+    return {'workers': 2, 'batch': 4 if MODEL_SIZE == 's' else 8} if device != 'cpu' else {'workers': 0, 'batch': 4}
 
 
 def all_cores():
@@ -424,7 +424,7 @@ def train(config, req, progress):
         bumper_classes(model.names)  # refuse a generic context model even if the path is wrong
         progress('Fine-tuning the current bumper detector; evaluation match remains excluded')
     else:
-        progress('Training a larger (YOLO11 Small) bumper detector from scratch; evaluation match remains excluded')
+        progress('Training YOLO11 Small from COCO-pretrained weights; held-out matches remain excluded')
     epochs = int(req.get('epochs') or (80 if recipe == WARM_RECIPE else 120))
     def epoch_end(trainer):
         progress('Training robot detector: pass %d of up to %d' % (trainer.epoch+1, epochs))
