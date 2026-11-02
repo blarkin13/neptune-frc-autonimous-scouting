@@ -1,3 +1,9 @@
+## 2026-11-02 — GPU training release: Mac 3.2.95, Windows 6.5.65, Linux 6.6.56, engine 2.7.79 (Claude, deployed)
+
+Train or field-train requests with no chosen computer are claimed only by a helper whose platform names an NVIDIA card, while one has checked in within a day (`hasNvidia`, `nvidiaSeen`); a chosen computer still runs it. CUDA runs use batch 8 for Small (it used under 6 GB of 16 at batch 4). Tested: Apple GPU (MPS, torch 2.9.1) still hangs before the first batch, so Mac training stays on CPU.
+- The owner cleared `~/Documents/ChatGPT/Neptune`, which held the release bases, the Sparkle tool and the apt signing key. Release folders now live in `/Users/brianlarkin/Desktop/autonomous_scouting/local/releases` (git-ignored): Windows base from helper-windows-6.5.64's Neptune-Trainer-Windows.zip, Linux base from helper-linux-6.6.55's .deb, the 3.2.94 app from its release zip, and Sparkle 2.10.1's tools (signing key still in the keychain). The apt signing key is lost: Linux releases ship without apt-repo.tar.gz, and the deploy now leaves the apt repository (6.6.55) unchanged. Helpers self-update through the feed.
+- SSM 328d70a5: 12 files verified, 18 changed; backup `/root/gpu-training-release-backup-20261102`; pruned 824 MB.
+
 ## 2026-11-02 — Wake nearby release: Mac 3.2.94, Windows 6.5.64, Linux 6.6.55, engine 2.7.78 (Claude, deployed)
 
 Wake now also works for a computer whose helper never reported its address (older than 6.5.63): every helper of the organization gets `{'neighbors': true}` and sends a magic packet to each device in its ARP table (`/proc/net/arp`, Linux; up to 64). The Wake button shows for any offline computer that has checked in before. 611 tests pass.
