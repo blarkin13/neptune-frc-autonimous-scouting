@@ -225,6 +225,30 @@ class RobotJobs(unittest.TestCase):
         self.assertIn('Qualification 1', title)
         self.assertIn('Constant identity carried sightings: 1', desc)
 
+    def test_match_test_stops_with_the_reason_when_tracking_finds_nothing(self):
+        import neptune_training as training
+        with tempfile.TemporaryDirectory() as folder:
+            video = Path(folder)/'m.mp4'; video.write_bytes(b'video')
+            facts = {'source': {'sha256': 'a'*64}}
+            with patch.object(rj, 'HOME', Path(folder)), patch.object(rj, 'sync_detector'), patch.object(rj, 'sync_field_detector'), \
+                 patch.object(rj, 'match_video', return_value=video), patch.object(rj, 'duration_s', return_value=160.), \
+                 patch('neptune_facts.analyze_video', return_value=facts), patch.object(training, 'write'), \
+                 patch.object(training, 'ensure_tracking', return_value=dict(facts, tracking={'status': 'unavailable', 'reason': 'Robot tracking model is missing.'})), \
+                 patch('neptune_review_video.robot_test_video') as render:
+                with self.assertRaisesRegex(ValueError, 'Robot tracking did not run on 2026x_qm1: Robot tracking model is missing'):
+                    rj.test_robot({'site': 'https://example.test'}, {'id': 'r1', 'match_key': '2026x_qm1', 'video_id': 'v'}, lambda s: None)
+            render.assert_not_called()
+
+    def test_robot_test_map_uses_field_model_corners(self):
+        import neptune_review_video as rv
+        doc = {'application': 'detected', 'regions': [{'kind': 'field_boundary', 'camera_view': 'wide', 'id': 'b',
+               'points': [[.1, .2], [.9, .2], [.95, .6], [.05, .6]]}]}
+        with patch('neptune_field_regions.load', return_value=doc) as load:
+            calibrations, mode = rv._homography_calibrations({'layout': {'camera_top': .12}}, '2026-rebuilt')
+        self.assertEqual(load.call_args.kwargs, {'allow_detected': True})
+        self.assertEqual(mode, 'field model (detected corners)')
+        self.assertEqual(len(calibrations), 1)
+
 
 if __name__ == '__main__':
     unittest.main()

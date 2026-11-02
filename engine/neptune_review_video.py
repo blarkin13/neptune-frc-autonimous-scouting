@@ -299,7 +299,7 @@ def _homography_calibrations(facts, game_key):
     """Return ([(region, H)], status_label) for top-down mapping, with wide-band fallback when unmarked."""
     from neptune_homography import calibrate, field_references, reference_map
     from neptune_field_regions import load
-    d = load(facts, game_key)
+    d = load(facts, game_key, allow_detected=True)
     calibrations = []
     mode = 'uncalibrated'
     if d:
@@ -312,7 +312,7 @@ def _homography_calibrations(facts, game_key):
                 if r.get('kind') == 'field_boundary' and r.get('camera_view') == 'wide' and len(r.get('points', [])) == 4 and r.get('corner_indices', list(range(4))) == list(range(4)) and not r.get('inferred_corner_indices'):
                     try:
                         calibrations.append((r, calibrate(ordered_quad(r['points']))))
-                        mode = 'calibrated (boundary)'
+                        mode = 'field model (detected corners)' if d.get('application') == 'detected' else 'calibrated (boundary)'
                     except ValueError:
                         pass
         if not any(r.get('camera_view') == 'wide' for r, _ in calibrations):

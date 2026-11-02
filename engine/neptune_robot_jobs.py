@@ -694,8 +694,12 @@ def test_robot(config, req, progress):
     import neptune_review_video as rv
     from neptune_facts import analyze_video
     from neptune_field_regions import sync as sync_regions, sync_events, event_key, match_key_of
+    # A test with a stale or missing detector is not worth an hour: say why instead of rendering an empty video.
     try:
         sync_detector(config)
+    except Exception as error:
+        progress('Could not download the detector in use (%s); testing with this computer\'s copy' % type(error).__name__)
+    try:
         sync_field_detector(config)
     except Exception:
         pass
@@ -735,6 +739,10 @@ def test_robot(config, req, progress):
         facts = training.refresh_cached_facts(facts_file, facts, match_rec, game, sha, video=video, progress=progress)
     progress('Tracking robots, reading bumpers, and resolving constant identity')
     facts = training.ensure_tracking(video, facts, game, cache_dir, progress)
+    tracking = facts.get('tracking') or {}
+    if not tracking.get('observations'):
+        raise ValueError('Robot tracking did not run on %s: %s' % (match_key, tracking.get('reason') or
+                         ('no robots were found' if tracking.get('status') == 'measured' else 'no scoreboard layout or match periods were found')))
     training.write(facts_file, facts)
     progress('Mapping top-down field homography')
     try:
@@ -742,9 +750,13 @@ def test_robot(config, req, progress):
         sync_events(config, [event_key(match_key_of(facts) or match_key)])
     except Exception:
         pass
+    # Unmarked events: the field model finds this video's field corners for the top-down map.
+    from neptune_field_regions import detect_if_unmarked
+    field = detect_if_unmarked(video, facts, game['game_key'], progress)
     progress('Rendering original view with boxes, bumper OCR, and top-down homography')
     out = HOME/'review-videos'/('robot-test-'+req['id']+'.mp4'); out.parent.mkdir(parents=True, exist_ok=True)
     _, summary = rv.robot_test_video(out, video, facts, game['game_key'], title)
+    summary['field_model'] = field.get('status')
     if out.stat().st_size > 512*1024*1024:
         raise ValueError('Rendered match test exceeds 512 MB; the local video has been kept.')
     yt_title, yt_desc = rv.describe_robot_test(title, match_key, summary, VERSION)
