@@ -23,6 +23,20 @@ class Wake(unittest.TestCase):
         with mock.patch('uuid.getnode', return_value=0x010000000001):
             self.assertEqual(wake.local_network(), {})
 
+    def test_unknown_address_wakes_every_recently_seen_device(self):
+        import tempfile, os
+        with tempfile.NamedTemporaryFile('w', delete=False) as f:
+            f.write('IP address  HW type  Flags  HW address  Mask  Device\n'
+                    '192.168.1.40 0x1 0x2 aa:bb:cc:dd:ee:ff * eth0\n192.168.1.9 0x1 0x0 00:00:00:00:00:00 * eth0\n')
+        try:
+            self.assertEqual(wake.neighbors(f.name), [{'mac': 'aa:bb:cc:dd:ee:ff', 'ip': '192.168.1.40'}])
+            with mock.patch.object(wake, 'neighbors', return_value=[{'mac': 'aa:bb:cc:dd:ee:ff', 'ip': '192.168.1.40'}]), \
+                 mock.patch.object(wake, 'send', return_value=4) as send:
+                self.assertEqual(wake.wake({'neighbors': True}), 4)
+                send.assert_called_once_with({'mac': 'aa:bb:cc:dd:ee:ff', 'ip': '192.168.1.40'})
+        finally:
+            os.unlink(f.name)
+
 
 if __name__ == '__main__':
     unittest.main()

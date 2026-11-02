@@ -209,7 +209,7 @@ def watch_jobs(config,hardware,execute,progress,closing,pause,busy=lambda value:
     def wake_others(reply):
         # Neptune asks a helper on the same home network to wake a sleeping computer of this organization.
         for target in (reply.get('wake') or [])[:6]:
-            try:wake.send(target)
+            try:wake.wake(target)
             except (ValueError,OSError,AttributeError):pass
     if not getattr(telemetry,'reporter',None):telemetry.reporter=telemetry.Reporter(lambda payload:robot_jobs.api(config,'computer_poll',payload,timeout=20),
                        lambda:{'busy':awake.busy,'awake':awake.active,'message':last_message[0][:600],'version':helper_version() or engine_version(),'platform':'%s · %s'%(platform.system().replace('Darwin','Mac'),hardware.get('name','CPU')),'form':form,'network':network},

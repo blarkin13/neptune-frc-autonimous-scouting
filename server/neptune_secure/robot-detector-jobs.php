@@ -300,14 +300,17 @@ final class RobotDetectorJobs {
  }
  /** Sleeping computers with a fresh Wake request on the same home network (same public address) as $cid. */
  private function wakeTargets(string $cid):array{
-  $me=$this->status($cid);if(!$me||empty($me['home']))return [];$out=[];
+  $me=$this->status($cid);if(!$me)return [];$out=[];
   foreach(glob($this->root.'/computers/*.status.json')?:[] as $f){
    $other=basename($f,'.status.json');if($other===$cid||!preg_match('/^[a-f0-9]{32}$/D',$other))continue;
    $st=json_decode((string)file_get_contents($f),true);$w=$this->settings($other)['wake_requested'];
-   if(!is_array($st)||!$w||time()-$w>900||empty($st['network'])||($st['home']??'')!==$me['home']||time()-(int)($st['at']??0)<75)continue;
+   if(!is_array($st)||!$w||time()-$w>900||time()-(int)($st['at']??0)<75)continue;
+   // An older helper never reported its address or home network: every helper wakes the devices it has seen nearby.
+   if(empty($st['network'])||empty($st['home'])){$out[]=['neighbors'=>true];continue;}
+   if($st['home']!==$me['home'])continue;
    $out[]=$st['network'];
   }
-  return array_slice($out,0,6);
+  return array_slice(array_values(array_unique($out,SORT_REGULAR)),0,6);
  }
  /** A removed computer's settings and last check-in. */
  public function forget(string $computer):void{foreach(['.json','.status.json'] as $x){$f=$this->root.'/computers/'.self::cid($computer).$x;if(is_file($f))unlink($f);}$f=$this->root.'/selfchecks/'.self::cid($computer).'.json';if(is_file($f))unlink($f);}

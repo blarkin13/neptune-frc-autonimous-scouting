@@ -3,6 +3,8 @@
 Each helper reports its network card address and local IP when it checks in. When the owner presses Wake on a
 sleeping computer, Neptune asks another helper on the same home network (same public address) to broadcast a
 magic packet for it. The sleeping computer's network card must allow wake by magic packet.
+A computer that never reported its address (an older helper) is woken through the helper's list of devices recently
+seen on the network: a magic packet only wakes the sleeping machine whose card it names, so the rest ignore it.
 """
 import re
 import socket
@@ -47,3 +49,24 @@ def send(target):
                 except OSError:
                     pass
     return sent
+
+
+def neighbors(table='/proc/net/arp'):
+    """Card addresses of devices this computer has recently seen on its network (Linux)."""
+    out = []
+    try:
+        lines = open(table).read().splitlines()[1:]
+    except OSError:
+        return out
+    for line in lines:
+        cols = line.split()
+        if len(cols) >= 4 and re.fullmatch(r'[0-9a-f]{2}(:[0-9a-f]{2}){5}', cols[3]) and cols[3] != '00:00:00:00:00:00':
+            out.append({'mac': cols[3], 'ip': cols[0]})
+    return out
+
+
+def wake(target):
+    """Wake one computer, or every recently seen device when Neptune does not know its address."""
+    if target.get('neighbors'):
+        return sum(send(n) for n in neighbors()[:64])
+    return send(target)
