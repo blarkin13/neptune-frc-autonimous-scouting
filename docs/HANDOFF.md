@@ -15,7 +15,7 @@ Read `AGENTS.md` first (rules), then `SYSTEM_MAP.md`, then the top of `WORK.md`.
 
 | Path | What |
 |---|---|
-| `~/Desktop/autonomous_scouting` | this repo (work here) |
+| `~/Desktop/Hippocampus` | this repo (work here) |
 | `local/releases/Mac-Helper-<ver>-ready/` | helper release builds. Only the newest two are kept |
 | `local/releases/Mac-Helper-3.2.7-ready/deps/` | Sparkle `generate_appcast` (signing tool). **Keep** |
 | `local/releases/Windows-Helper-*`, `Roboflow-detector-trial` | older work, not used by the current build |

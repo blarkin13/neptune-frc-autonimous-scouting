@@ -5,7 +5,8 @@
 set -euo pipefail
 NEW=$1; PREV=$2; NOTES=$3
 R=$(cd "$(dirname "$0")/../.." && pwd)
-N=/Users/brianlarkin/Desktop/autonomous_scouting/local/releases
+# Release folders live in the main checkout (also when run from a worktree), whatever the folder is named.
+N=$(cd "$(git -C "$R" rev-parse --git-common-dir)/.." && pwd)/local/releases
 SPARKLE=$N/Mac-Helper-3.2.7-ready/deps/bin/generate_appcast   # keep this folder: signing tool only
 PUB=${PUB_PEM:-$R/trainer-app/scripts/sparkle-pub.pem}
 B=$N/Mac-Helper-$NEW-ready; OLD="$N/Mac-Helper-$PREV-ready/build/Neptune Training Helper.app"

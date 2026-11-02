@@ -8,7 +8,7 @@ Read `AGENTS.md` (owner rules), `SYSTEM_MAP.md` (what talks to what) and the top
 - `2026txcmp1_qm7` is reserved. Do not weaken release gates.
 - No data, weights, videos or secrets in git (`.gitignore` blocks `*.pt`, `*.mp4`, `*.zip`, `*.dmg`, `*.deb`, `*.exe`, `*token*`, `/local/`).
 
-## Repo: `~/Desktop/autonomous_scouting` → GitHub `blarkin13/neptune-frc-autonimous-scouting` (branch `main`)
+## Repo: `~/Desktop/Hippocampus` → GitHub `blarkin13/neptune-frc-autonimous-scouting` (branch `main`)
 | Path | What it is |
 |---|---|
 | `engine/` | Python engine shared by every helper (Mac, Windows, Linux) and the server. `neptune_engine.py` holds `VERSION` and `FILES` (the list that ships — add new modules there). Tests: `engine/test_*.py`. |

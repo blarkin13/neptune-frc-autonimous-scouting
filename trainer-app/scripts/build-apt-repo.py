@@ -5,7 +5,7 @@
 
 Linux PCs add it once (the setup lines are on Auto Scout -> Helpers & settings), then
 `sudo apt install neptune-training-helper` installs the helper and `sudo apt upgrade` updates it.
-Signs with the key in /Users/brianlarkin/Desktop/autonomous_scouting/local/releases/apt-signing (never in git).
+Signs with the key in local/releases/apt-signing of the main checkout (never in git).
 """
 import argparse
 import datetime
@@ -18,7 +18,8 @@ import shutil
 import subprocess
 import tarfile
 
-KEY_HOME = Path('/Users/brianlarkin/Desktop/autonomous_scouting/local/releases/apt-signing')
+_COMMON = subprocess.run(['git', '-C', str(Path(__file__).parent), 'rev-parse', '--git-common-dir'], capture_output=True, text=True, check=True).stdout.strip()
+KEY_HOME = (Path(__file__).parent/_COMMON).resolve().parent/'local/releases/apt-signing'   # main checkout, also from a worktree
 ARCHES = ('amd64', 'arm64', 'all')     # the helper is Architecture: all; listed for every host apt asks about
 
 
