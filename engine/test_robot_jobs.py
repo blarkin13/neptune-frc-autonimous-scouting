@@ -45,8 +45,13 @@ class RobotJobs(unittest.TestCase):
         source = Path(rj.__file__).read_text()
         self.assertIn('imgsz=1280, device=device, **loading', source); self.assertIn("predict(image, imgsz=1280", source)
         self.assertEqual(rj.MODEL_SIZE, 's')
-        self.assertEqual(rj.loader_settings(0), {'workers': 2, 'batch': 4})
+        self.assertEqual(rj.loader_settings(0), {'workers': 2, 'batch': 4, 'cache': 'disk'})
         self.assertEqual(rj.loader_settings('cpu'), {'workers': 0, 'batch': 4})
+
+    def test_warm_start_refines_gently_and_fresh_runs_keep_defaults(self):
+        warm = rj.fine_tune_settings(rj.WARM_RECIPE)
+        self.assertLess(warm['lr0'], .01); self.assertEqual(warm['warmup_epochs'], 1)
+        self.assertEqual(rj.fine_tune_settings(rj.SMALL_RECIPE), {})
 
     def test_check_drops_a_box_nested_in_a_stronger_one_like_tracking(self):
         import numpy as np

@@ -82,8 +82,15 @@ def train_device():
 
 
 def loader_settings(device):
-    """Feed CUDA while keeping the larger Small model within 16 GB of VRAM."""
-    return {'workers': 2, 'batch': 4 if MODEL_SIZE == 's' else 8} if device != 'cpu' else {'workers': 0, 'batch': 4}
+    """Feed CUDA while keeping the larger Small model within 16 GB of VRAM. Decoded frames are cached on disk
+    (in the run's work folder) so the loaders stop re-reading the JPEGs every pass."""
+    return {'workers': 2, 'batch': 4 if MODEL_SIZE == 's' else 8, 'cache': 'disk'} if device != 'cpu' else {'workers': 0, 'batch': 4}
+
+
+def fine_tune_settings(recipe):
+    """A warm start continues a detector that already works: SGD at a fifth of YOLO's default rate (0.01) with a
+    one-pass warm-up, so the first passes refine it instead of undoing it. A fresh COCO start keeps YOLO's defaults."""
+    return {'optimizer': 'SGD', 'lr0': .002, 'warmup_epochs': 1, 'cos_lr': True} if recipe == WARM_RECIPE else {}
 
 
 def all_cores():
@@ -435,7 +442,7 @@ def train(config, req, progress):
     loading = loader_settings(device)
     progress('Training input: %d images per batch, %d loader workers on %s' % (loading['batch'], loading['workers'], device))
     with all_cores():
-        result = model.train(data=str(config_yaml), epochs=epochs, imgsz=1280, device=device, **loading, patience=20, seed=2026,
+        result = model.train(data=str(config_yaml), epochs=epochs, imgsz=1280, device=device, **loading, **fine_tune_settings(recipe), patience=20, seed=2026,
                          deterministic=True, plots=False, project=str(work/'runs'), name='bumper', exist_ok=True, verbose=False,
                          translate=.2, scale=.5, fliplr=.5, mosaic=1.0, close_mosaic=10)
     best = Path(result.save_dir)/'weights'/'best.pt'
