@@ -1,3 +1,7 @@
+## 2026-11-02 — New apt signing key (Claude, deployed)
+
+The old apt key was lost with `~/Documents/ChatGPT/Neptune`. New Ed25519 key `AFC34D0446B5D5E3F6944112CC62D804F7A53F44` in `/Users/brianlarkin/Desktop/autonomous_scouting/local/releases/apt-signing` (git-ignored; back it up). The 6.6.56 apt repository was signed with it, checked with gpgv, attached to helper-linux-6.6.56 and deployed (SSM 023057eb; backup `/root/apt-key-release-backup-20261102`). Live `/apt/neptune.gpg` is the new key and Packages lists 6.6.56. Computers that installed through apt must fetch the key again once (the site's first install line).
+
 ## 2026-11-02 — GPU training release: Mac 3.2.95, Windows 6.5.65, Linux 6.6.56, engine 2.7.79 (Claude, deployed)
 
 Train or field-train requests with no chosen computer are claimed only by a helper whose platform names an NVIDIA card, while one has checked in within a day (`hasNvidia`, `nvidiaSeen`); a chosen computer still runs it. CUDA runs use batch 8 for Small (it used under 6 GB of 16 at batch 4). Tested: Apple GPU (MPS, torch 2.9.1) still hangs before the first batch, so Mac training stays on CPU.
