@@ -119,7 +119,7 @@ require_once dirname(__DIR__).'/community/layout.php';require_once dirname(__DIR
  'helpers'=>['Helpers & settings','Install and connect the helper app that does the training, and manage machine data.','AUTO SCOUT · HELPERS']][$view];
 community_page_start($title,$sub,$view,$kick);
 ?>
-<link rel="stylesheet" href="../community/assets/training-control.css?v=helper-os-icons-2">
+<link rel="stylesheet" href="../community/assets/training-control.css?v=helper-cards-20261102">
 <div id="training-app" data-season="<?=$season?>" data-csrf="<?=e(csrf_token())?>">
  <div class="training-topbar"><form method="get"><?php if($view!=='actions'):?><input type="hidden" name="view" value="<?=e($view)?>"><?php endif?><label for="training-season">Game</label><select name="season" id="training-season"><?php foreach($games as $year=>$game):?><option value="<?=$year?>" <?=$season===(int)$year?'selected':''?>><?=$year?> <?=e($game['game'])?></option><?php endforeach ?></select><button>Show game</button></form><button type="button" class="button-secondary" id="show-human-data">See saved human data</button></div>
  <dialog id="reset-modal" aria-labelledby="reset-title"><h2 id="reset-title">Start with fresh machine data?</h2><p>This removes all Auto Scout training runs, model releases, predictions and outside imports across all games. It keeps human tags, scoring estimates, review history and match links.</p><label>Type RESET MACHINE DATA<input id="reset-confirmation" autocomplete="off" placeholder="RESET MACHINE DATA"></label><p id="reset-error" role="alert"></p><div class="training-actions"><button type="button" id="cancel-reset" class="button-secondary">Keep my data</button><button type="button" id="confirm-reset" disabled>Reset machine data</button></div></dialog>
@@ -166,7 +166,13 @@ community_page_start($title,$sub,$view,$kick);
   <details class="training-more tt-section" data-part="test"><summary>History · match test videos</summary><div data-slot="videos">Loading…</div></details>
  </div>
  <div data-view="helpers"<?=$view==='helpers'?'':' hidden'?>>
-  <section class="tt-card" data-part="helpers" id="my-computers"><span class="stage-label">MY COMPUTERS</span><p class="training-note">Every computer you have connected, from any device: what it is doing, and controls to start or stop work on it and keep it awake.</p><div data-slot="computers">Loading…</div></section>
+  <section data-part="helpers" id="my-computers" aria-labelledby="my-computers-title">
+   <div class="tt-computers-heading">
+    <div><span class="stage-label">MY COMPUTERS</span><h2 id="my-computers-title">Training helpers</h2><p class="training-note">One card per computer, with live resources, running work, training controls and helper settings.</p></div>
+    <div class="tt-computers-toolbar" data-slot="computers-actions"></div>
+   </div>
+   <div class="tt-computer-grid" data-slot="computers" aria-live="polite">Loading…</div>
+  </section>
   <section><span class="stage-label">REVIEW VIDEOS</span><h2>Watch what each detector run learned</h2><p>Each robot and field detector run makes a short video of the new model on its held-out match and uploads it to your YouTube channel.</p><a class="community-button" href="/autoscout/youtube.php">Set up YouTube uploads →</a></section>
  <details class="training-more" id="manage-helper-section" open><summary>Manage helper connections</summary><p>Disconnect a helper you no longer use. Its cached files stay on that computer; it can no longer receive or upload work.</p><div id="manage-computers"></div></details>
  <section id="reset-training" class="training-reset"><span class="stage-label">START OVER</span><h2>Reset Auto Scout</h2><p>Clear training runs, models, predictions and outside imports. Your human tags, scoring estimates and match links are always kept.</p><button type="button" id="open-reset" class="button-secondary">Reset machine data…</button><p id="reset-message" role="status"></p><p class="training-note">Stop any active run first. Reset disconnects helpers so old work cannot upload again. Download a fresh connection afterward. Video caches on other computers are not deleted by the website.</p><h3>Free server space</h3><p>Preview old helper downloads and completed update bundles before deleting them. The current download and previous rollback version stay available. Human labels, models, reports and helper-computer caches are untouched.</p><button type="button" id="open-cleanup" class="button-secondary">Review old files…</button><p id="cleanup-message" role="status"></p></section>
@@ -210,5 +216,5 @@ sudo apt update &amp;&amp; sudo apt install neptune-training-helper</pre><p>Late
 </div>
 <script type="application/json" id="training-initial"><?=json_encode($panel,JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_THROW_ON_ERROR)?></script>
 <script src="../community/assets/training-control.js?v=remove-computers-1" defer></script>
-<script src="/community/assets/pillar.js?v=28-wake" defer></script>
+<script src="/community/assets/pillar.js?v=helper-cards-wake-20261102" defer></script>
 <?php community_page_end(); ?>
