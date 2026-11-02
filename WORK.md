@@ -1,3 +1,9 @@
+## 2026-11-02 — Awake after update release: Mac 3.2.92, Windows 6.5.62, Linux 6.6.53, engine 2.7.76 (Claude, deployed)
+
+The Windows PC slept the moment the helper closed to update: the keep-awake hold had outlasted the idle timeout, so clearing it let Windows sleep at once. Releasing the hold (job end, helper close) now also sends one plain ES_SYSTEM_REQUIRED, restarting the idle timer; `close()` releases synchronously because the daemon thread may not run before exit. The detached updater (`neptune_update_apply.py`) holds the PC awake from launch until the helper reopens. The updater is copied from the installed version, so the update to 6.5.62 itself still uses the old one.
+- GitHub releases helper-3.2.92, helper-windows-6.5.62, helper-linux-6.6.53; Mac passed 607 tests on the fourth try (flaky Apple Vision OCR test).
+- SSM 4301be07: 12 files verified, 17 changed; backup `/root/awake-release-backup-20261102`; pruned 317 MB.
+
 ## 2026-11-02 — Match test reasons release: Mac 3.2.91, Windows 6.5.61, Linux 6.6.52, engine 2.7.75 (Claude, deployed)
 
 Test a match on 2026capoh_qm5 saved an all-zero video: robot tracking did not run and `test_robot` hid it. The test now raises with the tracking reason (no video is rendered), reports a failed detector download, runs the field model on unmarked events (`detect_if_unmarked`), and the top-down map uses its detected field boundary when found (`field model (detected corners)`); otherwise the wide-band guess. On capoh the wide shot shows no field corners, so it still falls back.
