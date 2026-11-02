@@ -45,7 +45,7 @@ class RobotJobs(unittest.TestCase):
         source = Path(rj.__file__).read_text()
         self.assertIn('imgsz=1280, device=device, **loading', source); self.assertIn("predict(image, imgsz=1280", source)
         self.assertEqual(rj.MODEL_SIZE, 's')
-        self.assertEqual(rj.loader_settings(0), {'workers': 2, 'batch': 4, 'cache': 'disk'})
+        self.assertEqual(rj.loader_settings(0), {'workers': 2, 'batch': 8, 'cache': 'disk'})
         self.assertEqual(rj.loader_settings('cpu'), {'workers': 0, 'batch': 4})
 
     def test_warm_start_refines_gently_and_fresh_runs_keep_defaults(self):

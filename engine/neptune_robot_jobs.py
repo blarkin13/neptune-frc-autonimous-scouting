@@ -82,9 +82,9 @@ def train_device():
 
 
 def loader_settings(device):
-    """Feed CUDA while keeping the larger Small model within 16 GB of VRAM. Decoded frames are cached on disk
-    (in the run's work folder) so the loaders stop re-reading the JPEGs every pass."""
-    return {'workers': 2, 'batch': 4 if MODEL_SIZE == 's' else 8, 'cache': 'disk'} if device != 'cpu' else {'workers': 0, 'batch': 4}
+    """Feed CUDA in batches of eight (Small used under 6 GB of a 16 GB card at four). Decoded frames are cached
+    on disk (in the run's work folder) so the loaders stop re-reading the JPEGs every pass."""
+    return {'workers': 2, 'batch': 8, 'cache': 'disk'} if device != 'cpu' else {'workers': 0, 'batch': 4}
 
 
 def fine_tune_settings(recipe):

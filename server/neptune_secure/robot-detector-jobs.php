@@ -83,10 +83,19 @@ final class RobotDetectorJobs {
    if(in_array($r['kind'],['train','test_robot'],true)&&!$this->supportsRobotValidation((string)$computer['id']))continue;
    if(!empty($r['times_ms'])&&!$this->supportsHardFrames((string)$computer['id']))continue;
    if(!empty($r['target'])&&$r['target']!==$computer['id'])continue;   // sent to another computer
+   // Training not sent to a computer waits for one with an NVIDIA card: on a CPU it takes days instead of hours.
+   if(empty($r['target'])&&in_array($r['kind'],['train','train_field'],true)&&!$this->hasNvidia((string)$computer['id'])&&$this->nvidiaSeen())continue;
    $r=array_replace($r,['state'=>'claimed','claimed_at'=>time(),'heartbeat_at'=>time(),'computer_id'=>$computer['id'],'lease'=>bin2hex(random_bytes(16)),'message'=>($r['state']==='claimed'?'Restarted on the helper':'Started on a helper')]);
    self::write($this->dir('requests').'/'.$r['id'].'.json',$r);return $r;
   }
   return null;
+ }
+ private function hasNvidia(string $computer):bool{return str_contains((string)($this->status($computer)['platform']??''),'NVIDIA');}
+ /** Whether a computer with an NVIDIA card checked in within a day (else any helper may train). */
+ private function nvidiaSeen():bool{
+  foreach(glob($this->root.'/computers/*.status.json')?:[] as $f){$d=json_decode((string)file_get_contents($f),true);
+   if(is_array($d)&&str_contains((string)($d['platform']??''),'NVIDIA')&&time()-(int)($d['at']??0)<86400)return true;}
+  return false;
  }
  /** Old helpers upload guesses only; source-still requests must wait for a compatible release. */
  private function supportsSourceStills(string $computer):bool{
