@@ -1,3 +1,8 @@
+## 2026-11-02 — Wake nearby release: Mac 3.2.94, Windows 6.5.64, Linux 6.6.55, engine 2.7.78 (Claude, deployed)
+
+Wake now also works for a computer whose helper never reported its address (older than 6.5.63): every helper of the organization gets `{'neighbors': true}` and sends a magic packet to each device in its ARP table (`/proc/net/arp`, Linux; up to 64). The Wake button shows for any offline computer that has checked in before. 611 tests pass.
+- SSM 7c1b093f: 16 files verified, 21 changed; backup `/root/wake-nearby-release-backup-20261102`; pruned 824 MB.
+
 ## 2026-11-02 — Wake release: Mac 3.2.93, Windows 6.5.63, Linux 6.6.54, engine 2.7.77 (Claude, deployed)
 
 Wake on My computers. Helpers send `network` {mac, ip} with each check-in (`neptune_wake.local_network`); the server stores it plus a hash of the public address. Wake sets `wake_requested`; another helper of the organization checking in from the same public address, while the target has been silent 75 s+, gets `wake` targets and broadcasts a magic packet (255.255.255.255 and the /24 broadcast, ports 9 and 7). The request clears when the target checks in, or lapses after 15 minutes. The Windows network card must allow wake by magic packet.
