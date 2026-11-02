@@ -80,6 +80,22 @@ def apply(app_dir, stage):
     (stage / 'result.json').write_text(json.dumps({'status': 'installed', 'version': json.loads((app_dir / 'build-version.json').read_text())['version']}), encoding='utf-8')
 
 
+def stay_awake(hold):
+    """Windows: hold off system sleep while the helper is closed for the update. Releasing restarts the idle
+    timer, so a PC idle past its sleep setting does not sleep before the reopened helper takes over."""
+    if os.name != 'nt':
+        return
+    try:
+        import ctypes
+        call = ctypes.windll.kernel32.SetThreadExecutionState
+        call.argtypes = [ctypes.c_uint]; call.restype = ctypes.c_uint
+        call(0x80000001 if hold else 0x80000000)
+        if not hold:
+            call(0x00000001)
+    except Exception:
+        pass
+
+
 def reopen(command):
     """Start the helper again, detached, whether the install worked or rolled back."""
     import subprocess
@@ -94,12 +110,13 @@ def reopen(command):
 if __name__ == '__main__':
     parent, app, stage = sys.argv[1:4]
     command = json.loads(sys.argv[4]) if len(sys.argv) > 4 else None     # helpers before remote updates pass no command
+    stay_awake(True)
     try:
         wait_for_parent(int(parent))
         apply(app, stage)
     except Exception as error:
         Path(stage).mkdir(parents=True, exist_ok=True)
         (Path(stage) / 'result.json').write_text(json.dumps({'status': 'failed', 'error': str(error)[:500]}), encoding='utf-8')
-        reopen(command)
+        reopen(command); stay_awake(False)
         sys.exit(1)
-    reopen(command)
+    reopen(command); stay_awake(False)

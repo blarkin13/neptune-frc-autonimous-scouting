@@ -53,7 +53,9 @@ class AwakeTest(unittest.TestCase):
             a.close()
             while a.active and time.monotonic() < deadline:
                 time.sleep(.01)
-            self.assertFalse(a.active); self.assertEqual(calls[-1], 0x80000000)
+            self.assertFalse(a.active)
+            # Release clears the hold, then restarts the idle timer so Windows does not sleep at once.
+            self.assertEqual(calls[-2:], [0x80000000, 0x00000001])
 
 
 if __name__ == '__main__':
