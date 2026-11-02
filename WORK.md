@@ -1,3 +1,9 @@
+## 2026-11-02 — Match test reasons release: Mac 3.2.91, Windows 6.5.61, Linux 6.6.52, engine 2.7.75 (Claude, deployed)
+
+Test a match on 2026capoh_qm5 saved an all-zero video: robot tracking did not run and `test_robot` hid it. The test now raises with the tracking reason (no video is rendered), reports a failed detector download, runs the field model on unmarked events (`detect_if_unmarked`), and the top-down map uses its detected field boundary when found (`field model (detected corners)`); otherwise the wide-band guess. On capoh the wide shot shows no field corners, so it still falls back.
+- GitHub releases helper-3.2.91, helper-windows-6.5.61, helper-linux-6.6.52; 607 tests pass.
+- SSM b0cbd7e1: 13 files verified, 18 changed; backup `/root/match-test-release-backup-20261102`; pruned 1.3 GB.
+
 ## 2026-11-02 — Gentle fine-tune release: Mac 3.2.90, Windows 6.5.60, Linux 6.6.51, engine 2.7.74 (Claude, deployed)
 
 Four repeat runs gave the same F1 0.85 vs 0.84 (training is seeded and deterministic, so the same labels and start give the same result). Warm starts now use SGD lr0 0.002 (a fifth of YOLO's default), a one-pass warm-up and cosine decay (`fine_tune_settings`); fresh COCO runs keep YOLO defaults. CUDA loaders also cache decoded frames on disk (`cache='disk'`). Gate unchanged (three held-out matches, 0.02 margin).
