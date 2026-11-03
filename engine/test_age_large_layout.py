@@ -51,3 +51,39 @@ class AgeLargeLayout(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+def oregon_bar(clock='1:51'):
+    """OCR positions on the bottom bar of 2026orsal qm7 (band = bottom 24% of the frame)."""
+    return [item('FIRST AGE', .01, .03, .14, .2), item('Qualification 7 of 70', .41, .06, .18, .14), item('REBUILT', .85, .04, .12, .16),
+            item('846', .05, .43, .03, .1), item('1359', .14, .43, .035, .1), item('4692', .25, .43, .035, .1),
+            item('RED', .36, .45, .04, .12), item('47', .35, .74, .05, .2), item('2 / 6', .45, .44, .04, .11), item(':06', .52, .44, .03, .11),
+            item(clock, .455, .72, .09, .24), item('BLUE', .6, .45, .05, .12), item('23', .6, .74, .04, .2),
+            item('847', .73, .43, .03, .1), item('5468', .82, .43, .035, .1), item('4043', .93, .43, .035, .1),
+            item('47 / 100', .09, .78, .11, .17), item('23 / 100', .79, .78, .11, .17)]
+
+
+class AgeBottomLayout(unittest.TestCase):
+    def test_reads_the_bottom_bar(self):
+        r = nf.parse_overlay(oregon_bar(), nf.EXTRA_LAYOUTS['frc-2026-age-bottom-v1'])
+        self.assertEqual((r['clock_value'], r['red']['t'], r['blue']['t']), (111, '47', '23'))
+        self.assertTrue(r['marker'])
+        self.assertEqual([i['t'] for i in r['roster']['red']], ['846', '1359', '4692'])
+        self.assertEqual([i['t'] for i in r['roster']['blue']], ['847', '5468', '4043'])
+
+    def test_bottom_layout_is_matched_on_its_own_strip(self):
+        frames = [(float(t), 'f%d' % t) for t in range(30)]
+        texts = {'f%d' % t: oregon_bar('1:%02d' % (59 - t)) for t in range(30)}
+        bottoms = {k: v for k, v in nf.EXTRA_LAYOUTS.items() if v.get('band_at') == 'bottom'}
+        pid, _, _ = nf.detect_layout(frames, texts, 2026, bottoms, {'red': [846, 1359, 4692], 'blue': [847, 5468, 4043]})
+        self.assertEqual(pid, 'frc-2026-age-bottom-v1')
+
+    def test_camera_area_is_above_the_bar(self):
+        import neptune_tracking as tr
+        p = nf.EXTRA_LAYOUTS['frc-2026-age-bottom-v1']
+        self.assertEqual(nf.camera_span(p), (0.0, 0.755))
+        top, bottom = tr.wide_band(p)
+        self.assertEqual(top, 0.0); self.assertLess(bottom, 0.755); self.assertGreater(bottom, 0.7)
+        # a read at the bottom of the camera area lands just above the bar, not 24% lower
+        x, y = tr.read_position({'frame_box': [.5, .95, .02, .02]}, (top, bottom), 0.0, 1000, 1000, 0.755)
+        self.assertAlmostEqual(y / 1000 * bottom, 0.755 * .96, places=3)

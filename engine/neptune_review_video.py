@@ -327,8 +327,9 @@ def _homography_calibrations(facts, game_key):
                     calibrations.append((dict(marks[0], id='field-references:'+shot), h))
                     mode = 'calibrated (floor refs)'
     if not calibrations:
-        top = (facts.get('layout') or {}).get('camera_top', .24)
-        bot = top + (1. - top) * .56
+        layout = facts.get('layout') or {}
+        top = layout.get('camera_top', .24)
+        bot = layout['camera_bottom'] if 'camera_bottom' in layout else top + (1. - top) * .56
         try:
             h = calibrate([[.12, top+.05], [.88, top+.05], [.98, bot-.02], [.02, bot-.02]])
             calibrations = [({'id': 'wide-approx', 'camera_view': 'wide', 'start_ms': 0, 'end_ms': 10**9}, h)]
