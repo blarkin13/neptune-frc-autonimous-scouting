@@ -7,7 +7,7 @@ NEW=$1; PREV=$2; NOTES=$3
 R=$(cd "$(dirname "$0")/../.." && pwd)
 # Release folders live in the main checkout (also when run from a worktree), whatever the folder is named.
 N=$(cd "$(git -C "$R" rev-parse --git-common-dir)/.." && pwd)/local/releases
-SPARKLE=$N/Mac-Helper-3.2.7-ready/deps/bin/generate_appcast   # keep this folder: signing tool only
+SPARKLE=$N/sparkle/bin/generate_appcast   # Sparkle 2.10.1 tools (signing key is in the keychain)
 PUB=${PUB_PEM:-$R/trainer-app/scripts/sparkle-pub.pem}
 B=$N/Mac-Helper-$NEW-ready; OLD="$N/Mac-Helper-$PREV-ready/build/Neptune Training Helper.app"
 A="$B/build/Neptune Training Helper.app"; E="$A/Contents/Resources/engine"; O=$B/public-release
@@ -71,7 +71,7 @@ gh release create "helper-$NEW" --repo blarkin13/neptune-frc-autonimous-scouting
 
 # Everything is on GitHub now. Keep only this build and the previous one (the next release copies it).
 for d in "$N"/Mac-Helper-*-ready; do v=${d##*/Mac-Helper-}; v=${v%-ready}
-  case "$v" in "$NEW"|"$PREV") ;; 3.2.7) rm -rf "${d:?}/build" ;; *) rm -rf "${d:?}" ;; esac
+  case "$v" in "$NEW"|"$PREV") ;; *) rm -rf "${d:?}" ;; esac
 done
 # generate_appcast keeps an unpacked copy of every release it has signed (gigabytes each time).
 rm -rf "${HOME:?}/Library/Caches/Sparkle_generate_appcast"
