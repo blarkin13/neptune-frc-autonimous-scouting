@@ -1,3 +1,7 @@
+## 2026-11-02 — 2026midtr_qm3 trimmed to 25 labeled frames (Claude, live data)
+
+Owner asked for only 25 labeled, used frames on 2026midtr_qm3 (`S9-irUbEqJg`). It had 30 rows (27 complete). Removed 36 s (incomplete), 128 s and 132 s (skipped), 140 s and 144 s (complete, 0 boxes) through SSM under the file lock; readback: 25 rows, all complete, 211 boxes. 18 of them have source stills; 9 (Oct 23–24) need the original video. Backup `/root/midtr-qm3-trim-backup-1793667624`. No training started.
+
 ## 2026-11-02 — New apt signing key (Claude, deployed)
 
 The old apt key was lost with `~/Documents/ChatGPT/Neptune`. New Ed25519 key `AFC34D0446B5D5E3F6944112CC62D804F7A53F44` in `/Users/brianlarkin/Desktop/autonomous_scouting/local/releases/apt-signing` (git-ignored; back it up). The 6.6.56 apt repository was signed with it, checked with gpgv, attached to helper-linux-6.6.56 and deployed (SSM 023057eb; backup `/root/apt-key-release-backup-20261102`). Live `/apt/neptune.gpg` is the new key and Packages lists 6.6.56. Computers that installed through apt must fetch the key again once (the site's first install line).
