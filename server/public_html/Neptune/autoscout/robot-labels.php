@@ -80,7 +80,7 @@ if($_SERVER['REQUEST_METHOD']==='GET'&&isset($_GET['detector_status'])){
   foreach($cq->fetchAll(PDO::FETCH_ASSOC) as $c){
    $cid=(string)$c['id'];$st=$robotJobs->status($cid)?:[];
    $online=((int)$c['expires_at']>time())&&((int)$c['last_seen']>time()-75||((int)($st['at']??0)>time()-75));
-   $computers[]=['id'=>$cid,'name'=>(string)($c['name']?:'Computer'),'online'=>$online,'busy'=>!empty($st['busy']),'version'=>(string)($st['version']??''),'supports_robot_test'=>$robotJobs->supportsRobotTest($cid)];
+   $computers[]=['id'=>$cid,'name'=>(string)($c['name']?:'Computer'),'online'=>$online,'busy'=>!empty($st['busy']),'version'=>(string)($st['version']??''),'supports_robot_test'=>$robotJobs->supportsRobotTest($cid),'supports_tracking_review'=>$robotJobs->supportsTrackingReview($cid)];
   }
  }catch(Throwable $e){}
  robot_reply(200,['requests'=>array_map(fn($r)=>array_diff_key($r,['lease'=>1]),array_slice($robotJobs->requests(),0,12)),'current'=>$cur['detector'],'robot_tests'=>$robotJobs->robotTests(),'youtube'=>$yt,'computers'=>$computers]);
@@ -111,6 +111,18 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
    if(!$m||!($vid=CommunityVideoTags::videoId((string)$m['source_url'])))throw new RuntimeException('This match does not have a linked YouTube video.');
    $roster=json_decode((string)($m['roster_json']??''),true);
    robot_reply(200,['request'=>$robotJobs->queue('test_robot',['match_id'=>(int)$m['id'],'match_key'=>(string)$m['match_key'],'title'=>(string)($m['title']?:$m['match_key']),'video_id'=>$vid,'roster'=>is_array($roster)?$roster:null,'computer'=>$comp],(int)$u['id'])]);
+  }
+  if(($p['action']??'')==='queue_review_tracking'){
+   $mid=(int)($p['match_id']??0);if($mid<=0)throw new RuntimeException('Choose a match to review first.');
+   $comp=trim((string)($p['computer']??''));
+   $cq=$pdo->prepare('SELECT id FROM community_training_computers WHERE id=? AND user_id=? AND revoked=0');$cq->execute([$comp,(int)$u['id']]);
+   if($comp===''||!$cq->fetchColumn())throw new RuntimeException('Choose the computer to open the review on.');
+   if(!$robotJobs->supportsTrackingReview($comp))throw new RuntimeException('Update this helper to a release that can open tracking reviews from Neptune.');
+   $q=$pdo->prepare('SELECT id,match_key,title,roster_json,source_url FROM community_matches WHERE id=?');$q->execute([$mid]);$m=$q->fetch(PDO::FETCH_ASSOC);
+   if(!$m||!($vid=CommunityVideoTags::videoId((string)$m['source_url'])))throw new RuntimeException('This match does not have a linked YouTube video.');
+   $roster=json_decode((string)($m['roster_json']??''),true);
+   if(!is_array($roster)||count($roster['red']??[])!==3||count($roster['blue']??[])!==3)throw new RuntimeException('This match has no three-red/three-blue roster yet.');
+   robot_reply(200,['request'=>$robotJobs->queue('review_tracking',['match_id'=>(int)$m['id'],'match_key'=>(string)$m['match_key'],'title'=>(string)($m['title']?:$m['match_key']),'video_id'=>$vid,'roster'=>$roster,'computer'=>$comp],(int)$u['id'])]);
   }
   if(($p['action']??'')==='upload_robot_test_youtube'){
    session_write_close();

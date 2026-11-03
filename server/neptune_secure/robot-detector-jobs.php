@@ -34,7 +34,7 @@ final class RobotDetectorJobs {
 
  /** Queue a request from the website. Re-queuing the same open request returns the existing one. */
  public function queue(string $kind,array $p,int $user):array{
-  if(!in_array($kind,['prepare','train','train_field','test_robot'],true))throw new InvalidArgumentException('Unknown request');
+  if(!in_array($kind,['prepare','train','train_field','test_robot','review_tracking'],true))throw new InvalidArgumentException('Unknown request');
   $body=['kind'=>$kind];if($kind==='train_field')$body['game_key']=self::game((string)($p['game_key']??''));
   if(in_array($kind,['train','train_field'],true)&&preg_match('/^[A-Za-z0-9_-]{1,100}$/D',(string)($p['holdout']??'')))$body['holdout']=$p['holdout'];   // chosen by autoscout_holdout()
   if($kind==='train'&&!empty($p['match_only']))$body['match_video_only']=true;   // owner test: no workshop or folder photos
@@ -44,7 +44,9 @@ final class RobotDetectorJobs {
    if(!is_array($times)||count($times)>60)throw new InvalidArgumentException('Invalid frame times');
    foreach($times as $t)if(!is_int($t)||$t<0||$t>1800000)throw new InvalidArgumentException('Invalid frame times');
    if($times){$times=array_values(array_unique($times));sort($times);$body['times_ms']=$times;}}
-  if($kind==='test_robot'){$body['video_id']=self::video((string)($p['video_id']??''));$body['match_key']=(string)($p['match_key']??'');if(!preg_match('/^\d{4}[A-Za-z0-9_-]{1,95}$/D',$body['match_key']))throw new InvalidArgumentException('Invalid match');
+  // Tracking review opens in a browser on the helper, so it always goes to one chosen computer.
+  if($kind==='review_tracking'&&empty($body['target']))throw new InvalidArgumentException('Choose the computer to open the review on.');
+  if(in_array($kind,['test_robot','review_tracking'],true)){$body['video_id']=self::video((string)($p['video_id']??''));$body['match_key']=(string)($p['match_key']??'');if(!preg_match('/^\d{4}[A-Za-z0-9_-]{1,95}$/D',$body['match_key']))throw new InvalidArgumentException('Invalid match');
    if(!empty($p['match_id']))$body['match_id']=(int)$p['match_id'];
    $body['title']=mb_substr(trim((string)($p['title']??$body['match_key']))?:$body['match_key'],0,200);
    if(is_array($p['roster']??null))$body['roster']=$p['roster'];}
@@ -80,6 +82,7 @@ final class RobotDetectorJobs {
    if($r['kind']==='train'&&is_file(dirname($this->root,2).'/external-bumper-training/'.basename($this->root).'/6962-workshop-v1.json')&&!$this->supportsWorkshop((string)$computer['id']))continue;
    if($r['kind']==='train_field'&&!$this->supportsFieldReference((string)$computer['id']))continue;
    if(($r['kind']??'')==='test_robot'&&!$this->supportsRobotTest((string)$computer['id']))continue;
+   if(($r['kind']??'')==='review_tracking'&&!$this->supportsTrackingReview((string)$computer['id']))continue;
    if(in_array($r['kind'],['train','test_robot'],true)&&!$this->supportsRobotValidation((string)$computer['id']))continue;
    if(!empty($r['times_ms'])&&!$this->supportsHardFrames((string)$computer['id']))continue;
    if(!empty($r['target'])&&$r['target']!==$computer['id'])continue;   // sent to another computer
@@ -125,6 +128,7 @@ final class RobotDetectorJobs {
   return false;
  }
  public function supportsRobotTest(string $computer):bool{return in_array('test_robot_v1',$this->status($computer)['capabilities']??[],true);}
+ public function supportsTrackingReview(string $computer):bool{return in_array('review_tracking_v1',$this->status($computer)['capabilities']??[],true);}
  private function supportsRobotValidation(string $computer):bool{
   $v=(string)($this->status($computer)['version']??'');
   // Robot runs need helpers that keep the held-out match out of YOLO's validation set and score it after
@@ -293,7 +297,7 @@ final class RobotDetectorJobs {
  /** A helper checks in every ~30 s while idle and with each job update: its status line and whether it is keeping the computer awake. */
  public function poll(array $computer,array $p):array{
   $cid=(string)$computer['id'];$version=mb_substr((string)($p['version']??''),0,40);$platform=mb_substr((string)($p['platform']??''),0,80);
-  self::write($this->dir('computers').'/'.self::cid($cid).'.status.json',['at'=>time(),'busy'=>!empty($p['busy']),'awake'=>!empty($p['awake']),'message'=>mb_substr((string)($p['message']??''),0,600),'version'=>$version,'platform'=>$platform,'capabilities'=>array_values(array_intersect(['test_robot_v1'],is_array($p['capabilities']??null)?$p['capabilities']:[])),
+  self::write($this->dir('computers').'/'.self::cid($cid).'.status.json',['at'=>time(),'busy'=>!empty($p['busy']),'awake'=>!empty($p['awake']),'message'=>mb_substr((string)($p['message']??''),0,600),'version'=>$version,'platform'=>$platform,'capabilities'=>array_values(array_intersect(['test_robot_v1','review_tracking_v1'],is_array($p['capabilities']??null)?$p['capabilities']:[])),
    'stats'=>self::numbers($p['stats']??null,2),'counters'=>self::numbers($p['counters']??null,1),'remote_update'=>!empty($p['remote_update']),'form'=>in_array($p['form']??null,['laptop','desktop','server'],true)?$p['form']:null,'update'=>mb_substr((string)($p['update']??''),0,200),'network'=>self::network($p['network']??null),'home'=>hash('sha256',(string)($_SERVER['REMOTE_ADDR']??'')),
    'log'=>array_values(array_map(fn($l)=>[(int)($l[0]??0),mb_substr((string)($l[1]??''),0,220)],array_slice(is_array($p['log']??null)?array_filter($p['log'],'is_array'):[],-14)))]);
   // A requested update is done once this computer reports the newest published version for its platform; a day-old request lapses.

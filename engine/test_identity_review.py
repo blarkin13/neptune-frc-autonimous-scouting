@@ -127,6 +127,28 @@ class Catalog(unittest.TestCase):
    rows=[{'evidence_type':'human_video_label','match_key':'2026test_qm3','video_id':'AAAAAAAAAAA','roster':R},{'evidence_type':'external_activity','match_key':'2026test_qm4','video_id':'BBBBBBBBBBB','roster':R},{}]
    p.write_text('\n'.join(json.dumps(r) for r in rows));result=local_matches(tmp);self.assertEqual(list(result),['2026test_qm3']);self.assertEqual(result['2026test_qm3']['labels'],1)
 
+ def test_any_neptune_match_is_reviewed_from_its_roster(self):
+  import unittest.mock as mock,neptune_identity_review as ir
+  class Cloud:connection={'site':'x','token':'t'}
+  with tempfile.TemporaryDirectory() as tmp:
+   server=ir.CatalogServer(tmp,Path(tmp)/'out');server.cloud=Cloud()
+   try:
+    with mock.patch('neptune_robot_jobs.api',return_value={'match_key':'2026test_qm8','video_id':'CCCCCCCCCCC','roster':{c:[str(n) for n in R[c]] for c in R}}) as api:
+     self.assertEqual(server.lookup('2026test_qm8'),'2026test_qm8');api.assert_called_once()
+    row=server.matches['2026test_qm8'];self.assertIsNone(row['snapshot']);self.assertEqual(row['roster'],R)
+    with self.assertRaises(ValueError):server.add_match('2026test_qm9','CCCCCCCCCCC',{'red':[1,2],'blue':[4,5,6]})
+    with self.assertRaises(ValueError):server.start('not a key')
+   finally:server.server_close()
+ def test_neptune_review_job_opens_the_prepared_review(self):
+  import unittest.mock as mock,neptune_identity_review as ir
+  opened=[]
+  def start(self,key):
+   def work():self.review_url='http://127.0.0.1:1/r/';self.message='ready'
+   self.worker=threading.Thread(target=work);self.worker.start()
+  with tempfile.TemporaryDirectory() as tmp,mock.patch.object(ir.CatalogServer,'start',start),mock.patch('neptune_review_cloud.ReviewCloud.backfill',return_value={'backed_up':0,'conflicts':[]}),mock.patch('neptune_review_cloud.ReviewCloud.listing',return_value=[]):
+   out=ir.open_from_neptune({'site':'x','token':'t'},{'match_key':'2026test_qm8','video_id':'CCCCCCCCCCC','roster':R},lambda m:None,tmp,Path(tmp)/'out',opened.append)
+  self.assertEqual(out,{'match_key':'2026test_qm8','opened':True});self.assertEqual(opened,['http://127.0.0.1:1/r/'])
+
 class Refinement(unittest.TestCase):
  def test_one_correction_revisits_before_and_after(self):
   review=reconcile([point(t,1,.1) for t in (0,.5,1)],R,SHA);track=review['points'][0]['review_track']

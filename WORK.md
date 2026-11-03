@@ -1536,3 +1536,9 @@ Created an 18-frame local review queue at `/Users/brianlarkin/Documents/ChatGPT/
 - New `autoscout/tracking.php` (2 · Tracking): summary card from `train.php?overview` (`tracking` key from TrackingIdentityShare) plus the whole-match test tool, moved off robot-labels.php (backend still robot-labels.php endpoints).
 - Pillars renumbered everywhere: 1 Robots, 2 Tracking, 3 Field, 4 Actions; hub gets a Tracking card. No deploy list changes needed (no file list names robot-labels.php).
 - Deployed 14 site files via SSM d43bbe21 (commit fc38c20): hashes checked, backup /root/tracking-pillar-backup-20261103T014108Z, pruned 3 old releases (1.3 GB). The first try stopped safely: live `autoscout/index.php` had a server-side `<section>`→`<div>` wrapper edit (Nov 2 09:29), now in git. `tracking.php` answers like robot-labels.php (login redirect). The engine video-description text ships with the next helper release.
+
+## 2026-11-02 · Tracking review: any match, launched from the website or the app (local, not deployed)
+- Helper `Review tracking…` window (Mac, Windows, Linux) takes any match key; the helper asks Neptune (`review_match`) for its YouTube video and roster, so review is no longer limited to matches tagged on that computer. `prepare_row` tracks from a roster without a label snapshot.
+- Tracking page: new "Review a match" card (match picker + computer) queues a `review_tracking` job for one chosen helper; the helper prepares the match and opens the review in that computer's browser (`open_from_neptune`). Helpers advertise `review_tracking_v1`; older helpers show "update required".
+- Needs a helper release for the app side; the site side can deploy first.
+- Tests: test_identity_review, test_review_learning, test_robot_jobs (82) pass.

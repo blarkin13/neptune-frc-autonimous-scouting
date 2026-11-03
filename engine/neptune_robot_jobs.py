@@ -39,7 +39,7 @@ def api(config, action, payload=None, timeout=120):
     url = public_https(config['site'].rstrip('/')+'/api/robot-detector.php')
     data = dict(payload or {}, action=action)
     if action == 'computer_poll':
-        data['capabilities'] = ['test_robot_v1']
+        data['capabilities'] = ['test_robot_v1', 'review_tracking_v1']
     body = json.dumps(data).encode()
     request = urllib.request.Request(url, data=body, headers={'Content-Type': 'application/json', 'Authorization': 'Bearer '+config['token']})
     with urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect()).open(request, timeout=timeout) as response:
@@ -803,6 +803,14 @@ def run_pending(config, progress, busy=lambda value: None):
             if reply.get('cancelled'):
                 raise InterruptedError('Cancelled on Neptune')
     try:
+        if req.get('kind') == 'review_tracking':
+            # Opened from the Tracking page: prepare it here and open it in this computer's browser.
+            from neptune_identity_review import open_from_neptune
+            result = open_from_neptune(config, req, report, HOME/'jobs', HOME/'identity-reviews')
+            message = 'Tracking review of %s is open on this computer' % result['match_key']
+            api(config, 'finish', {'request_id': req['id'], 'lease': req['lease'], 'ok': True, 'message': message, 'report': result})
+            progress(message)
+            return True
         if req.get('kind') not in ('prepare', 'test_robot', 'train_field', 'train'):
             raise ValueError('Unsupported helper job: '+str(req.get('kind')))
         result = prepare(config, req, report) if req['kind'] == 'prepare' else \

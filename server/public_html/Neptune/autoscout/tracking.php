@@ -15,6 +15,17 @@ pillar_summary('tracking','Follows each robot from frame to frame and keeps its 
 ?>
 <link rel="stylesheet" href="../community/assets/match-picker/match-picker.css?v=1">
 <div id="tracking-app" data-csrf="<?=e($_SESSION['robot_labels_csrf'])?>">
+<section class="tt-card rl-test-card" id="review-section">
+ <span class="stage-label">REVIEW TRACKING</span>
+ <h2>Review a match</h2>
+ <p>Choose any match with a video and a roster. The helper you pick tracks it and opens the review in that computer's browser: click a box, give it the right team number, and save. Every saved review teaches the robot-identity model and backs up to Neptune.</p>
+ <div class="rl-test-bar">
+  <div class="match-picker-v2" id="review-picker" data-match-picker data-endpoint="robot-labels.php" data-select-only="1" ></div>
+  <label class="rl-test-helper"><span>Open on</span><select id="review-computer"><option value="">Choose a computer</option></select></label>
+  <button type="button" id="review-btn" class="primary save" disabled>Review</button>
+ </div>
+ <p id="review-status" class="training-note" role="status" aria-live="polite">Choose a match and the computer you are sitting at.</p>
+</section>
 <section class="tt-card rl-test-card" id="robot-test-section">
  <span class="stage-label">TEST TRACKING ON A MATCH</span>
  <h2>Test a match</h2>
@@ -191,6 +202,37 @@ pillar_summary('tracking','Follows each robot from frame to frame and keeps its 
   finally{uploading=false;sel.disabled=false;upBtn.disabled=!ytConnected||!tests.find(t=>t.id===currentId)?.has_video}
  });
  refreshTests();setInterval(refreshTests,10000);
+})();
+</script>
+<script>
+(()=>{
+ const app=document.getElementById('tracking-app'),picker=document.getElementById('review-picker'),comp=document.getElementById('review-computer'),
+       btn=document.getElementById('review-btn'),status=document.getElementById('review-status'),endpoint='robot-labels.php';
+ if(!app||!picker||!btn)return;
+ let computers=[];
+ const ready=()=>{btn.disabled=!Number(picker.dataset.matchId||0)||!comp.value};
+ picker.addEventListener('matchselect',ready);comp.addEventListener('change',ready);
+ async function refresh(){
+  try{
+   const r=await fetch(endpoint+'?detector_status=1');if(!r.ok)return;const d=await r.json();
+   computers=Array.isArray(d.computers)?d.computers:[];const prev=comp.value;
+   comp.replaceChildren(new Option('Choose a computer',''),...computers.map(c=>{const o=new Option(`${c.name} (${!c.supports_tracking_review?'update required':c.online?(c.busy?'online · busy':'online'):'offline'})`,c.id);o.disabled=!c.supports_tracking_review;return o}));
+   if(prev&&computers.some(c=>c.id===prev))comp.value=prev;ready();
+   const q=(d.requests||[]).find(x=>x.kind==='review_tracking');if(!q)return;
+   const who=computers.find(c=>c.id===q.target)?.name||'the chosen computer';
+   status.textContent=q.state==='queued'?`Review of ${q.match_key}: waiting for ${who}. Keep its helper open.`:
+    q.state==='claimed'?`Review of ${q.match_key} on ${who}: ${(q.message||'preparing').split('\n')[0]}`:
+    q.state==='done'?`${q.message||'Review open'} (${who}). Check that computer's browser.`:`Review of ${q.match_key} ${q.state}: ${q.message||''}`;
+  }catch(e){}
+ }
+ btn.addEventListener('click',async()=>{
+  btn.disabled=true;status.textContent='Sending the review to the helper…';
+  try{
+   const r=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json','X-Robot-Labels-CSRF':app.dataset.csrf},body:JSON.stringify({action:'queue_review_tracking',match_id:Number(picker.dataset.matchId||0),computer:comp.value})});
+   const d=await r.json();if(!r.ok)throw Error(d.error||'Could not send the review');await refresh();
+  }catch(e){status.textContent=e.message}finally{ready()}
+ });
+ refresh();setInterval(refresh,10000);
 })();
 </script>
 <?php pillar_close();community_page_end(); ?>
