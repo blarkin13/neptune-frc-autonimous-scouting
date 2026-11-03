@@ -1537,8 +1537,10 @@ Created an 18-frame local review queue at `/Users/brianlarkin/Documents/ChatGPT/
 - Pillars renumbered everywhere: 1 Robots, 2 Tracking, 3 Field, 4 Actions; hub gets a Tracking card. No deploy list changes needed (no file list names robot-labels.php).
 - Deployed 14 site files via SSM d43bbe21 (commit fc38c20): hashes checked, backup /root/tracking-pillar-backup-20261103T014108Z, pruned 3 old releases (1.3 GB). The first try stopped safely: live `autoscout/index.php` had a server-side `<section>`→`<div>` wrapper edit (Nov 2 09:29), now in git. `tracking.php` answers like robot-labels.php (login redirect). The engine video-description text ships with the next helper release.
 
-## 2026-11-02 · Tracking review: any match, launched from the website or the app (local, not deployed)
+## 2026-11-02 · Tracking review for any match: Mac 3.2.96, Windows 6.5.66, Linux 6.6.57, engine 2.7.80 (deployed)
 - Helper `Review tracking…` window (Mac, Windows, Linux) takes any match key; the helper asks Neptune (`review_match`) for its YouTube video and roster, so review is no longer limited to matches tagged on that computer. `prepare_row` tracks from a roster without a label snapshot.
 - Tracking page: new "Review a match" card (match picker + computer) queues a `review_tracking` job for one chosen helper; the helper prepares the match and opens the review in that computer's browser (`open_from_neptune`). Helpers advertise `review_tracking_v1`; older helpers show "update required".
-- Needs a helper release for the app side; the site side can deploy first.
+- GitHub releases helper-3.2.96, helper-windows-6.5.66, helper-linux-6.6.57 (apt signed with the new key); Mac passed 613 tests on its bundled Python.
+- SSM 240ea3a1 (commit 1a78cc4): 19 files verified, 24 changed; backup `/root/review-any-match-release-backup-20261103`; pruned 317 MB. Live feeds: appcast 3.2.96, Windows 6.5.66, Linux 6.6.57 (latest.json and apt).
+- Release notes for next time: the Sparkle tools now live in `local/releases/sparkle` (release-mac-helper.sh points there); the Linux base zip is rebuilt from the previous .deb's `usr/share/neptune-training-helper/app`; a worktree needs the git-ignored `engine/robot-detector/bumper_wide.pt` and `engine/field-detector/model.pt` copied from the main checkout before building, or the Windows and Linux packages ship without detectors (check sizes against the previous release).
 - Tests: test_identity_review, test_review_learning, test_robot_jobs (82) pass.
