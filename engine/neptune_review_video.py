@@ -615,7 +615,7 @@ def describe_robot_test(title, match_key, summary, engine):
     yt_title = ('Robot detection & constant ID test · %s' % (title or match_key))[:100]
     roster = summary.get('roster') or {}
     body = [
-        'Neptune Auto Scout · 1 · Robots pillar — robot detection, bumper OCR, constant identity, and top-down homography test.',
+        'Neptune Auto Scout · 2 · Tracking pillar — robot detection, tracking, bumper OCR, constant identity, and top-down homography test.',
         '',
         'Match: %s (%s)' % (title, match_key),
         'Red roster: %s  |  Blue roster: %s' % (', '.join(map(str, roster.get('red', []))) or '-', ', '.join(map(str, roster.get('blue', []))) or '-'),

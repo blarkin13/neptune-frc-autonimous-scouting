@@ -90,6 +90,23 @@
   fill('field','runs',runs(d.runs,r=>`${placed(r.new)} vs ${r.current?placed(r.current):'none'}`));
   return !c||ready.length<2;
  }
+ // Tracking: the robot-identity model trains on the helper where tracking is reviewed, after every saved review,
+ // and is shared with every helper only once it passes the held-out identity check there. No Train button.
+ function tracking(d){
+  d=d||{};const r=d.report,s=d.shared,v=r?.validation||{},iv=s?.identity_validation||r?.identity_validation||{},reviews=d.reviews||[];
+  fill('tracking','current',s?`<dl><dt>Shared since</dt><dd>${when(s.at)}</dd><dt>Trained on</dt><dd>${esc(s.trained_by)}</dd><dt>Identity check</dt><dd>${pct(iv.precision)} of names right${iv.points?` on ${iv.points} reviewed boxes`:''}</dd><dt>Learned from</dt><dd>${(s.matches||[]).map(esc).join(', ')||'—'}</dd></dl>`
+   :'<p>No shared identity model yet. Robots are named from bumper reads and the tracker’s own rules until one passes its check.</p>');
+  fill('tracking','data',`<dl><dt>Reviewed matches on Neptune</dt><dd>${reviews.length?reviews.map(x=>esc(x.match_key)).join(', '):'none yet'}</dd>${r?`<dt>Latest report</dt><dd>${esc(r.computer)}, ${when(r.at)}</dd><dt>Same-robot pairs</dt><dd>${r.pairs??0} from ${(r.matches||[]).length} matches</dd>${v.tp!=null?`<dt>Pair check (held-out match)</dt><dd>${v.tp} linked, ${v.fp} wrong links, ${v.fn} missed</dd>`:''}`:''}</dl>`);
+  const matches=(r?.matches||[]).length,eligible=v.tp>=30&&v.fp===0;
+  fill('tracking','next',next([
+   [matches>=3,`Review tracking on at least 3 matches in the helper (${matches} so far). Correct every box you watch, including the ones it named.`],
+   [eligible,eligible?'Pair check passed on held-out matches.':'The pair check needs 30+ same-robot links with none wrong, on matches it did not learn from.'],
+   [!!s,s?'The model passed the identity check and is shared with every helper.':'The identity check needs 98% of names right on held-out reviewed matches, and at least 150 right.'],
+   [true,'Test a match below to watch detection, tracking and bumper reads together.'],
+  ]));
+  const st=slot('tracking','training-status');if(st)st.textContent=r?`Trains on ${r.computer} after each saved tracking review.`:'Trains on the helper where you review tracking, after each saved review.';
+  return !s;
+ }
  function actions(d,o,busy){
   const l=d.latest,c=d.counts||{};
   fill('actions','current',l?`<dl><dt>Latest model</dt><dd>${when(l.created_at)}</dd><dt>Released</dt><dd>${d.released?(d.released===l.id?'Yes, this one':'An earlier model'):'Not yet — evaluate it on Test & release'}</dd></dl>`:'<p>No action model yet.</p>');
@@ -181,7 +198,7 @@
   const menu=document.getElementById('trial-model');if(!menu||!slot('test','gates'))return;
   const id=menu.value,m=(o.actions.models||[]).find(x=>x.id===id),released=o.actions.released&&o.actions.released===id;
   const newer=[['robot detector',o.robot.current],['field detector',o.field.current]].filter(([,c])=>c&&m&&c.adopted_at>m.created_at).map(([n])=>n);
-  fill('test','model-info',m?`<dl><dt>Trained</dt><dd>${when(m.created_at)}</dd><dt>Status</dt><dd>${released?'Released':m.evaluated?'Passed its checks — ready to release':'Experimental — not yet scored'}</dd></dl>`+(newer.length?`<p class="tr-warn">⚠ The ${newer.join(' and ')} changed after this model was trained. Its results may be off; retrain on 3 · Actions for a fair test.</p>`:''):'');
+  fill('test','model-info',m?`<dl><dt>Trained</dt><dd>${when(m.created_at)}</dd><dt>Status</dt><dd>${released?'Released':m.evaluated?'Passed its checks — ready to release':'Experimental — not yet scored'}</dd></dl>`+(newer.length?`<p class="tr-warn">⚠ The ${newer.join(' and ')} changed after this model was trained. Its results may be off; retrain on 4 · Actions for a fair test.</p>`:''):'');
   const vids=o.test_videos||[];fill('test','latest-video',vids[0]?`<p class="training-note">Latest match test: ${esc(vids[0].match_key||'')} · ${video(vids[0])} <small>(${when(vids[0].saved_at)})</small></p>`:'');
   fill('test','release-state',released?'✓ This model is what Auto Scout uses now.':m?.evaluated?'All checks passed. Review the report, then release.':o.actions.released?'Another model is released. This one unlocks when its checks pass.':'Release unlocks when every check in step 3 passes.');
   const done={model:!!m,preview:vids.length>0,score:!!m?.evaluated,release:!!released};
@@ -289,7 +306,7 @@
    el.textContent=active.length?'Training in progress'+(active.length>1?' · '+active.length+' runs':'')+'.':'Not currently training.';
   }
   const busy=k=>o.queue.some(q=>q.part===k);
-  const needs={robot:robot(o.robot,busy('robot')),field:field(o.field,busy('field')),actions:actions(o.actions,o,busy('actions'))};
+  const needs={robot:robot(o.robot,busy('robot')),tracking:tracking(o.tracking),field:field(o.field,busy('field')),actions:actions(o.actions,o,busy('actions'))};
   for(const [part,need] of Object.entries(needs)){const f=document.querySelector(`[data-part="${part}"] .tt-sum-flag`);if(f)f.hidden=!need;if(!picked[part])sumTab(part,need?'next':'current')}
   fill('test','videos',(o.test_videos||[]).length?'<table class="tt-runs"><tr><th>Made</th><th>Match</th><th>Video</th></tr>'+o.test_videos.map(v=>`<tr><td>${when(v.saved_at)}</td><td>${esc(v.match_key||'')}</td><td>${video(v)}</td></tr>`).join('')+'</table>':'<p class="training-note">No match test videos yet. Run Preview a match below.</p>');
   // Helpers & settings → My computers. Not redrawn while you are using one of its controls.
@@ -301,7 +318,7 @@
   // Helpers & settings: each helper's last GPU self-check.
   testFlow(o);
   // Test & release: the detectors a test uses are always the ones in use; only the Actions model is chosen.
-  fill('test','detectors',`Uses the robot detector ${o.robot.current?'you trained (adopted '+when(o.robot.current.adopted_at)+')':'built into the helper'} and ${o.field.current?'the field detector you trained for '+esc(o.field.game_key)+' (adopted '+when(o.field.current.adopted_at)+')':'the field detector built into the helper for '+esc(o.field.game_key)}. Where you marked scoring areas on 2 · Field, those marks are used instead.`);
+  fill('test','detectors',`Uses the robot detector ${o.robot.current?'you trained (adopted '+when(o.robot.current.adopted_at)+')':'built into the helper'} and ${o.field.current?'the field detector you trained for '+esc(o.field.game_key)+' (adopted '+when(o.field.current.adopted_at)+')':'the field detector built into the helper for '+esc(o.field.game_key)}. Where you marked scoring areas on 3 · Field, those marks are used instead.`);
   const menu=document.getElementById('trial-model'),empty=slot('test','no-model');
   if(menu&&empty){const has=[...menu.options].some(x=>x.value);empty.hidden=has;menu.hidden=!has}
   // A dot on each pillar in the Auto Scout menu that needs something.

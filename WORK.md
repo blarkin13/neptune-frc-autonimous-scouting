@@ -1531,3 +1531,7 @@ Created an 18-frame local review queue at `/Users/brianlarkin/Documents/ChatGPT/
 - Scores (correct / lost s per robot), before → after; wrong 0 and switches 0 everywhere, not-a-robot unchanged: QM1 175 / 82.2 → 223 / 80.2; QM4 46 / 93.7 → 65 / 93.5; QM6 177 / 78.8 → 187 / 76.2; QM3 0 → 0.
 - Diagnostics: local/identity-constancy-20261026/unnamed.py, unnamed2.py.
 - Deployed via SSM 938f4c30 (owner ran it): 62 files fetched and verified, 67 changed, backup /root/contact-carry-release-backup-20261028, pruned (disk 36%). Live feeds: Windows 6.5.36, Linux 6.6.27 (latest.json and apt), Mac 3.2.65.
+
+## 2026-11-02 · Tracking becomes pillar 2 (local, not deployed)
+- New `autoscout/tracking.php` (2 · Tracking): summary card from `train.php?overview` (`tracking` key from TrackingIdentityShare) plus the whole-match test tool, moved off robot-labels.php (backend still robot-labels.php endpoints).
+- Pillars renumbered everywhere: 1 Robots, 2 Tracking, 3 Field, 4 Actions; hub gets a Tracking card. No deploy list changes needed (no file list names robot-labels.php).

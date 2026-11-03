@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__.'/robot-detector-jobs.php';
+require_once __DIR__.'/tracking-identity.php';
 
 /** The held-out match for the next detector run. Never one the detector in use trained on (its score would not be
  *  a fair comparison); among the rest, the previous one while still eligible (comparable run to run), else the last by
@@ -98,8 +99,8 @@ function autoscout_train_overview(PDO $pdo,array $panel,int $org,int $user,strin
  $cornerMarked=array_keys(array_filter($fieldMatches,fn($v)=>$v['targets']&&$v['corners']));
  $heldField=autoscout_holdout($cornerMarked,$name($field['report']['holdout_match']??''),array_map($name,autoscout_trained_on($field,$shippedField)));
  $about=['robot'=>['1 · Robots — robot detector',sprintf('Learning from %d labelled frames in %d matches%s',array_sum(array_intersect_key($robotMatches,array_flip($usable))),count($usable),$heldRobot?' · checking on '.implode(', ',$heldRobots).' (held out, same every run)':'')],
-  'field'=>['2 · Field — field detector',sprintf('Learning from %d marked matches%s',count($marked),$heldField?' · checking on '.$heldField.' (held out, same every run)':'')],
-  'actions'=>['3 · Actions — action & scoring models',sprintf('Learning from %d tagged matches (%d tags, %d imported actions)',$panel['counts']['matches']??0,$panel['counts']['tags']??0,$panel['counts']['external']??0)],
+  'field'=>['3 · Field — field detector',sprintf('Learning from %d marked matches%s',count($marked),$heldField?' · checking on '.$heldField.' (held out, same every run)':'')],
+  'actions'=>['4 · Actions — action & scoring models',sprintf('Learning from %d tagged matches (%d tags, %d imported actions)',$panel['counts']['matches']??0,$panel['counts']['tags']??0,$panel['counts']['external']??0)],
   'test'=>['Test & release','']];
  foreach($queue as &$q){[$q['label'],$q['about']]=$about[$q['part']]??['1 · Robots — '.$q['title'],''];if(!empty($q['holdout']))$q['about']=preg_replace('/checking on \S+/','checking on '.$q['holdout'],$q['about']);}unset($q);
  usort($queue,fn($a,$b)=>[$a['state']!=='running',$a['since']]<=>[$b['state']!=='running',$b['since']]);
@@ -116,6 +117,7 @@ function autoscout_train_overview(PDO $pdo,array $panel,int $org,int $user,strin
   'test_videos'=>$jobs->testVideos(),
   'robot'=>['external'=>$externalSummary,'rows'=>$robotRows,'holdout'=>$heldRobot,'holdouts'=>$heldRobots,'current'=>$robot,'history'=>count($jobs->history('robot')),'matches'=>$robotMatches,'events'=>array_values(array_unique(array_filter(array_map($event,array_keys($robotMatches))))),'min_frames'=>8,'runs'=>array_values(array_filter($requests,fn($r)=>$r['kind']==='train'))],
   'field'=>['baseline'=>($shippedField&&is_file($engine.'/field-detector/model.pt'))?['kind'=>'bundled','trained_on'=>$shippedField]:null,'holdout'=>$heldField,'game_key'=>$game,'current'=>$field,'history'=>count($jobs->history('field',$game)),'matches'=>$fieldMatches,'events'=>array_values(array_unique(array_filter(array_map($event,array_keys($fieldMatches))))),'runs'=>array_values(array_filter($requests,fn($r)=>$r['kind']==='train_field'&&($r['game_key']??RobotDetectorJobs::defaultGame())===$game))],
+  'tracking'=>(new TrackingIdentityShare($secure,$org))->summary($pdo,$org,array_column($panel['computers'],'name','id')),
   'actions'=>['models'=>$panel['models'],'latest'=>$latest?['id'=>$latest['id'],'created_at'=>$latest['created_at']]:null,'released'=>$panel['released'],'counts'=>$panel['counts']],
  ];
 }

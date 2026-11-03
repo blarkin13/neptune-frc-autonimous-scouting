@@ -207,7 +207,7 @@ final class RobotDetectorJobs {
   $r['review']=$review;self::write($this->root.'/requests/'.$r['id'].'.json',$r);
   return ['review'=>$review];
  }
- /** A robot-detection match test video (1 · Robots page): saved locally on Neptune first so the owner can watch it
+ /** A robot-detection match test video (2 · Tracking page): saved locally on Neptune first so the owner can watch it
   *  and edit the pre-filled title/description before optionally uploading to YouTube. */
  public function putRobotTestChunk(array $computer,array $p):array{
   $r=$this->owned($computer,$p);
