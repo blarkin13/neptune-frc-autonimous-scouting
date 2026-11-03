@@ -21,7 +21,7 @@ pillar_summary('tracking','Follows each robot from frame to frame and keeps its 
  <p>Choose any match with a video and a roster. The helper you pick tracks it and opens the review in that computer's browser: click a box, give it the right team number, and save. Every saved review teaches the robot-identity model and backs up to Neptune.</p>
  <div class="rl-test-bar">
   <div class="match-picker-v2" id="review-picker" data-match-picker data-endpoint="robot-labels.php" data-select-only="1" ></div>
-  <label class="rl-test-helper"><span>Open on</span><select id="review-computer"><option value="">Choose a computer</option></select></label>
+  <label class="rl-test-helper"><span>Open on (the computer you are at)</span><select id="review-computer"><option value="">Choose a computer</option></select></label>
   <button type="button" id="review-btn" class="primary save" disabled>Review</button>
  </div>
  <p id="review-status" class="training-note" role="status" aria-live="polite">Choose a match and the computer you are sitting at.</p>
@@ -61,6 +61,10 @@ pillar_summary('tracking','Follows each robot from frame to frame and keeps its 
 </section>
 </div>
 <script src="../community/assets/match-picker/match-picker.js?v=2-multi"></script>
+<script>
+// Plain reason for a failed helper job; the raw message stays in the helper's log.
+window.trackingReason=m=>/Unsupported broadcast layout/.test(m||'')?"this event's broadcast layout is not supported yet, so its matches cannot be tracked. Try a match from another event.":String(m||'').replace(/^Review needs attention: /,'');
+</script>
 <style>
 .rl-test-card{margin-top:20px;padding:18px;border:1px solid var(--as-line,var(--line,#1e2b3c));border-radius:12px;background:var(--as-card,var(--panel,#0b121c));color:var(--as-text,var(--text,#eaf2ff))}
 .rl-test-card h2{margin:4px 0 8px}
@@ -157,7 +161,7 @@ pillar_summary('tracking','Follows each robot from frame to frame and keeps its 
     if(prevComp&&computers.some(c=>c.id===prevComp))compSel.value=prevComp;
    }
    const latest=(d.requests||[]).find(q=>q.kind==='test_robot');
-   if(latest&&['failed','cancelled'].includes(latest.state))status.textContent=`Test ${latest.state}: ${latest.message||'No video was produced. Retry after resolving the error.'}`;
+   if(latest&&['failed','cancelled'].includes(latest.state))status.textContent=`Test ${latest.state}: ${latest.message?trackingReason(latest.message):'No video was produced. Retry after resolving the error.'}`;
    const active=(d.requests||[]).find(q=>q.kind==='test_robot'&&['queued','claimed'].includes(q.state));
    if(active){
     const targetName=active.target&&(computers.find(c=>c.id===active.target)?.name||'chosen helper');
@@ -222,7 +226,7 @@ pillar_summary('tracking','Follows each robot from frame to frame and keeps its 
    const who=computers.find(c=>c.id===q.target)?.name||'the chosen computer';
    status.textContent=q.state==='queued'?`Review of ${q.match_key}: waiting for ${who}. Keep its helper open.`:
     q.state==='claimed'?`Review of ${q.match_key} on ${who}: ${(q.message||'preparing').split('\n')[0]}`:
-    q.state==='done'?`${q.message||'Review open'} (${who}). Check that computer's browser.`:`Review of ${q.match_key} ${q.state}: ${q.message||''}`;
+    q.state==='done'?`${q.message||'Review open'} (${who}). Check that computer's browser.`:`Review of ${q.match_key} ${q.state}: ${trackingReason(q.message)}`;
   }catch(e){}
  }
  btn.addEventListener('click',async()=>{
