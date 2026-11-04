@@ -1,3 +1,9 @@
+## 2026-11-04 — Awake through updates: Mac 3.2.99, Windows 6.5.69, Linux 6.6.60, engine 2.7.83 (Claude, deployed)
+
+The Windows PC slept right after updating to 6.5.68. The updater released its hold as soon as it reopened the helper, before the new helper held sleep off, and released before restarting the idle timer. Now `neptune_update_apply.hand_over` keeps holding until the helper touches `~/.neptune-trainer/awake-held` (first successful hold in `neptune_awake`), at most 5 min; releases send ES_SYSTEM_REQUIRED before clearing ES_CONTINUOUS. The installed updater applies each update, so the 6.5.69 install itself still uses the old one. Not tested on a real Windows PC.
+- GitHub releases helper-3.2.99, helper-windows-6.5.69, helper-linux-6.6.60; Mac passed 616 tests.
+- SSM ffb62a59 (commit cd45639): 12 files verified, 17 changed; backup `/root/awake-handover-release-backup-20261104`; pruned 317 MB. Live feeds show 3.2.99 / 6.5.69 / 6.6.60.
+
 ## 2026-11-04 — Review video release: Mac 3.2.98, Windows 6.5.68, Linux 6.6.59, engine 2.7.82 (Claude, deployed)
 
 Training runs had no review videos since at least Nov 2: `send_review` posted the whole MP4 (up to 45 MB, base64) in one `review_put`, and Neptune answered HTTP 500 (the run hides it: report `review: {status: failed}`, Past runs shows "—"). Match tests already sent 1 MiB chunks. Training now sends `review_chunk` pieces and a chunked `review_put` (size + SHA-256 checked before saving/YouTube); the one-request path stays for older helpers. Test `tests/server/review-video-chunks.php`; Mac passed 616 tests.
