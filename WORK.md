@@ -1,3 +1,10 @@
+## 2026-11-04 — Review video release: Mac 3.2.98, Windows 6.5.68, Linux 6.6.59, engine 2.7.82 (Claude, deployed)
+
+Training runs had no review videos since at least Nov 2: `send_review` posted the whole MP4 (up to 45 MB, base64) in one `review_put`, and Neptune answered HTTP 500 (the run hides it: report `review: {status: failed}`, Past runs shows "—"). Match tests already sent 1 MiB chunks. Training now sends `review_chunk` pieces and a chunked `review_put` (size + SHA-256 checked before saving/YouTube); the one-request path stays for older helpers. Test `tests/server/review-video-chunks.php`; Mac passed 616 tests.
+- GitHub releases helper-3.2.98, helper-windows-6.5.68, helper-linux-6.6.59 (apt repo signed with the new key).
+- SSM d709decf (commit 9b700d2): 14 files verified, 19 changed; backup `/root/review-chunks-release-backup-20261104`; pruned 828 MB. Live feeds show 3.2.98 / 6.5.68 / 6.6.59.
+- `tests/server/robot-match-test.php` fails on main before this change too ("capable helper receives test").
+
 ## 2026-11-02 — 2026midtr_qm3 trimmed to 25 labeled frames (Claude, live data)
 
 Owner asked for only 25 labeled, used frames on 2026midtr_qm3 (`S9-irUbEqJg`). It had 30 rows (27 complete). Removed 36 s (incomplete), 128 s and 132 s (skipped), 140 s and 144 s (complete, 0 boxes) through SSM under the file lock; readback: 25 rows, all complete, 211 boxes. 18 of them have source stills; 9 (Oct 23–24) need the original video. Backup `/root/midtr-qm3-trim-backup-1793667624`. No training started.
