@@ -1,3 +1,5 @@
+import tempfile
+from pathlib import Path
 import sys
 import unittest
 from unittest import mock
@@ -40,7 +42,9 @@ class AwakeTest(unittest.TestCase):
             if len(calls) == 1:
                 raise OSError('first call fails')
             return 0x80000000
-        with mock.patch.object(sys, 'platform', 'win32'), mock.patch.object(neptune_awake.Awake, '_windows_call', staticmethod(lambda: call)):
+        held = Path(tempfile.mkdtemp())/'awake-held'
+        with mock.patch.object(sys, 'platform', 'win32'), mock.patch.object(neptune_awake.Awake, '_windows_call', staticmethod(lambda: call)), \
+             mock.patch.object(neptune_awake, 'HELD', held):
             a = neptune_awake.Awake('always')
             deadline = time.monotonic()+2
             while not calls and time.monotonic() < deadline:
@@ -50,12 +54,13 @@ class AwakeTest(unittest.TestCase):
             while not a.active and time.monotonic() < deadline:
                 time.sleep(.01)
             self.assertTrue(a.active); self.assertEqual(calls[-1], 0x80000001)
+            self.assertTrue(held.exists())   # tells a finishing updater it can let go
             a.close()
             while a.active and time.monotonic() < deadline:
                 time.sleep(.01)
             self.assertFalse(a.active)
-            # Release clears the hold, then restarts the idle timer so Windows does not sleep at once.
-            self.assertEqual(calls[-2:], [0x80000000, 0x00000001])
+            # Release restarts the idle timer while still held, then clears the hold, so Windows does not sleep at once.
+            self.assertEqual(calls[-2:], [0x00000001, 0x80000000])
 
 
 if __name__ == '__main__':

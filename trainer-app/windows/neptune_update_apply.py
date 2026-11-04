@@ -89,11 +89,28 @@ def stay_awake(hold):
         import ctypes
         call = ctypes.windll.kernel32.SetThreadExecutionState
         call.argtypes = [ctypes.c_uint]; call.restype = ctypes.c_uint
-        call(0x80000001 if hold else 0x80000000)
-        if not hold:
-            call(0x00000001)
+        if hold:
+            call(0x80000001)
+        else:
+            call(0x00000001); call(0x80000000)   # restart the idle timer while still held, then let go
     except Exception:
         pass
+
+
+def hand_over(limit=300):
+    """Keep holding sleep off until the reopened helper holds it (its keep-awake file is newer than this start),
+    at most 5 minutes: a helper set to 'jobs' never holds, and gets the full sleep delay from then."""
+    if os.name != 'nt':
+        return
+    marker = Path.home() / '.neptune-trainer' / 'awake-held'
+    end = time.time() + limit
+    while time.time() < end:
+        try:
+            if marker.stat().st_mtime > STARTED:
+                return
+        except OSError:
+            pass
+        time.sleep(2)
 
 
 def reopen(command):
@@ -107,6 +124,8 @@ def reopen(command):
         subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, close_fds=True, start_new_session=True)
 
 
+STARTED = time.time()
+
 if __name__ == '__main__':
     parent, app, stage = sys.argv[1:4]
     command = json.loads(sys.argv[4]) if len(sys.argv) > 4 else None     # helpers before remote updates pass no command
@@ -117,6 +136,6 @@ if __name__ == '__main__':
     except Exception as error:
         Path(stage).mkdir(parents=True, exist_ok=True)
         (Path(stage) / 'result.json').write_text(json.dumps({'status': 'failed', 'error': str(error)[:500]}), encoding='utf-8')
-        reopen(command); stay_awake(False)
+        reopen(command); hand_over(); stay_awake(False)
         sys.exit(1)
-    reopen(command); stay_awake(False)
+    reopen(command); hand_over(); stay_awake(False)
