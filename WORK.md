@@ -1,3 +1,11 @@
+## 2026-11-05 — Review-video overlay + evaluation-label audit: Mac 3.3.0, Windows 6.5.70, Linux 6.6.61, engine 2.7.84 (Claude, deployed)
+
+Finished Codex's interrupted review-video change (4be8dbe): matched new-model boxes are drawn (green) over thin white reference labels, all held-out matches are named, and the title/description give unrounded F1 and the exact gain vs the 0.020 adoption margin.
+- Evaluation labels: 31 corrections on the 3 held-out matches (24 boxes moved onto the visible bumper, 7 missed bumpers added), judged from native frames; details in `local/qm4-run-review-20261104/FINDINGS.md` and `audit2/`. Detector in use scores F1 0.854 → 0.877 on the corrected labels. Uploaded to robot-labels/1 (25 frames); backup `/root/eval-label-audit-backup-20261105-155545`.
+- Rendered-2026 supplement packages deleted after the held-out score dropped; Neptune disk cleanup 73% → 61%. Old kernels not removed: apt reports unmet dependencies (`apt --fix-broken install` pending approval).
+- GitHub releases helper-3.3.0 (620 tests OK), helper-windows-6.5.70, helper-linux-6.6.61.
+- SSM d3abf44d (commit 967e676): 12 files verified, 17 changed; backup `/root/review-overlay-release-backup-20261105`. Live feeds show 3.3.0 / 6.5.70 / 6.6.61.
+
 ## 2026-11-04 — Awake through updates: Mac 3.2.99, Windows 6.5.69, Linux 6.6.60, engine 2.7.83 (Claude, deployed)
 
 The Windows PC slept right after updating to 6.5.68. The updater released its hold as soon as it reopened the helper, before the new helper held sleep off, and released before restarting the idle timer. Now `neptune_update_apply.hand_over` keeps holding until the helper touches `~/.neptune-trainer/awake-held` (first successful hold in `neptune_awake`), at most 5 min; releases send ES_SYSTEM_REQUIRED before clearing ES_CONTINUOUS. The installed updater applies each update, so the 6.5.69 install itself still uses the old one. Not tested on a real Windows PC.
