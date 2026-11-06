@@ -1,3 +1,7 @@
+## 2026-11-05 — YouTube review uploads: angle brackets (Claude, deployed)
+
+The 4:47 PM run's review failed with YouTube 400 "invalid video description": the 2.7.84 description said "IoU >= 0.30", and YouTube rejects < and >. `YouTubeUploader::safeText` now swaps them for ≤ ≥ ‹ › in every title and description (tests/server/youtube-safe-text.php); the engine text no longer uses them (ships next release). SSM ab7d714f (commit 83217aa), 13 files changed, backup `/root/youtube-safe-text-backup-20261105`. The saved video was re-uploaded unlisted as Xqr8DEM5ESw and the run record updated.
+
 ## 2026-11-05 — Review-video overlay + evaluation-label audit: Mac 3.3.0, Windows 6.5.70, Linux 6.6.61, engine 2.7.84 (Claude, deployed)
 
 Finished Codex's interrupted review-video change (4be8dbe): matched new-model boxes are drawn (green) over thin white reference labels, all held-out matches are named, and the title/description give unrounded F1 and the exact gain vs the 0.020 adoption margin.
