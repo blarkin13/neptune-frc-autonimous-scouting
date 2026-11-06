@@ -1,3 +1,11 @@
+## 2026-11-06 — Robot detector YOLO11 Medium at 1920: Mac 3.3.1, Windows 6.5.71, Linux 6.6.62, engine 2.7.85 (Claude, deployed)
+
+Goal: F1 above 0.95 (now 0.896 on the corrected held-out labels; 97 of 127 misses were small bumpers). Training and evaluation now use YOLO11 Medium (pinned COCO yolo11m.pt) at imgsz 1920, CUDA batch 2 for the 8 GB RTX 5060. The first run starts fresh from COCO (the detector in use is Small), so it will take many hours. Scouting still tracks at imgsz 960 (`neptune_yolo.py`), a separate speed decision.
+- Detector weights move in 1 MiB pieces both ways (`adopt_chunk` + adopt chunked; `current` chunked + `current_chunk`): a ~40 MB model as one base64 body exceeds Neptune's 128 MB PHP memory. Older helpers still get weights_b64. tests/server/detector-weight-chunks.php; engine 622 tests OK.
+- GitHub releases helper-3.3.1, helper-windows-6.5.71, helper-linux-6.6.62.
+- SSM 06ea42ec (commit 4af7f3c): 14 files verified, 19 changed; backup `/root/medium-1920-release-backup-20261106`; pruned 843 MB. Live feeds show 3.3.1 / 6.5.71 / 6.6.62.
+- Next: user is cleaning training labels.
+
 ## 2026-11-05 — YouTube review uploads: angle brackets (Claude, deployed)
 
 The 4:47 PM run's review failed with YouTube 400 "invalid video description": the 2.7.84 description said "IoU >= 0.30", and YouTube rejects < and >. `YouTubeUploader::safeText` now swaps them for ≤ ≥ ‹ › in every title and description (tests/server/youtube-safe-text.php); the engine text no longer uses them (ships next release). SSM ab7d714f (commit 83217aa), 13 files changed, backup `/root/youtube-safe-text-backup-20261105`. The saved video was re-uploaded unlisted as Xqr8DEM5ESw and the run record updated.
