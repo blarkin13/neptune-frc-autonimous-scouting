@@ -19,6 +19,7 @@ class RobotReview(unittest.TestCase):
         self.assertIn('0.020', description)
         self.assertIn('kept the detector in use', description)
         self.assertIn('missing reference label', description)
+        self.assertFalse(set('<>') & set(title+description), 'YouTube rejects angle brackets')
 
     def test_overlay_draws_matched_prediction_at_its_actual_extent(self):
         import numpy as np

@@ -204,7 +204,7 @@ def describe(kind, report, engine):
                 'Learned from %s frames in %d matches.' % (report.get('train_frames', '?'), len(report.get('matches') or [])), '',
                 'Colours: thin white = reference label; green = matched new-model prediction; red = unmatched reference label; yellow = unmatched new-model prediction; thin blue = detector in use.',
                 'An unmatched prediction can be a false alarm, a missing reference label, or a box-placement disagreement.',
-                'Matching uses IoU >= 0.30; a match does not establish tight bumper-only localization.']
+                'Matching needs an overlap (IoU) of at least 0.30; a match does not establish tight bumper-only localization.']
         if c:
             body += ['Exact F1 gain: %+.3f; required adoption gain: %.3f.' %
                      (n.get('f1', 0)-c['f1'], report.get('margin', .02))]
