@@ -43,15 +43,15 @@ class RobotJobs(unittest.TestCase):
 
     def test_detector_trains_and_checks_at_one_picture_size(self):
         source = Path(rj.__file__).read_text()
-        self.assertIn('imgsz=1280, device=device, **loading', source); self.assertIn("predict(image, imgsz=1280", source)
-        self.assertEqual(rj.MODEL_SIZE, 's')
-        self.assertEqual(rj.loader_settings(0), {'workers': 2, 'batch': 8, 'cache': 'disk'})
-        self.assertEqual(rj.loader_settings('cpu'), {'workers': 0, 'batch': 4})
+        self.assertIn('imgsz=IMGSZ, device=device, **loading', source); self.assertIn("predict(image, imgsz=IMGSZ", source); self.assertEqual(rj.IMGSZ, 1920)
+        self.assertEqual(rj.MODEL_SIZE, 'm')
+        self.assertEqual(rj.loader_settings(0), {'workers': 2, 'batch': 2, 'cache': 'disk'})
+        self.assertEqual(rj.loader_settings('cpu'), {'workers': 0, 'batch': 1})
 
     def test_warm_start_refines_gently_and_fresh_runs_keep_defaults(self):
         warm = rj.fine_tune_settings(rj.WARM_RECIPE)
         self.assertLess(warm['lr0'], .01); self.assertEqual(warm['warmup_epochs'], 1)
-        self.assertEqual(rj.fine_tune_settings(rj.SMALL_RECIPE), {})
+        self.assertEqual(rj.fine_tune_settings(rj.BASE_RECIPE), {})
 
     def test_check_drops_a_box_nested_in_a_stronger_one_like_tracking(self):
         import numpy as np
@@ -77,26 +77,26 @@ class RobotJobs(unittest.TestCase):
             root = Path(folder); weights = root/'current.pt'; weights.write_bytes(b'weights')
             (root/'manifest.json').write_text(json.dumps({'trained_on': ['2026train_qm1']}))
             with patch.object(rj, 'SHARED', root), patch.object(rj, 'current_wide_weights', return_value=weights), \
-                 patch.object(rj, 'model_scale', return_value='s'):
+                 patch.object(rj, 'model_scale', return_value='m'):
                 self.assertEqual(rj.training_base('2026held_qm2'), (weights, rj.WARM_RECIPE))
 
-    def test_nano_detector_is_replaced_by_a_fresh_small_run(self):
+    def test_other_size_detector_is_replaced_by_a_fresh_medium_run(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder); weights = root/'current.pt'; weights.write_bytes(b'weights'); base = root/'yolo11s.pt'
             (root/'manifest.json').write_text(json.dumps({'trained_on': ['2026held_qm2']}))
             with patch.object(rj, 'SHARED', root), patch.object(rj, 'current_wide_weights', return_value=weights), \
-                 patch.object(rj, 'model_scale', return_value='n'), patch.object(rj, 'small_base', return_value=base), \
-                 patch.object(rj, 'MODEL_SIZE', 's'):
-                self.assertEqual(rj.training_base('2026held_qm2'), (base, rj.SMALL_RECIPE))
+                 patch.object(rj, 'model_scale', return_value='n'), patch.object(rj, 'base_model', return_value=base), \
+                 patch.object(rj, 'MODEL_SIZE', 'm'):
+                self.assertEqual(rj.training_base('2026held_qm2'), (base, rj.BASE_RECIPE))
 
-    def test_small_base_refuses_a_wrong_download(self):
+    def test_base_model_refuses_a_wrong_download(self):
         with tempfile.TemporaryDirectory() as folder:
             class Reply(io.BytesIO):
                 def __enter__(self): return self
                 def __exit__(self, *a): pass
             with patch.object(rj, 'HOME', Path(folder)), patch('urllib.request.urlopen', return_value=Reply(b'not the model')):
                 with self.assertRaisesRegex(ValueError, 'fingerprint'):
-                    rj.small_base()
+                    rj.base_model()
             self.assertFalse((Path(folder)/'base-models'/'yolo11s.pt').exists())
 
     def test_starting_weights_must_not_have_seen_holdout(self):
@@ -104,7 +104,7 @@ class RobotJobs(unittest.TestCase):
             root = Path(folder); weights = root/'current.pt'; weights.write_bytes(b'weights')
             (root/'manifest.json').write_text(json.dumps({'trained_on': ['2026held_qm2']}))
             with patch.object(rj, 'SHARED', root), patch.object(rj, 'current_wide_weights', return_value=weights), \
-                 patch.object(rj, 'model_scale', return_value='s'):
+                 patch.object(rj, 'model_scale', return_value='m'):
                 with self.assertRaisesRegex(ValueError, 'starting detector trained'):
                     rj.training_base('2026held_qm2')
 
@@ -150,7 +150,7 @@ class RobotJobs(unittest.TestCase):
             root = Path(folder); weights = root/'current.pt'; weights.write_bytes(b'weights')
             (root/'manifest.json').write_text(json.dumps({'trained_on': ['2026mnwi_qm5']}))
             with patch.object(rj, 'SHARED', root), patch.object(rj, 'current_wide_weights', return_value=weights), \
-                 patch.object(rj, 'model_scale', return_value='s'):
+                 patch.object(rj, 'model_scale', return_value='m'):
                 with self.assertRaisesRegex(ValueError, 'starting detector trained'):
                     rj.training_base({'2026held_qm2', '2026mnwi_qm5'})
 
@@ -187,7 +187,7 @@ class RobotJobs(unittest.TestCase):
             self.assertEqual(used, [str(parent)])
             self.assertFalse(report['adopted'])
             self.assertEqual(report['training_recipe'], 'adopted-bumper-warm-start-v2-train-validation')
-            self.assertEqual(report['model_size'], 's')
+            self.assertEqual(report['model_size'], 'm')
             self.assertEqual(validated, [root])
             self.assertEqual(report['trained_on'], ['2026few_qm1'])
             self.assertEqual(len(report['starting_weights_sha256']), 64)
@@ -249,6 +249,35 @@ class RobotJobs(unittest.TestCase):
         self.assertEqual(mode, 'field model (detected corners)')
         self.assertEqual(len(calibrations), 1)
 
+
+
+class WeightTransfer(unittest.TestCase):
+    """A Medium detector moves in 1 MiB pieces both ways (Neptune's PHP memory limit)."""
+    def test_send_weights_in_chunks_then_adopts(self):
+        import tempfile, hashlib
+        raw = bytes(range(256))*9000; calls = []
+        def api(config, action, payload, timeout=0):
+            calls.append((action, payload))
+            if action == 'adopt_chunk':
+                return {'next_offset': payload['offset']+len(__import__('base64').b64decode(payload['data_b64']))}
+            return {'ok': True}
+        with tempfile.TemporaryDirectory() as d, patch.object(rj, 'api', api):
+            w = Path(d)/'best.pt'; w.write_bytes(raw)
+            rj.send_weights({}, {'id': 'r', 'lease': 'l'}, w, {'a': 1})
+        self.assertEqual([a for a, _ in calls], ['adopt_chunk', 'adopt_chunk', 'adopt_chunk', 'adopt'])
+        self.assertEqual(calls[-1][1]['sha256'], hashlib.sha256(raw).hexdigest()); self.assertTrue(calls[-1][1]['chunked'])
+
+    def test_sync_downloads_detector_in_chunks(self):
+        import tempfile, hashlib, base64
+        raw = bytes(range(256))*9000; sha = hashlib.sha256(raw).hexdigest()
+        current = {'by_camera': {'wide': {'file': 'bumper_wide_x.pt', 'sha256': sha}}}
+        def api(config, action, payload, timeout=0):
+            if action == 'current':
+                self.assertTrue(payload['chunked']); return {'detector': current, 'weights': {'size': len(raw), 'sha256': sha}}
+            o = payload['offset']; return {'offset': o, 'data_b64': base64.b64encode(raw[o:o+1048576]).decode()}
+        with tempfile.TemporaryDirectory() as d, patch.object(rj, 'api', api), patch.object(rj, 'SHARED', Path(d)):
+            self.assertEqual(rj.sync_detector({})['status'], 'updated')
+            self.assertEqual((Path(d)/'bumper_wide_x.pt').read_bytes(), raw)
 
 if __name__ == '__main__':
     unittest.main()
