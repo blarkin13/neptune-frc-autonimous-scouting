@@ -11,7 +11,7 @@ import tempfile
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[2]
-VERSION = '6.6.62'
+VERSION = '6.6.63'
 
 
 def ar_member(name, data):
