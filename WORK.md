@@ -1,3 +1,9 @@
+## 2026-11-10 — Robot detector back to YOLO11 Small at 1920: Mac 3.3.2, Windows 6.5.72, Linux 6.6.63, engine 2.7.86 (Claude, deployed)
+
+Medium at 1920 scored no better than Small and took ~18 h per run, so MODEL_SIZE is back to 's' (pinned COCO yolo11s.pt, recipe coco-yolo11s-1920-v1) while training and evaluation stay at IMGSZ 1920. Runs warm-start from the adopted Small detector. CUDA batch 4 (Medium at 1920 used 11 GB at batch 2). Chunked weight transfer kept.
+- GitHub releases helper-3.3.2 (622 tests OK), helper-windows-6.5.72, helper-linux-6.6.63.
+- SSM ca51f2b6 (commit 2541c55): 12 files verified, 17 changed; backup `/root/small-1920-release-backup-20261110`; pruned 1.1 GB. Live feeds show 3.3.2 / 6.5.72 / 6.6.63.
+
 ## 2026-11-06 — Robot detector YOLO11 Medium at 1920: Mac 3.3.1, Windows 6.5.71, Linux 6.6.62, engine 2.7.85 (Claude, deployed)
 
 Goal: F1 above 0.95 (now 0.896 on the corrected held-out labels; 97 of 127 misses were small bumpers). Training and evaluation now use YOLO11 Medium (pinned COCO yolo11m.pt) at imgsz 1920, CUDA batch 2 for the 8 GB RTX 5060. The first run starts fresh from COCO (the detector in use is Small), so it will take many hours. Scouting still tracks at imgsz 960 (`neptune_yolo.py`), a separate speed decision.
