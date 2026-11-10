@@ -44,8 +44,8 @@ class RobotJobs(unittest.TestCase):
     def test_detector_trains_and_checks_at_one_picture_size(self):
         source = Path(rj.__file__).read_text()
         self.assertIn('imgsz=IMGSZ, device=device, **loading', source); self.assertIn("predict(image, imgsz=IMGSZ", source); self.assertEqual(rj.IMGSZ, 1920)
-        self.assertEqual(rj.MODEL_SIZE, 'm')
-        self.assertEqual(rj.loader_settings(0), {'workers': 2, 'batch': 2, 'cache': 'disk'})
+        self.assertEqual(rj.MODEL_SIZE, 's')
+        self.assertEqual(rj.loader_settings(0), {'workers': 2, 'batch': 4, 'cache': 'disk'})
         self.assertEqual(rj.loader_settings('cpu'), {'workers': 0, 'batch': 1})
 
     def test_warm_start_refines_gently_and_fresh_runs_keep_defaults(self):
@@ -77,7 +77,7 @@ class RobotJobs(unittest.TestCase):
             root = Path(folder); weights = root/'current.pt'; weights.write_bytes(b'weights')
             (root/'manifest.json').write_text(json.dumps({'trained_on': ['2026train_qm1']}))
             with patch.object(rj, 'SHARED', root), patch.object(rj, 'current_wide_weights', return_value=weights), \
-                 patch.object(rj, 'model_scale', return_value='m'):
+                 patch.object(rj, 'model_scale', return_value='s'):
                 self.assertEqual(rj.training_base('2026held_qm2'), (weights, rj.WARM_RECIPE))
 
     def test_other_size_detector_is_replaced_by_a_fresh_medium_run(self):
@@ -104,7 +104,7 @@ class RobotJobs(unittest.TestCase):
             root = Path(folder); weights = root/'current.pt'; weights.write_bytes(b'weights')
             (root/'manifest.json').write_text(json.dumps({'trained_on': ['2026held_qm2']}))
             with patch.object(rj, 'SHARED', root), patch.object(rj, 'current_wide_weights', return_value=weights), \
-                 patch.object(rj, 'model_scale', return_value='m'):
+                 patch.object(rj, 'model_scale', return_value='s'):
                 with self.assertRaisesRegex(ValueError, 'starting detector trained'):
                     rj.training_base('2026held_qm2')
 
@@ -150,7 +150,7 @@ class RobotJobs(unittest.TestCase):
             root = Path(folder); weights = root/'current.pt'; weights.write_bytes(b'weights')
             (root/'manifest.json').write_text(json.dumps({'trained_on': ['2026mnwi_qm5']}))
             with patch.object(rj, 'SHARED', root), patch.object(rj, 'current_wide_weights', return_value=weights), \
-                 patch.object(rj, 'model_scale', return_value='m'):
+                 patch.object(rj, 'model_scale', return_value='s'):
                 with self.assertRaisesRegex(ValueError, 'starting detector trained'):
                     rj.training_base({'2026held_qm2', '2026mnwi_qm5'})
 
@@ -187,7 +187,7 @@ class RobotJobs(unittest.TestCase):
             self.assertEqual(used, [str(parent)])
             self.assertFalse(report['adopted'])
             self.assertEqual(report['training_recipe'], 'adopted-bumper-warm-start-v2-train-validation')
-            self.assertEqual(report['model_size'], 'm')
+            self.assertEqual(report['model_size'], 's')
             self.assertEqual(validated, [root])
             self.assertEqual(report['trained_on'], ['2026few_qm1'])
             self.assertEqual(len(report['starting_weights_sha256']), 64)
